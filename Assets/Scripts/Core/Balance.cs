@@ -16,6 +16,22 @@ namespace HouseEdge.Core
 
         // run
         public const int StartingGold = 4;
+        public const int Floors = 8;
+
+        // [floor - 1] = Low, High, Pit Boss. floor 8's boss is The House
+        private static readonly long[][] TableTargets =
+        {
+            new long[] { 150, 225, 300 },
+            new long[] { 300, 450, 600 },
+            new long[] { 600, 900, 1200 },
+            new long[] { 1200, 1800, 2400 },
+            new long[] { 2500, 3750, 5000 },
+            new long[] { 5000, 7500, 10000 },
+            new long[] { 10000, 15000, 20000 },
+            new long[] { 20000, 30000, 60000 },
+        };
+
+        public static long Target(int floor, TableKind kind) => TableTargets[floor - 1][(int)kind];
 
         // actions
         public const int SurrenderCost = 3;

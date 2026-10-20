@@ -19,7 +19,6 @@ namespace HouseEdge.Core
         public long Score { get; private set; }
         public int HandsLeft { get; private set; }
         public int BurnsLeft { get; private set; }
-        public int Gold { get; private set; }
 
         public IReadOnlyList<PlayerHand> PlayerHands => _hands;
         public int ActiveHandIndex { get; private set; }
@@ -36,20 +35,39 @@ namespace HouseEdge.Core
         public IReadOnlyList<TableEffect> Effects => _effects;
         public int CardsInShoe => _shoe.Count;
 
+        // a standalone table with a fresh standard deck, for tests and quick play
         public Table(int seed, long target, IEnumerable<TableEffect> effects = null, int gold = Balance.StartingGold)
-            : this(Shoe.Shuffled(Shoe.StandardDeck(), new GameRandom(seed)), target, effects, gold)
+            : this(new Gambler(gold), new GameRandom(seed), target, effects)
         {
         }
 
+        // a stacked shoe, for tests
         public Table(Shoe shoe, long target, IEnumerable<TableEffect> effects = null, int gold = Balance.StartingGold)
+            : this(new Gambler(gold), shoe, new GameRandom(1), target, effects)
         {
+        }
+
+        // shuffles the gambler's deck into a new shoe
+        public Table(Gambler gambler, GameRandom random, long target, IEnumerable<TableEffect> effects = null)
+            : this(gambler, Shoe.Shuffled(gambler.Deck, random), random, target, effects)
+        {
+        }
+
+        public Table(Gambler gambler, Shoe shoe, GameRandom random, long target, IEnumerable<TableEffect> effects = null)
+        {
+            Gambler = gambler;
+            Random = random;
             _shoe = shoe;
             _effects = effects == null ? new List<TableEffect>() : new List<TableEffect>(effects);
             Target = target;
-            Gold = gold;
             HandsLeft = Balance.StartingHands;
             BurnsLeft = Balance.StartingBurns;
         }
+
+        public Gambler Gambler { get; }
+        // the run's one RNG, for anything left to chance during the table
+        public GameRandom Random { get; }
+        public int Gold => Gambler.Gold;
 
         public bool IsOver => Phase == TablePhase.Won || Phase == TablePhase.Lost;
 
@@ -104,7 +122,7 @@ namespace HouseEdge.Core
             {
                 case PlayerAction.Deal: Deal(); break;
                 case PlayerAction.TakeInsurance:
-                    Gold -= Balance.InsuranceCost;
+                    Gambler.LoseGold(Balance.InsuranceCost);
                     InsuranceTaken = true;
                     AfterInsurance();
                     break;
@@ -127,7 +145,7 @@ namespace HouseEdge.Core
         private bool CanBurn(PlayerHand hand) => hand.LastCardWasHit && BurnsLeft > 0;
 
         private bool CanSurrender(PlayerHand hand) =>
-            _hands.Count == 1 && hand.Cards.Count == 2 && !hand.HasActed && Gold >= Balance.SurrenderCost;
+            _hands.Count == 1 && hand.Cards.Count == 2 && !hand.HasActed && Gambler.CanAfford(Balance.SurrenderCost);
 
         private void Deal()
         {
@@ -141,7 +159,7 @@ namespace HouseEdge.Core
             DrawFor(hand);
             DrawForDealer();
 
-            if (DealerUpCard.IsAce && Gold >= Balance.InsuranceCost)
+            if (DealerUpCard.IsAce && Gambler.CanAfford(Balance.InsuranceCost))
             {
                 Phase = TablePhase.InsuranceOffer;
                 return;
@@ -231,7 +249,7 @@ namespace HouseEdge.Core
 
         private void Surrender()
         {
-            Gold -= Balance.SurrenderCost;
+            Gambler.LoseGold(Balance.SurrenderCost);
             HoleCardHidden = false;
             var hand = _hands[0];
             hand.IsDone = true;
