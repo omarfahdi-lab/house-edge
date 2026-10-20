@@ -54,41 +54,41 @@ namespace HouseEdge.Game
             e.style.left = e.style.right = e.style.top = e.style.bottom = 0;
         }
 
+        // style.gap isn't available in this UI Toolkit version, so containers made here remember
+        // their gap and Add puts it in front of every child after the first
+        private sealed class Gap
+        {
+            public float Size;
+            public bool Horizontal;
+        }
+
         public static VisualElement Row(VisualElement parent, float gap = 0)
         {
-            var row = new VisualElement();
+            var row = new VisualElement { userData = new Gap { Size = gap, Horizontal = true } };
             row.style.flexDirection = FlexDirection.Row;
             row.style.alignItems = Align.Center;
-            if (gap > 0) Space(row, gap, horizontal: true);
-            parent?.Add(row);
+            Add(parent, row);
             return row;
         }
 
         public static VisualElement Column(VisualElement parent, float gap = 0)
         {
-            var column = new VisualElement();
+            var column = new VisualElement { userData = new Gap { Size = gap, Horizontal = false } };
             column.style.flexDirection = FlexDirection.Column;
-            if (gap > 0) Space(column, gap, horizontal: false);
-            parent?.Add(column);
+            Add(parent, column);
             return column;
         }
 
-        // style.gap isn't available here, so space the children out once they're added
-        private static void Space(VisualElement container, float gap, bool horizontal)
+        public static T Add<T>(VisualElement parent, T child) where T : VisualElement
         {
-            container.RegisterCallback<GeometryChangedEvent>(_ =>
+            if (parent == null) return child;
+            if (parent.userData is Gap gap && gap.Size > 0 && parent.childCount > 0)
             {
-                for (int i = 0; i < container.childCount; i++)
-                {
-                    var child = container[i];
-                    float margin = i == 0 ? 0 : gap;
-                    if (horizontal)
-                    {
-                        if (child.style.marginLeft.keyword == StyleKeyword.Null) child.style.marginLeft = margin;
-                    }
-                    else if (child.style.marginTop.keyword == StyleKeyword.Null) child.style.marginTop = margin;
-                }
-            });
+                if (gap.Horizontal) child.style.marginLeft = gap.Size;
+                else child.style.marginTop = gap.Size;
+            }
+            parent.Add(child);
+            return child;
         }
 
         public static Label Text(VisualElement parent, string text, int size, Color color, bool bold = false)
@@ -99,7 +99,7 @@ namespace HouseEdge.Game
             label.style.marginLeft = label.style.marginRight = label.style.marginTop = label.style.marginBottom = 0;
             label.style.paddingLeft = label.style.paddingRight = label.style.paddingTop = label.style.paddingBottom = 0;
             if (bold) label.style.unityFontStyleAndWeight = FontStyle.Bold;
-            parent?.Add(label);
+            Add(parent, label);
             return label;
         }
 
@@ -128,12 +128,13 @@ namespace HouseEdge.Game
             button.style.color = Cream;
             button.style.fontSize = 17;
             button.style.unityFontStyleAndWeight = FontStyle.Bold;
+            button.style.unityTextAlign = TextAnchor.MiddleCenter;
             button.style.height = 46;
             button.style.minWidth = 96;
             Padding(button, 0, 14);
             Rounded(button, 8);
             Border(button, 2, new Color(1f, 1f, 1f, 0.18f));
-            parent?.Add(button);
+            Add(parent, button);
             return button;
         }
 
