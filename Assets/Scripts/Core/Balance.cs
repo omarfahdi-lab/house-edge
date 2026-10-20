@@ -73,7 +73,54 @@ namespace HouseEdge.Core
             return roll < 95 ? Rarity.Uncommon : Rarity.Rare;
         }
 
+        // consumables and Comps
+        public const int CocktailSlots = 2;
+        public const int CocktailPrice = 3;
+        public const int CompPrice = 4;
+        public const int ShopCocktailOffers = 2;
+        public const int ShopCompOffers = 1;
+        public const int BossRewardChoices = 2;
+
+        // cards
+        public const int GildedGold = 3;
+        public const int FragileBreaksAfter = 3;
+        public const int MarkedHeat = 2;
+
+        // heat
+        public const int MaxHeat = 100;
+        public const int HeatCooldownPerTable = 10;
+        // one hand scoring over 3x the table's target draws eyes
+        public const int BigHandFactor = 3;
+        public const int BigHandHeat = 10;
+        public const int WatchedReshuffleEvery = 2;
+        public const double SuspectedPriceFactor = 1.25;
+
+        public static HeatLevel HeatLevelFor(int heat) =>
+            heat >= MaxHeat ? HeatLevel.Busted
+            : heat >= 75 ? HeatLevel.Flagged
+            : heat >= 50 ? HeatLevel.Suspected
+            : heat >= 25 ? HeatLevel.Watched
+            : HeatLevel.Clean;
+
+        // bosses
+        public const int TheHouseExtraHands = 2;
+        public const int TheHouseTwistEvery = 2;
+        public const int PitBossHeatPerHand = 10;
+        public const int TaxmanHitCost = 1;
+        public const int EyeInTheSkyTargetFactor = 2;
+        public const int EnforcerTake = 3;
+
+        // archetype set bonuses (3 Vices of the same archetype)
+        public const int ArchetypeSetSize = 3;
+        public const int GreedyInterestCapBonus = 3;
+
         // actions
+        public const int AnteUpLoss = 3;
+        public const double AnteUpMult = 2;
+        public const int HotHandMult = 5;
+        public const int CardMechanicHeat = 10;
+        public const int ColdReadHeat = 8;
+        public const int TheDealerHeat = 15;
         public const int SurrenderCost = 3;
         public const int InsuranceCost = 2;
         public const double DoubleDownMult = 2;

@@ -7,8 +7,12 @@ namespace HouseEdge.Core
         private readonly List<Card> _cards = new List<Card>();
 
         public IReadOnlyList<Card> Cards => _cards;
-        public HandValue Value => _rescuedAs21 ? HandValue.Forced(Balance.BustLimit, _cards.Count) : HandValue.Of(_cards);
+        private readonly TableRules _rules;
         private bool _rescuedAs21;
+
+        public HandValue Value => _rescuedAs21
+            ? HandValue.Forced(Balance.BustLimit, _cards.Count)
+            : HandValue.Of(_cards, _rules.PlayerBustLimit, _rules.AcesAlwaysOne);
 
         public bool IsFromSplit { get; internal set; }
         public bool IsDoubled { get; internal set; }
@@ -21,13 +25,15 @@ namespace HouseEdge.Core
         public int? StoodOn { get; internal set; }
         // a bust that an effect turned into a push
         public bool RescuedAsPush { get; private set; }
+        public int BurnsUsed { get; internal set; }
 
         // set when the deal is resolved
         public HandScore Score { get; internal set; }
 
-        internal PlayerHand(bool isFromSplit)
+        internal PlayerHand(bool isFromSplit, TableRules rules)
         {
             IsFromSplit = isFromSplit;
+            _rules = rules;
         }
 
         // split hands that make 21 with two cards score as 21, not Blackjack
@@ -38,6 +44,8 @@ namespace HouseEdge.Core
         public void RescueAsPush() => RescuedAsPush = true;
 
         internal void Add(Card card) => _cards.Add(card);
+
+        internal void Replace(int index, Card card) => _cards[index] = card;
 
         internal Card RemoveLast()
         {

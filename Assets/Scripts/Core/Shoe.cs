@@ -62,6 +62,18 @@ namespace HouseEdge.Core
 
         public void Discard(Card card) => _discards.Add(card);
 
+        // the discards go back in and everything is shuffled (Heat, Lucky Lou)
+        public void ReshuffleDiscards()
+        {
+            _drawPile.AddRange(_discards);
+            _discards.Clear();
+            Shuffle();
+        }
+
+        public void PutBottom(Card card) => _drawPile.Insert(0, card);
+
+        public void InsertRandom(Card card) => _drawPile.Insert(_random.Next(_drawPile.Count + 1), card);
+
         public void Discard(IEnumerable<Card> cards) => _discards.AddRange(cards);
 
         // fisher-yates

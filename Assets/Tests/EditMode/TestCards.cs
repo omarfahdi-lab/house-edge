@@ -29,6 +29,22 @@ namespace HouseEdge.Tests
 
         public static List<Card> Cards(params string[] labels) => labels.Select(C).ToList();
 
+        public static Card C(string label, Enhancement enhancement, Stamp stamp = Stamp.None)
+        {
+            var card = C(label);
+            card.Enhancement = enhancement;
+            card.Stamp = stamp;
+            return card;
+        }
+
+        public static Card C(string label, Stamp stamp) => C(label, Enhancement.None, stamp);
+
+        // mix of plain labels and prepared cards (enhanced, stamped, cursed)
+        public static Shoe StackOf(params object[] topFirst) =>
+            Shoe.Stacked(topFirst.Select(o => o as Card ?? C((string)o)), new GameRandom(1));
+
+        public static Table TableOf(params object[] topFirst) => new Table(StackOf(topFirst), long.MaxValue);
+
         public static HandValue Value(params string[] labels) => HandValue.Of(Cards(labels));
 
         // deal order is player, dealer up, player, dealer hole, then whatever is drawn next

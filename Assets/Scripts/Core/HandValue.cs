@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace HouseEdge.Core
@@ -8,39 +9,50 @@ namespace HouseEdge.Core
         // an ace is still counted as 11
         public bool IsSoft { get; }
         public int CardCount { get; }
+        public int BustLimit { get; }
 
-        private HandValue(int total, bool isSoft, int cardCount)
+        private HandValue(int total, bool isSoft, int cardCount, int bustLimit)
         {
             Total = total;
             IsSoft = isSoft;
             CardCount = cardCount;
+            BustLimit = bustLimit;
         }
 
-        public bool IsBust => Total > Balance.BustLimit;
+        public bool IsBust => Total > BustLimit;
         public bool IsCharlie => CardCount >= Balance.CharlieCards && !IsBust;
 
-        // a natural: ace + 10-value as the first two cards. split hands never count, see Table
+        // a natural: two cards making 21. split hands never count, see PlayerHand.IsBlackjack
         public bool IsTwoCard21 => CardCount == 2 && Total == Balance.BustLimit;
 
         // a hand an effect set to a fixed total, e.g. a bust saved as 21
-        public static HandValue Forced(int total, int cardCount) => new HandValue(total, false, cardCount);
+        public static HandValue Forced(int total, int cardCount) => new HandValue(total, false, cardCount, Math.Max(total, Balance.BustLimit));
 
-        public static HandValue Of(IReadOnlyList<Card> cards)
+        public static HandValue Of(IReadOnlyList<Card> cards) => Of(cards, Balance.BustLimit, false);
+
+        // aces count 11 while that fits under the limit, then Flex cards fill the gap up to it
+        public static HandValue Of(IReadOnlyList<Card> cards, int bustLimit, bool acesAlwaysOne)
         {
             int total = 0;
-            int softAces = 0;
+            int aces = 0;
+            int flex = 0;
             foreach (var card in cards)
             {
-                total += card.Value;
-                if (card.IsAce) softAces++;
+                total += card.LowValue;
+                if (card.IsAce) aces++;
+                if (card.IsFlex) flex++;
             }
-            // drop aces from 11 to 1 one at a time until the hand fits
-            while (total > Balance.BustLimit && softAces > 0)
-            {
-                total -= 10;
-                softAces--;
-            }
-            return new HandValue(total, softAces > 0, cards.Count);
+
+            int softAces = 0;
+            if (!acesAlwaysOne)
+                for (int i = 0; i < aces && total + 10 <= bustLimit; i++)
+                {
+                    total += 10;
+                    softAces++;
+                }
+            for (int i = 0; i < flex && total < bustLimit; i++) total += Math.Min(10, bustLimit - total);
+
+            return new HandValue(total, softAces > 0, cards.Count, bustLimit);
         }
 
         public override string ToString() => IsSoft ? $"soft {Total}" : Total.ToString();

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace HouseEdge.Core
 {
@@ -9,7 +10,9 @@ namespace HouseEdge.Core
     {
         // playing blackjack at Run.Table
         AtTable,
-        // a table was beaten and paid out. buy, sell and reorder Vices, then leave
+        // a Pit Boss fell: pick a Rare or Legendary Vice, or skip
+        BossReward,
+        // buy, sell and reorder, then leave
         Shop,
         Won,
         Lost,
@@ -35,6 +38,8 @@ namespace HouseEdge.Core
     public sealed class Run
     {
         private readonly List<RunInput> _inputs = new List<RunInput>();
+        private readonly List<string> _usedBosses = new List<string>();
+        private readonly List<ViceDefinition> _rewards = new List<ViceDefinition>();
 
         public int Seed { get; }
         public GameRandom Random { get; }
@@ -43,10 +48,16 @@ namespace HouseEdge.Core
         public int Floor { get; private set; } = 1;
         public TableKind Stage { get; private set; } = TableKind.Low;
         public Table Table { get; private set; }
+        public Boss Boss { get; private set; }
+        public BossDefinition FloorBoss { get; private set; }
+        public bool AtEyeInTheSky { get; private set; }
         public RunPhase Phase { get; private set; }
         public int TablesBeaten { get; private set; }
         public Shop Shop { get; } = new Shop();
         public TablePayout LastPayout { get; private set; }
+        public IReadOnlyList<ViceDefinition> Rewards => _rewards;
+        // a Vice handed to you, e.g. for beating The Eye in the Sky
+        public ViceDefinition LastFreeVice { get; private set; }
 
         public IReadOnlyList<RunInput> Inputs => _inputs;
         public bool IsOver => Phase == RunPhase.Won || Phase == RunPhase.Lost;
@@ -56,6 +67,7 @@ namespace HouseEdge.Core
             Seed = seed;
             Random = new GameRandom(seed);
             Gambler = new Gambler();
+            PickFloorBoss();
             StartTable();
         }
 
@@ -66,33 +78,75 @@ namespace HouseEdge.Core
             return run;
         }
 
-        public long CurrentTarget => Balance.Target(Floor, Stage);
+        public long TargetFor(TableKind stage) => Balance.Target(Floor, stage);
+        public long CurrentTarget => Table?.Target ?? TargetFor(Stage);
+
+        public int PriceOf(ShopOffer offer) => Shop.HeatAdjusted(offer.BasePrice, Gambler);
+        public int RerollCost => Shop.HeatAdjusted(Shop.RerollCost, Gambler);
+        public int SellValue(Vice vice) => Balance.SellPrice(Balance.VicePrice(vice.Definition.Rarity));
 
         public bool IsLegal(RunInput input)
         {
+            bool betweenTables = Phase == RunPhase.Shop || Phase == RunPhase.BossReward;
             switch (input.Kind)
             {
                 case RunInputKind.Table:
                     return Phase == RunPhase.AtTable && Table.IsLegal(input.Action);
-                case RunInputKind.BuyVice:
-                    if (Phase != RunPhase.Shop || !InRange(input.Index, Shop.Offers.Count)) return false;
-                    var offer = Shop.Offers[input.Index];
-                    return !offer.Sold && Gambler.HasFreeViceSlot && Gambler.CanAfford(offer.Price);
+                case RunInputKind.Buy:
+                    return Phase == RunPhase.Shop && InRange(input.Index, Shop.Offers.Count) && CanBuy(Shop.Offers[input.Index]);
                 case RunInputKind.SellVice:
-                    return Phase == RunPhase.Shop && InRange(input.Index, Gambler.Vices.Count);
+                    return betweenTables && InRange(input.Index, Gambler.Vices.Count);
                 case RunInputKind.MoveVice:
-                    return Phase == RunPhase.Shop && InRange(input.Index, Gambler.Vices.Count)
+                    return betweenTables && InRange(input.Index, Gambler.Vices.Count)
                         && InRange(input.Index2, Gambler.Vices.Count) && input.Index != input.Index2;
                 case RunInputKind.Reroll:
-                    return Phase == RunPhase.Shop && Gambler.CanAfford(Shop.RerollCost);
+                    return Phase == RunPhase.Shop && Gambler.CanAfford(RerollCost);
                 case RunInputKind.LeaveShop:
                     return Phase == RunPhase.Shop;
+                case RunInputKind.UseCocktail:
+                    return CanUseCocktail(input);
+                case RunInputKind.PickReward:
+                    return Phase == RunPhase.BossReward && InRange(input.Index, _rewards.Count) && Gambler.HasFreeViceSlot;
+                case RunInputKind.SkipReward:
+                    return Phase == RunPhase.BossReward;
                 default:
                     return false;
             }
         }
 
         private static bool InRange(int index, int count) => index >= 0 && index < count;
+
+        private bool CanBuy(ShopOffer offer)
+        {
+            if (offer.Sold || !Gambler.CanAfford(PriceOf(offer))) return false;
+            return offer.Kind switch
+            {
+                OfferKind.Vice => Gambler.HasFreeViceSlot,
+                OfferKind.Cocktail => Gambler.HasFreeCocktailSlot,
+                _ => true,
+            };
+        }
+
+        public bool CanUseCocktail(RunInput input)
+        {
+            if (!InRange(input.Index, Gambler.Cocktails.Count) || IsOver) return false;
+            var cocktail = Gambler.Cocktails[input.Index];
+            bool atTable = Phase == RunPhase.AtTable && !Table.IsOver;
+            bool betweenTables = Phase == RunPhase.Shop || Phase == RunPhase.BossReward;
+            switch (cocktail.Use)
+            {
+                case CocktailUse.AtTable when !atTable:
+                case CocktailUse.OnDeck when !betweenTables:
+                case CocktailUse.Anytime when !atTable && !betweenTables:
+                    return false;
+            }
+            if (cocktail.Kind == CocktailKind.WildCard && !Gambler.HasFreeViceSlot) return false;
+
+            var targets = input.CardTargets().ToList();
+            var (min, max) = cocktail.Targets;
+            if (targets.Count < min || targets.Count > max || targets.Distinct().Count() != targets.Count) return false;
+            return targets.All(i => InRange(i, Gambler.Deck.Count) && Cocktails.CanTarget(cocktail.Kind, Gambler.Deck[i]));
+        }
 
         public void Apply(RunInput input)
         {
@@ -105,11 +159,8 @@ namespace HouseEdge.Core
                     Table.Apply(input.Action);
                     if (Table.IsOver) FinishTable();
                     break;
-                case RunInputKind.BuyVice:
-                    var offer = Shop.Offers[input.Index];
-                    Gambler.LoseGold(offer.Price);
-                    offer.Sold = true;
-                    Gambler.Vices.Add(offer.Vice.Create());
+                case RunInputKind.Buy:
+                    Buy(Shop.Offers[input.Index]);
                     break;
                 case RunInputKind.SellVice:
                     var sold = Gambler.Vices[input.Index];
@@ -122,21 +173,92 @@ namespace HouseEdge.Core
                     Gambler.Vices.Insert(input.Index2, moved);
                     break;
                 case RunInputKind.Reroll:
-                    Gambler.LoseGold(Shop.RerollCost);
+                    Gambler.LoseGold(RerollCost);
                     Shop.Rerolled();
                     Shop.Stock(Gambler, Random);
                     break;
                 case RunInputKind.LeaveShop:
                     NextTable();
                     break;
+                case RunInputKind.UseCocktail:
+                    Drink(input);
+                    break;
+                case RunInputKind.PickReward:
+                    Gambler.Vices.Add(_rewards[input.Index].Create());
+                    OpenShop();
+                    break;
+                case RunInputKind.SkipReward:
+                    OpenShop();
+                    break;
             }
         }
 
-        public int SellValue(Vice vice) => Balance.SellPrice(Balance.VicePrice(vice.Definition.Rarity));
+        private void Buy(ShopOffer offer)
+        {
+            Gambler.LoseGold(PriceOf(offer));
+            offer.Sold = true;
+            switch (offer.Kind)
+            {
+                case OfferKind.Vice: Gambler.Vices.Add(offer.Vice.Create()); break;
+                case OfferKind.Cocktail: Gambler.Cocktails.Add(new Cocktail(offer.Cocktail)); break;
+                case OfferKind.Comp: Gambler.LevelUp(offer.Comp); break;
+            }
+        }
+
+        private void Drink(RunInput input)
+        {
+            var cocktail = Gambler.Cocktails[input.Index];
+            Gambler.Cocktails.RemoveAt(input.Index);
+            var cards = input.CardTargets().Select(i => Gambler.Deck[i]).ToList();
+            switch (cocktail.Kind)
+            {
+                case CocktailKind.OldFashioned: foreach (var c in cards) c.Enhancement = Enhancement.Gilded; break;
+                case CocktailKind.Martini: Gambler.Deck.Add(cards[0].Copy()); break;
+                case CocktailKind.Screwdriver: foreach (var c in cards) Gambler.Deck.Remove(c); break;
+                case CocktailKind.LongIsland: cards[0].Rank++; break;
+                case CocktailKind.LastWord: cards[0].Rank--; break;
+                case CocktailKind.Mojito: cards[0].Enhancement = Enhancement.Flex; break;
+                case CocktailKind.Champagne: cards[0].Enhancement = Enhancement.Fragile; break;
+                case CocktailKind.DarkAndStormy: cards[0].Stamp = Stamp.Red; break;
+                case CocktailKind.IceWater: Table.AddBurns(2); break;
+                case CocktailKind.WhiskeySour: Gambler.GainGold(2 * Gambler.Vices.Count); break;
+                case CocktailKind.ColdBrew: Gambler.CoolDown(25); break;
+                case CocktailKind.WildCard:
+                    var vice = Shop.RollVice(Random, Gambler.Vices.Select(v => v.Definition.Id).ToList(), Balance.RollShopRarity(Random));
+                    if (vice != null) Gambler.Vices.Add(vice.Create());
+                    break;
+            }
+        }
+
+        private void PickFloorBoss()
+        {
+            if (Floor == Balance.Floors)
+            {
+                FloorBoss = Bosses.TheHouse;
+                return;
+            }
+            var pool = Bosses.PitBosses.Where(b => !_usedBosses.Contains(b.Name)).ToList();
+            if (pool.Count == 0) pool = Bosses.PitBosses.ToList();
+            FloorBoss = pool[Random.Next(pool.Count)];
+            _usedBosses.Add(FloorBoss.Name);
+        }
 
         private void StartTable()
         {
-            Table = new Table(Gambler, Random, CurrentTarget, Gambler.Vices);
+            foreach (var vice in Gambler.Vices) vice.Disabled = false;
+            if (Gambler.HeatLevel == HeatLevel.Flagged)
+            {
+                var cheaters = Gambler.Vices.Where(v => v.Definition.IsCheater).ToList();
+                if (cheaters.Count > 0) cheaters[Random.Next(cheaters.Count)].Disabled = true;
+            }
+
+            var effects = new List<TableEffect>();
+            Boss = AtEyeInTheSky ? Bosses.EyeInTheSky.Create() : Stage == TableKind.Boss ? FloorBoss.Create() : null;
+            if (Boss != null) effects.Add(Boss);
+            effects.AddRange(Gambler.Vices);
+
+            long target = TargetFor(Stage) * (Boss?.TargetFactor ?? 1);
+            Table = new Table(Gambler, Random, target, effects);
             Phase = RunPhase.AtTable;
         }
 
@@ -148,19 +270,77 @@ namespace HouseEdge.Core
                 return;
             }
             TablesBeaten++;
-            if (Floor == Balance.Floors && Stage == TableKind.Boss)
+            bool wasEye = AtEyeInTheSky;
+            AtEyeInTheSky = false;
+            LastFreeVice = null;
+            if (Floor == Balance.Floors && Stage == TableKind.Boss && !wasEye)
             {
                 Phase = RunPhase.Won;
                 return;
             }
 
-            // interest is on the gold you held when the table ended, before this payout
-            LastPayout = new TablePayout(
-                Balance.TablePayout(Stage),
-                Table.HandsLeft * Balance.GoldPerUnusedHand,
-                Balance.Interest(Gambler.Gold, Balance.InterestCap));
-            Gambler.GainGold(LastPayout.Total);
+            PayOut(wasEye ? TableKind.Boss : Stage);
 
+            if (wasEye)
+            {
+                // you beat security: a clean slate and a free Rare Vice
+                Gambler.CoolDown(Balance.MaxHeat);
+                if (Gambler.HasFreeViceSlot)
+                {
+                    LastFreeVice = Shop.RollVice(Random, Gambler.Vices.Select(v => v.Definition.Id).ToList(), Rarity.Rare);
+                    if (LastFreeVice != null) Gambler.Vices.Add(LastFreeVice.Create());
+                }
+            }
+            else if (Gambler.Heat >= Balance.MaxHeat)
+            {
+                AtEyeInTheSky = true;
+                StartTable();
+                return;
+            }
+            else Gambler.CoolDown(Balance.HeatCooldownPerTable);
+
+            if (Stage == TableKind.Boss) OfferBossReward();
+            else OpenShop();
+        }
+
+        private void PayOut(TableKind kind)
+        {
+            // interest is on the gold you held when the table ended, before this payout
+            bool noInterest = Gambler.Vices.Any(v => v.BlocksInterest);
+            int perHand = Gambler.Vices.Select(v => v.GoldPerUnusedHand).DefaultIfEmpty(Balance.GoldPerUnusedHand).Max();
+            LastPayout = new TablePayout(
+                Balance.TablePayout(kind),
+                Table.HandsLeft * Math.Max(perHand, Balance.GoldPerUnusedHand),
+                noInterest ? 0 : Balance.Interest(Gambler.Gold, ArchetypeBonuses.InterestCap(Gambler)));
+            Gambler.GainGold(LastPayout.Total);
+        }
+
+        // two Vices, each Rare or (1 in 4) Legendary
+        private void OfferBossReward()
+        {
+            _rewards.Clear();
+            var taken = Gambler.Vices.Select(v => v.Definition.Id).ToList();
+            for (int i = 0; i < Balance.BossRewardChoices; i++)
+            {
+                var rarity = Random.Next(4) == 0 ? Rarity.Legendary : Rarity.Rare;
+                var vice = RollRewardVice(rarity, taken);
+                if (vice == null) break;
+                taken.Add(vice.Id);
+                _rewards.Add(vice);
+            }
+            if (_rewards.Count == 0) OpenShop();
+            else Phase = RunPhase.BossReward;
+        }
+
+        private ViceDefinition RollRewardVice(Rarity rarity, ICollection<string> taken)
+        {
+            var pool = ViceCatalog.OfRarity(rarity).Where(d => !taken.Contains(d.Id)).ToList();
+            if (pool.Count > 0) return pool[Random.Next(pool.Count)];
+            return Shop.RollVice(Random, taken, Rarity.Rare);
+        }
+
+        private void OpenShop()
+        {
             Shop.Reset();
             Shop.Stock(Gambler, Random);
             Phase = RunPhase.Shop;
@@ -172,6 +352,7 @@ namespace HouseEdge.Core
             {
                 Floor++;
                 Stage = TableKind.Low;
+                PickFloorBoss();
             }
             else Stage++;
             StartTable();

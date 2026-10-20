@@ -6,6 +6,9 @@ namespace HouseEdge.Core
 
     public enum Archetype { Lucky, Risky, Cheater, Greedy, Steady, Combo }
 
+    // Vices that let you decide whether the dealer draws: Cold Read once a hand, The Dealer once a table
+    public enum DealerControl { None, ColdRead, Full }
+
     // what a Vice is, separate from the instance a player owns (which can hold state like a streak)
     public sealed class ViceDefinition
     {
@@ -50,6 +53,26 @@ namespace HouseEdge.Core
 
         // shown on the Vice for scaling ones, e.g. "+6 Mult"
         public virtual string Status => null;
+
+        // multiplies Heat you gain while you hold it (Poker Face is 0.7)
+        public virtual double HeatFactor => 1;
+
+        // chance effects: Lady Luck doubles the odds, Rabbit's Foot rolls twice
+        public virtual int ModifyChances(int chances) => chances;
+        public virtual bool RollsTwice => false;
+
+        public virtual int SideBetDiscount => 0;
+
+        // payout changes: All In blocks interest, Cashier pays more per unused Hand
+        public virtual bool BlocksInterest => false;
+        public virtual int GoldPerUnusedHand => Balance.GoldPerUnusedHand;
+
+        // Card Mechanic: once per hand, swap your last card with the dealer's face-up card
+        public virtual bool GrantsSwap => false;
+        public virtual DealerControl DealerControl => DealerControl.None;
+
+        // scaling Vices grow twice as fast with the Combo set bonus
+        protected static int Growth(Table table) => ArchetypeBonuses.ScalingRate(table.Gambler);
 
         public override string ToString() => Name;
     }

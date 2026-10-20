@@ -1,22 +1,50 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace HouseEdge.Core
 {
+    public enum OfferKind { Vice, Cocktail, Comp }
+
     public sealed class ShopOffer
     {
+        public OfferKind Kind { get; }
         public ViceDefinition Vice { get; }
-        public int Price { get; }
+        public CocktailKind Cocktail { get; }
+        public Comp Comp { get; }
+        // before Heat. see Run.PriceOf
+        public int BasePrice { get; }
         public bool Sold { get; internal set; }
 
-        public ShopOffer(ViceDefinition vice, int price)
+        private ShopOffer(OfferKind kind, int basePrice, ViceDefinition vice = null, CocktailKind cocktail = default, Comp comp = default)
         {
+            Kind = kind;
+            BasePrice = basePrice;
             Vice = vice;
-            Price = price;
+            Cocktail = cocktail;
+            Comp = comp;
         }
+
+        public static ShopOffer ForVice(ViceDefinition vice) => new ShopOffer(OfferKind.Vice, Balance.VicePrice(vice.Rarity), vice: vice);
+        public static ShopOffer ForCocktail(CocktailKind cocktail) => new ShopOffer(OfferKind.Cocktail, Balance.CocktailPrice, cocktail: cocktail);
+        public static ShopOffer ForComp(Comp comp) => new ShopOffer(OfferKind.Comp, Balance.CompPrice, comp: comp);
+
+        public string Name => Kind switch
+        {
+            OfferKind.Vice => Vice.Name,
+            OfferKind.Cocktail => Cocktails.Name(Cocktail),
+            _ => Comps.Name(Comp) + " Comp",
+        };
+
+        public string Description => Kind switch
+        {
+            OfferKind.Vice => Vice.Description,
+            OfferKind.Cocktail => Cocktails.Describe(Cocktail),
+            _ => Comps.Describe(Comp),
+        };
     }
 
-    // opens after every table you beat
+    // opens after every table you beat: Vices, Cocktails and a Comp
     public sealed class Shop
     {
         private readonly List<ShopOffer> _offers = new List<ShopOffer>();
@@ -30,11 +58,15 @@ namespace HouseEdge.Core
             var taken = new HashSet<string>(gambler.Vices.Select(v => v.Definition.Id));
             for (int i = 0; i < Balance.ShopViceOffers; i++)
             {
-                var vice = RollVice(random, taken);
+                var vice = RollVice(random, taken, Balance.RollShopRarity(random));
                 if (vice == null) break;
                 taken.Add(vice.Id);
-                _offers.Add(new ShopOffer(vice, Balance.VicePrice(vice.Rarity)));
+                _offers.Add(ShopOffer.ForVice(vice));
             }
+            for (int i = 0; i < Balance.ShopCocktailOffers; i++)
+                _offers.Add(ShopOffer.ForCocktail(Cocktails.All[random.Next(Cocktails.All.Count)]));
+            for (int i = 0; i < Balance.ShopCompOffers; i++)
+                _offers.Add(ShopOffer.ForComp(Comps.All[random.Next(Comps.All.Count)]));
         }
 
         internal void Rerolled() => RerollCost++;
@@ -42,12 +74,12 @@ namespace HouseEdge.Core
         // each shop visit starts at the base reroll cost
         internal void Reset() => RerollCost = Balance.RerollBaseCost;
 
-        // a rarity from the shop odds, then a Vice of that rarity you don't have yet.
-        // falls back to the other rarities if that pool is empty
-        internal static ViceDefinition RollVice(GameRandom random, ICollection<string> exclude)
+        // a Vice of that rarity you don't have yet, falling back to the next rarity down, then up
+        internal static ViceDefinition RollVice(GameRandom random, ICollection<string> exclude, Rarity rarity)
         {
-            var rarity = Balance.RollShopRarity(random);
-            var order = new[] { rarity, Rarity.Common, Rarity.Uncommon, Rarity.Rare };
+            var order = new List<Rarity> { rarity };
+            for (var r = rarity - 1; r >= Rarity.Common; r--) order.Add(r);
+            for (var r = rarity + 1; r <= Rarity.Rare; r++) order.Add(r);
             foreach (var r in order)
             {
                 // catalog order, not a hash set, so the pick is the same for a given seed
@@ -56,5 +88,8 @@ namespace HouseEdge.Core
             }
             return null;
         }
+
+        public static int HeatAdjusted(int price, Gambler gambler) =>
+            gambler.HeatLevel >= HeatLevel.Suspected ? (int)Math.Ceiling(price * Balance.SuspectedPriceFactor) : price;
     }
 }
