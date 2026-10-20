@@ -33,5 +33,15 @@ namespace HouseEdge.Tests
 
         // deal order is player, dealer up, player, dealer hole, then whatever is drawn next
         public static Shoe Stack(params string[] topFirst) => Shoe.Stacked(Cards(topFirst), new GameRandom(1));
+
+        public static Table StackedTable(params string[] topFirst) => new Table(Stack(topFirst), Balance.FirstTableTarget);
+
+        // a target nobody reaches, so the table keeps going
+        public static Table StackedTableNoTarget(params string[] topFirst) => new Table(Stack(topFirst), long.MaxValue);
+
+        public static void Play(Table table, params PlayerAction[] actions)
+        {
+            foreach (var action in actions) table.Apply(action);
+        }
     }
 }
