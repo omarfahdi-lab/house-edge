@@ -14,6 +14,9 @@ namespace HouseEdge.Core
 
         public long Total => (long)Math.Floor(Chips * Mult);
 
+        // wins and pushes score their cards. losses, busts and surrenders score nothing
+        public bool ScoresCards => Balance.ScoresCards(Outcome);
+
         internal HandScore(PlayerHand hand, Outcome outcome, bool dealerBusted)
         {
             Hand = hand;

@@ -1,3 +1,5 @@
+using System;
+
 namespace HouseEdge.Core
 {
     // all the tuning numbers live here. starting values come from DESIGN.md
@@ -32,6 +34,44 @@ namespace HouseEdge.Core
         };
 
         public static long Target(int floor, TableKind kind) => TableTargets[floor - 1][(int)kind];
+
+        // economy
+        public const int ViceSlots = 5;
+        public const int InterestStep = 5;
+        public const int InterestCap = 5;
+        public const int GoldPerUnusedHand = 1;
+
+        public static int TablePayout(TableKind kind) => kind switch
+        {
+            TableKind.Low => 3,
+            TableKind.High => 4,
+            _ => 5,
+        };
+
+        public static int Interest(int gold, int cap) => Math.Min(gold / InterestStep, cap);
+
+        // shop
+        public const int ShopViceOffers = 3;
+        public const int RerollBaseCost = 2;
+
+        public static int VicePrice(Rarity rarity) => rarity switch
+        {
+            Rarity.Common => 4,
+            Rarity.Uncommon => 6,
+            Rarity.Rare => 8,
+            _ => 12,
+        };
+
+        // you get half back, rounded down, at least 1
+        public static int SellPrice(int price) => Math.Max(1, price / 2);
+
+        // per shop slot: 70% common, 25% uncommon, 5% rare. legendaries never show up in the shop
+        public static Rarity RollShopRarity(GameRandom random)
+        {
+            int roll = random.Next(100);
+            if (roll < 70) return Rarity.Common;
+            return roll < 95 ? Rarity.Uncommon : Rarity.Rare;
+        }
 
         // actions
         public const int SurrenderCost = 3;

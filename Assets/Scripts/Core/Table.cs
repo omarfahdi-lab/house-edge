@@ -62,6 +62,7 @@ namespace HouseEdge.Core
             Target = target;
             HandsLeft = Balance.StartingHands;
             BurnsLeft = Balance.StartingBurns;
+            foreach (var effect in ActiveEffects()) effect.OnTableStart(this);
         }
 
         public Gambler Gambler { get; }
@@ -70,6 +71,24 @@ namespace HouseEdge.Core
         public int Gold => Gambler.Gold;
 
         public bool IsOver => Phase == TablePhase.Won || Phase == TablePhase.Lost;
+
+        // deals started at this table, including the current one
+        public int DealsPlayed { get; private set; }
+
+        // the dealer's whole hand, hole card included
+        public HandValue DealerValue => HandValue.Of(_dealerCards);
+
+        public void AddHands(int count) => HandsLeft = Math.Max(0, HandsLeft + count);
+        public void AddBurns(int count) => BurnsLeft = Math.Max(0, BurnsLeft + count);
+
+        // "chances in outOf", e.g. Roll(1, 4) for a 1 in 4 effect
+        public bool Roll(int chances, int outOf) => Random.Next(outOf) < chances;
+
+        private IEnumerable<TableEffect> ActiveEffects()
+        {
+            foreach (var effect in _effects)
+                if (effect.IsActive) yield return effect;
+        }
 
         // the dealer's face-up card
         public Card DealerUpCard => _dealerCards.Count > 0 ? _dealerCards[0] : null;
@@ -150,6 +169,7 @@ namespace HouseEdge.Core
         private void Deal()
         {
             ClearTable();
+            DealsPlayed++;
             var hand = new PlayerHand(false);
             _hands.Add(hand);
             HoleCardHidden = true;
@@ -201,7 +221,7 @@ namespace HouseEdge.Core
             hand.HasActed = true;
             hand.LastCardWasHit = true;
             DrawFor(hand);
-            foreach (var effect in _effects) effect.OnHit(this, hand);
+            foreach (var effect in ActiveEffects()) effect.OnHit(this, hand);
             AfterCardTaken(hand);
         }
 
@@ -223,8 +243,9 @@ namespace HouseEdge.Core
 
         private void Stand(PlayerHand hand)
         {
+            hand.StoodOn = hand.Value.Total;
             if (!hand.Value.IsBust)
-                foreach (var effect in _effects) effect.OnStand(this, hand);
+                foreach (var effect in ActiveEffects()) effect.OnStand(this, hand);
             EndHand(hand);
         }
 
@@ -261,6 +282,12 @@ namespace HouseEdge.Core
 
         private void EndHand(PlayerHand hand)
         {
+            if (hand.Value.IsBust)
+                foreach (var effect in ActiveEffects())
+                {
+                    effect.OnBust(this, hand);
+                    if (!hand.Value.IsBust || hand.RescuedAsPush) break;
+                }
             hand.IsDone = true;
             for (int i = ActiveHandIndex + 1; i < _hands.Count; i++)
             {
@@ -280,7 +307,7 @@ namespace HouseEdge.Core
                 if (HandValue.Of(_dealerCards).IsBust)
                 {
                     DealerBusted = true;
-                    foreach (var effect in _effects) effect.OnDealerBust(this);
+                    foreach (var effect in ActiveEffects()) effect.OnDealerBust(this);
                 }
             }
             ResolveDeal(dealerBlackjack: false);
@@ -292,7 +319,7 @@ namespace HouseEdge.Core
             foreach (var hand in _hands)
             {
                 var value = hand.Value;
-                if (!value.IsBust && !value.IsCharlie && !hand.IsBlackjack) return true;
+                if (!value.IsBust && !value.IsCharlie && !hand.IsBlackjack && !hand.RescuedAsPush) return true;
             }
             return false;
         }
@@ -317,6 +344,7 @@ namespace HouseEdge.Core
         private Outcome DecideOutcome(PlayerHand hand, bool dealerBlackjack)
         {
             var value = hand.Value;
+            if (hand.RescuedAsPush) return Outcome.Push;
             if (value.IsBust) return Outcome.Bust;
             if (dealerBlackjack) return hand.IsBlackjack || InsuranceTaken ? Outcome.Push : Outcome.Lose;
             if (value.IsCharlie) return Outcome.Charlie;
@@ -334,7 +362,7 @@ namespace HouseEdge.Core
             var score = new HandScore(hand, outcome, DealerBusted && win);
             if (Balance.ScoresCards(outcome))
             {
-                score.AddChips(hand.Value.Total + Balance.BaseChips(outcome));
+                score.AddChips(Math.Min(hand.Value.Total, Balance.BustLimit) + Balance.BaseChips(outcome));
                 score.AddMult(Balance.BaseMult(outcome));
             }
             if (score.DealerBusted)
@@ -343,7 +371,7 @@ namespace HouseEdge.Core
                 score.AddMult(Balance.DealerBustBonusMult);
             }
 
-            foreach (var effect in _effects) effect.OnHandScored(this, score);
+            foreach (var effect in ActiveEffects()) effect.OnHandScored(this, score);
 
             // applied after the effects so it doubles the whole hand
             if (hand.IsDoubled && win) score.MultiplyMult(Balance.DoubleDownMult);
@@ -353,21 +381,21 @@ namespace HouseEdge.Core
         private void EndTable(bool won)
         {
             Phase = won ? TablePhase.Won : TablePhase.Lost;
-            foreach (var effect in _effects) effect.OnTableEnd(this, won);
+            foreach (var effect in ActiveEffects()) effect.OnTableEnd(this, won);
         }
 
         private void DrawFor(PlayerHand hand)
         {
             var card = _shoe.Draw();
             hand.Add(card);
-            foreach (var effect in _effects) effect.OnCardDrawn(this, card, false);
+            foreach (var effect in ActiveEffects()) effect.OnCardDrawn(this, card, false);
         }
 
         private void DrawForDealer()
         {
             var card = _shoe.Draw();
             _dealerCards.Add(card);
-            foreach (var effect in _effects) effect.OnCardDrawn(this, card, true);
+            foreach (var effect in ActiveEffects()) effect.OnCardDrawn(this, card, true);
         }
     }
 }

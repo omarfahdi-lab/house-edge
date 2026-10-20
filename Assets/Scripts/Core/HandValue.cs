@@ -22,6 +22,9 @@ namespace HouseEdge.Core
         // a natural: ace + 10-value as the first two cards. split hands never count, see Table
         public bool IsTwoCard21 => CardCount == 2 && Total == Balance.BustLimit;
 
+        // a hand an effect set to a fixed total, e.g. a bust saved as 21
+        public static HandValue Forced(int total, int cardCount) => new HandValue(total, false, cardCount);
+
         public static HandValue Of(IReadOnlyList<Card> cards)
         {
             int total = 0;
