@@ -43,7 +43,7 @@ namespace HouseEdge.Tests
         {
             var t = StackedTableNoTarget("2", "10", "3", "8", "2");
             Play(t, Deal, Hit);
-            Assert.That(t.LegalActions(), Does.Not.Contain(DoubleDown));
+            Assert.That(t.LegalActions(), Has.No.Member(DoubleDown));
         }
 
         // split
@@ -53,11 +53,11 @@ namespace HouseEdge.Tests
         {
             var pair = StackedTableNoTarget("8", "10", "8", "9");
             pair.Apply(Deal);
-            Assert.That(pair.LegalActions(), Does.Contain(Split));
+            Assert.That(pair.LegalActions(), Has.Member(Split));
 
             var tenAndKing = StackedTableNoTarget("10", "10", "K", "9");
             tenAndKing.Apply(Deal);
-            Assert.That(tenAndKing.LegalActions(), Does.Not.Contain(Split), "same value, different rank");
+            Assert.That(tenAndKing.LegalActions(), Has.No.Member(Split), "same value, different rank");
         }
 
         [Test]
@@ -84,9 +84,9 @@ namespace HouseEdge.Tests
         {
             var t = StackedTableNoTarget("8", "10", "8", "7", "8", "3");
             Play(t, Deal, Split);
-            Assert.That(t.LegalActions(), Does.Not.Contain(Split));
-            Assert.That(t.LegalActions(), Does.Contain(DoubleDown));
-            Assert.That(t.LegalActions(), Does.Not.Contain(Surrender));
+            Assert.That(t.LegalActions(), Has.No.Member(Split));
+            Assert.That(t.LegalActions(), Has.Member(DoubleDown));
+            Assert.That(t.LegalActions(), Has.No.Member(Surrender));
         }
 
         [Test]
@@ -105,9 +105,9 @@ namespace HouseEdge.Tests
         {
             var t = StackedTableNoTarget("10", "10", "2", "9", "3", "4");
             t.Apply(Deal);
-            Assert.That(t.LegalActions(), Does.Not.Contain(Burn));
+            Assert.That(t.LegalActions(), Has.No.Member(Burn));
             t.Apply(Hit);
-            Assert.That(t.LegalActions(), Does.Contain(Burn));
+            Assert.That(t.LegalActions(), Has.Member(Burn));
         }
 
         [Test]
@@ -176,7 +176,7 @@ namespace HouseEdge.Tests
         {
             var t = new Table(Stack("10", "10", "6", "9"), long.MaxValue, gold: 2);
             t.Apply(Deal);
-            Assert.That(t.LegalActions(), Does.Not.Contain(Surrender));
+            Assert.That(t.LegalActions(), Has.No.Member(Surrender));
         }
 
         [Test]
@@ -184,7 +184,7 @@ namespace HouseEdge.Tests
         {
             var t = StackedTableNoTarget("2", "10", "3", "9", "2");
             Play(t, Deal, Hit);
-            Assert.That(t.LegalActions(), Does.Not.Contain(Surrender));
+            Assert.That(t.LegalActions(), Has.No.Member(Surrender));
         }
 
         // insurance
