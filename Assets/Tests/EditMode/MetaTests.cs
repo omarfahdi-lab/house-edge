@@ -1,0 +1,189 @@
+using System.Linq;
+using HouseEdge.Core;
+using NUnit.Framework;
+
+namespace HouseEdge.Tests
+{
+    public class DeckAndStakeTests
+    {
+        [Test]
+        public void StartingDecks_HaveTheRightCards()
+        {
+            Assert.That(Decks.Build(StartingDeck.Standard).Count, Is.EqualTo(52));
+            Assert.That(Decks.Build(StartingDeck.ShortDeck).Count, Is.EqualTo(36));
+            Assert.That(Decks.Build(StartingDeck.ShortDeck).Any(c => c.Rank <= Rank.Five), Is.False);
+            Assert.That(Decks.Build(StartingDeck.AceHigh).Count(c => c.Rank == Rank.Ace), Is.EqualTo(8));
+            Assert.That(Decks.Build(StartingDeck.Lowball).Any(c => c.IsFace), Is.False);
+            Assert.That(Decks.Build(StartingDeck.MarkedDeck).All(c => c.Enhancement == Enhancement.Marked), Is.True);
+        }
+
+        [Test]
+        public void MarkedDeck_StartsWith30Heat()
+        {
+            var run = new Run(1, new RunOptions { Deck = StartingDeck.MarkedDeck });
+            Assert.That(run.Gambler.Heat, Is.EqualTo(30));
+        }
+
+        [Test]
+        public void DealersDeck_ShowsTheHoleCard_ButTakesAHand()
+        {
+            var run = new Run(1, new RunOptions { Deck = StartingDeck.DealersDeck });
+            Assert.That(run.Table.HandsLeft, Is.EqualTo(Balance.StartingHands - 1));
+            Assert.That(run.Table.Rules.HoleCardFaceUp, Is.True);
+        }
+
+        [Test]
+        public void GreenStake_RaisesTargets_AndIncludesRed()
+        {
+            var run = new Run(1, new RunOptions { Stake = Stake.Green });
+            Assert.That(run.Table.Target, Is.EqualTo((long)(150 * 1.25 + 0.5)));
+        }
+
+        [Test]
+        public void BlackStake_StartsWithADeadCard()
+        {
+            var run = new Run(1, new RunOptions { Stake = Stake.Black });
+            Assert.That(run.Gambler.Deck.Count(c => c.Curse == Curse.DeadCard), Is.EqualTo(1));
+        }
+
+        [Test]
+        public void GoldStake_DealerHitsSoft17()
+        {
+            var run = new Run(1, new RunOptions { Stake = Stake.Gold });
+            Assert.That(run.Table.Rules.DealerHitsSoft17, Is.True);
+        }
+
+        [Test]
+        public void RedStake_LowTablesPayNoBaseGold()
+        {
+            for (int seed = 1; seed < 200; seed++)
+            {
+                var run = new Run(seed, new RunOptions { Stake = Stake.Red });
+                AutoPlay.UntilThisTableEnds(run);
+                if (run.Phase != RunPhase.Shop) continue;
+                Assert.That(run.LastPayout.Base, Is.EqualTo(0));
+                return;
+            }
+            Assert.Fail("no seed beat the first table");
+        }
+
+        [Test]
+        public void EndlessTargets_KeepDoubling()
+        {
+            Assert.That(Balance.Target(9, TableKind.Low), Is.EqualTo(40000));
+            Assert.That(Balance.Target(10, TableKind.Boss), Is.EqualTo(240000));
+        }
+    }
+
+    public class RunCodeTests
+    {
+        [TestCase(1)]
+        [TestCase(-5)]
+        [TestCase(int.MaxValue)]
+        [TestCase(int.MinValue)]
+        public void Codes_RoundTrip(int seed)
+        {
+            var options = new RunOptions { Deck = StartingDeck.Lowball, Stake = Stake.Purple, Endless = true };
+            string code = RunCodes.Encode(seed, options);
+            Assert.That(RunCodes.TryDecode(code, out int decoded, out var back), Is.True, code);
+            Assert.That(decoded, Is.EqualTo(seed));
+            Assert.That(back.Deck, Is.EqualTo(StartingDeck.Lowball));
+            Assert.That(back.Stake, Is.EqualTo(Stake.Purple));
+            Assert.That(back.Endless, Is.True);
+        }
+
+        [TestCase("")]
+        [TestCase("hello")]
+        [TestCase("ABC-99")]
+        [TestCase("I0-00")]
+        public void BadCodes_DontDecode(string code)
+        {
+            Assert.That(RunCodes.TryDecode(code, out _, out _), Is.False);
+        }
+
+        [Test]
+        public void TheSameCode_StartsTheSameRun()
+        {
+            var run = new Run(77, new RunOptions { Deck = StartingDeck.AceHigh });
+            RunCodes.TryDecode(run.Code, out int seed, out var options);
+            var again = new Run(seed, options);
+            Assert.That(again.Gambler.Deck.Count, Is.EqualTo(run.Gambler.Deck.Count));
+            Assert.That(again.FloorBoss.Name, Is.EqualTo(run.FloorBoss.Name));
+            Assert.That(again.Dealer.Name, Is.EqualTo(run.Dealer.Name));
+        }
+
+        [Test]
+        public void DailySeed_IsTheSameForADate_AndDiffersByDay()
+        {
+            Assert.That(RunCodes.DailySeed(2026, 10, 21), Is.EqualTo(RunCodes.DailySeed(2026, 10, 21)));
+            Assert.That(RunCodes.DailySeed(2026, 10, 21), Is.Not.EqualTo(RunCodes.DailySeed(2026, 10, 22)));
+        }
+
+        [Test]
+        public void AFullRun_ReplaysFromItsInputs()
+        {
+            var run = new Run(5, new RunOptions { Deck = StartingDeck.ShortDeck });
+            for (int i = 0; i < 400 && !run.IsOver; i++)
+            {
+                if (run.Phase == RunPhase.AtTable) AutoPlay.Step(run);
+                else AutoPlay.Advance(run);
+            }
+            var replay = Run.Replay(run.Seed, run.Inputs, run.Options);
+            Assert.That(replay.Phase, Is.EqualTo(run.Phase));
+            Assert.That(replay.TotalScore, Is.EqualTo(run.TotalScore));
+            Assert.That(replay.Floor, Is.EqualTo(run.Floor));
+            Assert.That(replay.Gambler.Gold, Is.EqualTo(run.Gambler.Gold));
+        }
+    }
+
+    public class ProfileTests
+    {
+        [Test]
+        public void ANewProfile_HasTheStandardDeckAndWhiteStake()
+        {
+            var p = new Profile();
+            Assert.That(p.UnlockedDecks, Is.EqualTo(new[] { StartingDeck.Standard }));
+            Assert.That(p.HighestStake, Is.EqualTo(Stake.White));
+        }
+
+        [Test]
+        public void Profiles_RoundTripThroughText()
+        {
+            var run = LostRun();
+            var p = new Profile();
+            p.Record(run);
+            var back = Profile.Parse(p.Serialize());
+            Assert.That(back.Runs, Is.EqualTo(1));
+            Assert.That(back.BestScore, Is.EqualTo(run.TotalScore));
+            Assert.That(back.UnlockedDecks, Is.EqualTo(p.UnlockedDecks));
+        }
+
+        [Test]
+        public void BrokenText_GivesAFreshProfile()
+        {
+            var p = Profile.Parse("decks=x,9\nstake=banana\nruns=");
+            Assert.That(p.UnlockedDecks, Is.EqualTo(new[] { StartingDeck.Standard }));
+            Assert.That(p.Runs, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void AnUnfinishedRun_RecordsNothing()
+        {
+            var p = new Profile();
+            Assert.That(p.Record(new Run(1)), Is.Empty);
+            Assert.That(p.Runs, Is.EqualTo(0));
+        }
+
+        private static Run LostRun()
+        {
+            var run = new Run(3);
+            for (int i = 0; i < 2000 && !run.IsOver; i++)
+            {
+                if (run.Phase == RunPhase.AtTable) AutoPlay.Step(run);
+                else AutoPlay.Advance(run);
+            }
+            Assert.That(run.IsOver, Is.True);
+            return run;
+        }
+    }
+}

@@ -33,7 +33,12 @@ namespace HouseEdge.Core
             new long[] { 20000, 30000, 60000 },
         };
 
-        public static long Target(int floor, TableKind kind) => TableTargets[floor - 1][(int)kind];
+        // past floor 8 (Endless) targets double every floor
+        public static long Target(int floor, TableKind kind) => floor <= Floors
+            ? TableTargets[floor - 1][(int)kind]
+            : TableTargets[Floors - 1][(int)kind] * (1L << Math.Min(floor - Floors, 40));
+
+        public const int MarkedDeckHeat = 30;
 
         // economy
         public const int ViceSlots = 5;

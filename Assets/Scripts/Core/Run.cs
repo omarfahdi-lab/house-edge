@@ -50,8 +50,17 @@ namespace HouseEdge.Core
         private double _nextTargetFactor = 1;
 
         public int Seed { get; }
+        public RunOptions Options { get; }
         public GameRandom Random { get; }
         public Gambler Gambler { get; }
+
+        // records for the run-over screen and the profile
+        public long TotalScore { get; private set; }
+        public long BestHand { get; private set; }
+        public double BestBlackjackMult { get; private set; }
+        public bool WasBusted { get; private set; }
+        public bool BeatTheHouse { get; private set; }
+        public string Code => RunCodes.Encode(Seed, Options);
 
         public int Floor { get; private set; } = 1;
         public TableKind Stage { get; private set; } = TableKind.Low;
@@ -77,23 +86,26 @@ namespace HouseEdge.Core
         // the table being played right now: the Back Room hand while it's on, otherwise the run's table
         public Table ActiveTable => Phase == RunPhase.InRoom && Room?.BackRoomTable != null && !Room.Used ? Room.BackRoomTable : Table;
 
-        public Run(int seed)
+        public Run(int seed, RunOptions options = null)
         {
             Seed = seed;
+            Options = options?.Clone() ?? new RunOptions();
             Random = new GameRandom(seed);
-            Gambler = new Gambler();
+            Gambler = new Gambler(Balance.StartingGold, Decks.Build(Options.Deck));
+            if (Options.Deck == StartingDeck.MarkedDeck) Gambler.AddHeat(Balance.MarkedDeckHeat);
+            if (Options.Stake >= Stake.Black) Gambler.Deck.Add(Card.Cursed(Curse.DeadCard));
             PickFloorBoss();
             StartTable();
         }
 
-        public static Run Replay(int seed, IEnumerable<RunInput> inputs)
+        public static Run Replay(int seed, IEnumerable<RunInput> inputs, RunOptions options = null)
         {
-            var run = new Run(seed);
+            var run = new Run(seed, options);
             foreach (var input in inputs) run.Apply(input);
             return run;
         }
 
-        public long TargetFor(TableKind stage) => Balance.Target(Floor, stage);
+        public long TargetFor(TableKind stage) => (long)Math.Round(Balance.Target(Floor, stage) * Stakes.TargetFactor(Options.Stake));
         public long CurrentTarget => Table?.Target ?? TargetFor(Stage);
 
         public int PriceOf(ShopOffer offer) => Shop.HeatAdjusted(offer.BasePrice, Gambler);
@@ -288,7 +300,7 @@ namespace HouseEdge.Core
 
         private void PickFloorBoss()
         {
-            if (Floor == Balance.Floors)
+            if (Floor == Balance.Floors && !BeatTheHouse)
             {
                 FloorBoss = Bosses.TheHouse;
                 return;
@@ -316,7 +328,9 @@ namespace HouseEdge.Core
             Dealer = Boss == null ? Dealers.Random(Random) : null;
             if (Boss != null) effects.Add(Boss);
             if (Dealer != null) effects.Add(Dealer);
+            effects.Add(new RunRules(Options));
             effects.AddRange(Gambler.Vices);
+            effects.Add(new RunStats(this));
 
             long target = (long)Math.Round(TargetFor(Stage) * (Boss?.TargetFactor ?? 1) * _nextTargetFactor);
             _nextTargetFactor = 1;
@@ -326,6 +340,7 @@ namespace HouseEdge.Core
 
         private void FinishTable()
         {
+            TotalScore += Table.Score;
             if (Table.Phase == TablePhase.Lost)
             {
                 Phase = RunPhase.Lost;
@@ -337,10 +352,14 @@ namespace HouseEdge.Core
             AtEyeInTheSky = false;
             AtEnforcer = false;
             LastFreeVice = null;
-            if (Floor == Balance.Floors && Stage == TableKind.Boss && !wasEye && !wasEnforcer)
+            if (Floor == Balance.Floors && Stage == TableKind.Boss && !wasEye && !wasEnforcer && !BeatTheHouse)
             {
-                Phase = RunPhase.Won;
-                return;
+                BeatTheHouse = true;
+                if (!Options.Endless)
+                {
+                    Phase = RunPhase.Won;
+                    return;
+                }
             }
 
             PayOut(wasEye || wasEnforcer ? TableKind.Boss : Stage);
@@ -356,10 +375,11 @@ namespace HouseEdge.Core
             else if (Gambler.Heat >= Balance.MaxHeat)
             {
                 AtEyeInTheSky = true;
+                WasBusted = true;
                 StartTable();
                 return;
             }
-            else Gambler.CoolDown(Balance.HeatCooldownPerTable);
+            else Gambler.CoolDown(Options.Stake >= Stake.Purple ? Balance.HeatCooldownPerTable / 2 : Balance.HeatCooldownPerTable);
 
             if (Stage == TableKind.Boss && !wasEnforcer) OfferBossReward();
             else OpenShop();
@@ -370,8 +390,9 @@ namespace HouseEdge.Core
             // interest is on the gold you held when the table ended, before this payout
             bool noInterest = Gambler.Vices.Any(v => v.BlocksInterest);
             int perHand = Gambler.Vices.Select(v => v.GoldPerUnusedHand).DefaultIfEmpty(Balance.GoldPerUnusedHand).Max();
+            bool redStake = Options.Stake >= Stake.Red && kind == TableKind.Low;
             LastPayout = new TablePayout(
-                Balance.TablePayout(kind),
+                redStake ? 0 : Balance.TablePayout(kind),
                 Table.HandsLeft * Math.Max(perHand, Balance.GoldPerUnusedHand),
                 noInterest ? 0 : Balance.Interest(Gambler.Gold, ArchetypeBonuses.InterestCap(Gambler)));
             Gambler.GainGold(LastPayout.Total);
@@ -445,7 +466,7 @@ namespace HouseEdge.Core
             _roomChoices.Clear();
             var pool = Rooms.All.ToList();
             // the lounge can't skip The House
-            if (NextStage == (Balance.Floors, TableKind.Boss)) pool.Remove(RoomKind.HighLimitLounge);
+            if (NextStage == (Balance.Floors, TableKind.Boss) && !BeatTheHouse) pool.Remove(RoomKind.HighLimitLounge);
             for (int i = 0; i < Balance.RoomChoices && pool.Count > 0; i++)
             {
                 var room = pool[Random.Next(pool.Count)];
@@ -680,6 +701,23 @@ namespace HouseEdge.Core
                     _skipNextTable = true;
                     Room.Result = "The next table is off. The one after it will be watching you.";
                     break;
+            }
+        }
+
+        // keeps the run's records as hands are scored
+        private sealed class RunStats : TableEffect
+        {
+            private readonly Run _run;
+
+            public RunStats(Run run) => _run = run;
+
+            public override void OnDealEnd(Table table)
+            {
+                foreach (var score in table.LastScores)
+                {
+                    _run.BestHand = Math.Max(_run.BestHand, score.Total);
+                    if (score.Outcome == Outcome.Blackjack) _run.BestBlackjackMult = Math.Max(_run.BestBlackjackMult, score.Mult);
+                }
             }
         }
 
