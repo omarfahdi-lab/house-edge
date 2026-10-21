@@ -43,7 +43,7 @@ namespace HouseEdge.Tests
             // standing on everything rarely reaches 150 in 4 Hands, but if it does, keep going until a loss
             while (!run.IsOver)
             {
-                if (run.Phase == RunPhase.Shop) run.Apply(RunInput.LeaveShop());
+                if (run.Phase != RunPhase.AtTable) AutoPlay.Advance(run);
                 else PlayOne(run, alwaysStand: true);
             }
             Assert.That(run.Phase, Is.EqualTo(RunPhase.Lost));
@@ -56,7 +56,7 @@ namespace HouseEdge.Tests
             Assert.That(run.Phase, Is.EqualTo(RunPhase.Shop));
             Assert.That(run.TablesBeaten, Is.EqualTo(1));
 
-            run.Apply(RunInput.LeaveShop());
+            AutoPlay.ToNextTable(run);
             Assert.That(run.Stage, Is.EqualTo(TableKind.High));
             Assert.That(run.Table.Target, Is.EqualTo(225));
             Assert.That(run.Table.HandsLeft, Is.EqualTo(Balance.StartingHands), "Hands reset each table");
@@ -68,7 +68,7 @@ namespace HouseEdge.Tests
         {
             var run = FindRunThatBeatsFirstTable();
             var deck = run.Gambler.Deck;
-            run.Apply(RunInput.LeaveShop());
+            AutoPlay.ToNextTable(run);
             Assert.That(run.Table.Gambler.Deck, Is.SameAs(deck));
             Assert.That(run.Table.CardsInShoe, Is.EqualTo(deck.Count));
         }
@@ -77,7 +77,7 @@ namespace HouseEdge.Tests
         public void SameSeedAndInputs_ReplayTheSameRun()
         {
             var run = FindRunThatBeatsFirstTable();
-            run.Apply(RunInput.LeaveShop());
+            AutoPlay.ToNextTable(run);
             PlayOne(run, alwaysStand: false);
 
             var replay = Run.Replay(run.Seed, run.Inputs);
@@ -91,12 +91,18 @@ namespace HouseEdge.Tests
 
         internal static Run FindRunThatBeatsFirstTable()
         {
-            for (int seed = 1; seed < 500; seed++)
+            var run = FindRunThatBeatsFirstTableFrom(1);
+            if (run == null) Assert.Fail("no seed in 1-499 beat the first table");
+            return run;
+        }
+
+        internal static Run FindRunThatBeatsFirstTableFrom(int firstSeed)
+        {
+            for (int seed = firstSeed; seed < firstSeed + 500; seed++)
             {
                 var run = PlayUntil(seed, r => r.IsOver || r.Phase == RunPhase.Shop, alwaysStand: false);
                 if (run.Phase == RunPhase.Shop) return run;
             }
-            Assert.Fail("no seed in 1-499 beat the first table");
             return null;
         }
 

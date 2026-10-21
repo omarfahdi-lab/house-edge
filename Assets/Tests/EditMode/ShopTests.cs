@@ -125,7 +125,7 @@ namespace HouseEdge.Tests
         {
             var run = ShopWithGold(30);
             run.Apply(RunInput.Buy(0));
-            run.Apply(RunInput.LeaveShop());
+            AutoPlay.ToNextTable(run);
             Assert.That(run.Table.Effects, Has.Member(run.Gambler.Vices[0]));
         }
 

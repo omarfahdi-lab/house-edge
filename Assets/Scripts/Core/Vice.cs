@@ -2,7 +2,7 @@ using System;
 
 namespace HouseEdge.Core
 {
-    public enum Rarity { Common, Uncommon, Rare, Legendary }
+    public enum Rarity { Common, Uncommon, Rare, Legendary, Cursed }
 
     public enum Archetype { Lucky, Risky, Cheater, Greedy, Steady, Combo }
 
@@ -30,6 +30,7 @@ namespace HouseEdge.Core
         }
 
         public bool IsCheater => Archetype == Archetype.Cheater;
+        public bool IsCursed => Rarity == Rarity.Cursed;
 
         public Vice Create()
         {
@@ -62,6 +63,12 @@ namespace HouseEdge.Core
         public virtual bool RollsTwice => false;
 
         public virtual int SideBetDiscount => 0;
+
+        // Loan Officer: Loan Shark debt doesn't grow
+        public virtual bool FreezesDebt => false;
+
+        // Bad Habit: you can't stand until you've hit
+        public virtual bool MustHitEveryHand => false;
 
         // payout changes: All In blocks interest, Cashier pays more per unused Hand
         public virtual bool BlocksInterest => false;

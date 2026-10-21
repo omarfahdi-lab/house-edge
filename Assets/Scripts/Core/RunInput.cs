@@ -18,6 +18,13 @@ namespace HouseEdge.Core
         // take boss reward Index, or skip it
         PickReward,
         SkipReward,
+        // floor map: pick room Index of the two offered
+        ChooseRoom,
+        // take room option Index, on deck card Index2 if it needs one
+        RoomOption,
+        LeaveRoom,
+        // pay the Loan Shark as much as you can
+        RepayDebt,
     }
 
     // one player input in a run. a run is its seed plus a list of these
@@ -48,6 +55,10 @@ namespace HouseEdge.Core
             new RunInput(RunInputKind.UseCocktail, index: slot, index2: card, index3: card2);
         public static RunInput PickReward(int index) => new RunInput(RunInputKind.PickReward, index: index);
         public static RunInput SkipReward() => new RunInput(RunInputKind.SkipReward);
+        public static RunInput ChooseRoom(int index) => new RunInput(RunInputKind.ChooseRoom, index: index);
+        public static RunInput RoomOption(int option, int card = -1) => new RunInput(RunInputKind.RoomOption, index: option, index2: card);
+        public static RunInput LeaveRoom() => new RunInput(RunInputKind.LeaveRoom);
+        public static RunInput RepayDebt() => new RunInput(RunInputKind.RepayDebt);
 
         // deck cards picked for a Cocktail, in order
         public IEnumerable<int> CardTargets()

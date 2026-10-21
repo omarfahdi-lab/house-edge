@@ -298,6 +298,33 @@ namespace HouseEdge.Tests
             run.Apply(RunInput.Table(action));
         }
 
+        // one step through anything that isn't a table: skip rewards, leave shops, walk through a quiet room
+        public static void Advance(Run run)
+        {
+            switch (run.Phase)
+            {
+                case RunPhase.BossReward: run.Apply(RunInput.SkipReward()); break;
+                case RunPhase.Shop: run.Apply(RunInput.LeaveShop()); break;
+                case RunPhase.RoomChoice: run.Apply(RunInput.ChooseRoom(QuietRoom(run))); break;
+                case RunPhase.InRoom: run.Apply(RunInput.LeaveRoom()); break;
+            }
+        }
+
+        // a room that changes nothing if you just walk out
+        private static int QuietRoom(Run run)
+        {
+            for (int i = 0; i < run.RoomChoices.Count; i++)
+                if (run.RoomChoices[i] != RoomKind.HighLimitLounge) return i;
+            return 0;
+        }
+
+        // from a shop to the next table, through the room on the way
+        public static void ToNextTable(Run run)
+        {
+            var table = run.Table;
+            while (!run.IsOver && (run.Phase != RunPhase.AtTable || run.Table == table)) Advance(run);
+        }
+
         public static void UntilTableEnds(Run run)
         {
             while (run.Phase == RunPhase.AtTable) Step(run);
@@ -319,8 +346,7 @@ namespace HouseEdge.Tests
                 while (!run.IsOver && !(run.Phase == RunPhase.AtTable && run.Stage == kind && run.Table.DealsPlayed == 0))
                 {
                     if (run.Phase == RunPhase.AtTable) Step(run);
-                    else if (run.Phase == RunPhase.BossReward) run.Apply(RunInput.SkipReward());
-                    else if (run.Phase == RunPhase.Shop) run.Apply(RunInput.LeaveShop());
+                    else Advance(run);
                 }
                 if (!run.IsOver) return run;
             }

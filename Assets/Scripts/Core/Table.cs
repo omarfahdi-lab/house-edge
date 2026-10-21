@@ -197,7 +197,9 @@ namespace HouseEdge.Core
                         break;
                     }
                     if (Gambler.CanAfford(Rules.HitCost)) actions.Add(PlayerAction.Hit);
-                    actions.Add(PlayerAction.Stand);
+                    // Bad Habit: you have to hit at least once (unless you can't)
+                    bool mustHit = !hand.HasActed && HasActiveVice(v => v.MustHitEveryHand) && actions.Contains(PlayerAction.Hit);
+                    if (!mustHit) actions.Add(PlayerAction.Stand);
                     if (CanDoubleDown(hand)) actions.Add(PlayerAction.DoubleDown);
                     if (CanSplit(hand)) actions.Add(PlayerAction.Split);
                     if (CanBurn(hand)) actions.Add(PlayerAction.Burn);

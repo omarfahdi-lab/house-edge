@@ -59,10 +59,11 @@ namespace HouseEdge.Core
             Rarity.Common => 4,
             Rarity.Uncommon => 6,
             Rarity.Rare => 8,
+            Rarity.Cursed => 2,
             _ => 12,
         };
 
-        // you get half back, rounded down, at least 1
+        // you get half back, rounded down, at least 1. Cursed Vices sell for 1
         public static int SellPrice(int price) => Math.Max(1, price / 2);
 
         // per shop slot: 70% common, 25% uncommon, 5% rare. legendaries never show up in the shop
@@ -109,6 +110,19 @@ namespace HouseEdge.Core
         public const int TaxmanHitCost = 1;
         public const int EyeInTheSkyTargetFactor = 2;
         public const int EnforcerTake = 3;
+
+        // floor map and rooms
+        public const int RoomChoices = 2;
+        public const int BarCocktails = 3;
+        // half of a normal Cocktail, rounded up
+        public const int BarCocktailPrice = 2;
+        public const int UsedRarePrice = 6;
+        public static readonly int[] LoanAmounts = { 10, 20, 30 };
+        public const double DebtGrowth = 1.5;
+        public const int MinDeckSize = 20;
+        public const int HeatClearCostPer10 = 2;
+        public const int BribeHeat = 20;
+        public const double LoungeTargetFactor = 1.5;
 
         // archetype set bonuses (3 Vices of the same archetype)
         public const int ArchetypeSetSize = 3;

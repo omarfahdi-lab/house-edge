@@ -24,6 +24,10 @@ namespace HouseEdge.Core
         // how suspicious the casino is, 0 to 100
         public int Heat { get; private set; }
 
+        // owed to the Loan Shark, due by the end of DebtDueFloor
+        public int Debt { get; private set; }
+        public int DebtDueFloor { get; private set; }
+
         public Gambler(int gold = Balance.StartingGold, IEnumerable<Card> deck = null)
         {
             Gold = gold;
@@ -63,6 +67,28 @@ namespace HouseEdge.Core
         }
 
         public void CoolDown(int amount) => Heat = Math.Max(0, Heat - amount);
+
+        public void Borrow(int amount, int dueFloor)
+        {
+            if (Debt == 0) DebtDueFloor = dueFloor;
+            Debt += amount;
+            GainGold(amount);
+        }
+
+        // 50% more after every table, unless a Vice like Loan Officer freezes it
+        public void GrowDebt()
+        {
+            if (Debt == 0 || Vices.Any(v => !v.Disabled && v.FreezesDebt)) return;
+            Debt = (int)Math.Ceiling(Debt * Balance.DebtGrowth);
+        }
+
+        public void RepayDebt()
+        {
+            int paid = LoseGold(Debt);
+            Debt -= paid;
+        }
+
+        public void ClearDebt() => Debt = 0;
 
         public int CompLevel(Comp comp) => _compLevels[(int)comp];
         public void LevelUp(Comp comp) => _compLevels[(int)comp]++;

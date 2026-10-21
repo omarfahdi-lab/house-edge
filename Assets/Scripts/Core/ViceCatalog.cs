@@ -29,6 +29,12 @@ namespace HouseEdge.Core
             new ViceDefinition("Bouncer", Rarity.Uncommon, Archetype.Steady, "Your first bust at each table counts as a push instead.", () => new Bouncer()),
             new ViceDefinition("Face Value", Rarity.Uncommon, Archetype.Combo, "J, Q and K each give +10 Chips and +1 Mult.", () => new FaceValue()),
             new ViceDefinition("Fresh Felt", Rarity.Uncommon, Archetype.Steady, "The first hand at each table gets x3 Mult.", () => new FreshFelt()),
+
+            // cursed
+            new ViceDefinition("Dirty Money", Rarity.Cursed, Archetype.Greedy, "+12 Mult on every win, but +5 Heat per win.", () => new DirtyMoney()),
+            new ViceDefinition("Devil's Deal", Rarity.Cursed, Archetype.Risky, "x3 Mult on every hand, but you start each table with 1 fewer Hand.", () => new DevilsDeal()),
+            new ViceDefinition("Bad Habit", Rarity.Cursed, Archetype.Risky, "+50 Chips, but you must hit at least once every hand.", () => new BadHabit()),
+            new ViceDefinition("Borrowed Time", Rarity.Cursed, Archetype.Steady, "+2 Hands per table, but each one costs 2 gold.", () => new BorrowedTime()),
         };
 
         public static ViceDefinition Get(string id) => All.First(d => d.Id == id);
