@@ -58,7 +58,13 @@ namespace HouseEdge.Core
             var taken = new HashSet<string>(gambler.Vices.Select(v => v.Definition.Id));
             for (int i = 0; i < Balance.ShopViceOffers; i++)
             {
-                var vice = RollVice(random, taken, Balance.RollShopRarity(random));
+                var rarity = Balance.RollShopRarity(random);
+                if (gambler.Vices.Any(v => !v.Disabled && v.LuckyShop))
+                {
+                    var second = Balance.RollShopRarity(random);
+                    if (second > rarity) rarity = second;
+                }
+                var vice = RollVice(random, taken, rarity);
                 if (vice == null) break;
                 taken.Add(vice.Id);
                 _offers.Add(ShopOffer.ForVice(vice));

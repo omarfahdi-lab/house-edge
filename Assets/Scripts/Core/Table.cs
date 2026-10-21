@@ -577,7 +577,8 @@ namespace HouseEdge.Core
             if (dealerBlackjack)
             {
                 if (InsuranceTaken) return Outcome.Push;
-                if (hand.IsBlackjack) return ApplyPushRule(Outcome.Push, Outcome.Blackjack);
+                if (hand.IsBlackjack)
+                    return HasActiveVice(v => v.BlackjacksCantBeTied) ? Outcome.Blackjack : ApplyPushRule(Outcome.Push, Outcome.Blackjack);
                 return Outcome.Lose;
             }
             if (value.IsCharlie) return Outcome.Charlie;
@@ -629,7 +630,14 @@ namespace HouseEdge.Core
             }
             if (SideBet == SideBet.HotHand && win) score.AddMult(Balance.HotHandMult);
 
-            foreach (var effect in ActiveEffects()) effect.OnHandScored(this, score);
+            foreach (var effect in ActiveEffects())
+            {
+                int chips = score.Chips;
+                double mult = score.Mult;
+                effect.OnHandScored(this, score);
+                if (effect is Vice && (score.Chips != chips || score.Mult != mult)) score.ViceTriggers++;
+            }
+            foreach (var effect in ActiveEffects()) effect.OnAfterScoring(this, score);
 
             // applied after the effects so they double the whole hand
             if (hand.IsDoubled && win) score.MultiplyMult(Balance.DoubleDownMult);

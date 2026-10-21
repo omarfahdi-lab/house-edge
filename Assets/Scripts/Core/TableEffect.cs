@@ -20,6 +20,8 @@ namespace HouseEdge.Core
         public virtual void OnBust(Table table, PlayerHand hand) { }
         public virtual void OnDealerBust(Table table) { }
         public virtual void OnHandScored(Table table, HandScore score) { }
+        // after every effect scored the hand (Chain Reaction counts what triggered)
+        public virtual void OnAfterScoring(Table table, HandScore score) { }
         // every hand of the deal is scored
         public virtual void OnDealEnd(Table table) { }
         public virtual void OnTableEnd(Table table, bool won) { }

@@ -64,6 +64,12 @@ namespace HouseEdge.Core
 
         public virtual int SideBetDiscount => 0;
 
+        // Natural Born: a dealer blackjack can't tie yours
+        public virtual bool BlackjacksCantBeTied => false;
+
+        // Lady Luck: shop rarity rolls twice and keeps the better one
+        public virtual bool LuckyShop => false;
+
         // Tell Reader: the dealer's tell is spelled out
         public virtual bool RevealsTells => false;
 

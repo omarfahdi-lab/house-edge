@@ -24,6 +24,9 @@ namespace HouseEdge.Core
             DealerBusted = dealerBusted;
         }
 
+        // how many Vices changed this score
+        public int ViceTriggers { get; internal set; }
+
         public void AddChips(int chips) => Chips += chips;
         public void AddMult(double mult) => Mult += mult;
         public void MultiplyMult(double factor) => Mult *= factor;
