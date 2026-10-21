@@ -63,8 +63,13 @@ namespace HouseEdge.Core
                 taken.Add(vice.Id);
                 _offers.Add(ShopOffer.ForVice(vice));
             }
-            for (int i = 0; i < Balance.ShopCocktailOffers; i++)
-                _offers.Add(ShopOffer.ForCocktail(Cocktails.All[random.Next(Cocktails.All.Count)]));
+            var cocktails = Cocktails.All.ToList();
+            for (int i = 0; i < Balance.ShopCocktailOffers && cocktails.Count > 0; i++)
+            {
+                var pick = cocktails[random.Next(cocktails.Count)];
+                cocktails.Remove(pick);
+                _offers.Add(ShopOffer.ForCocktail(pick));
+            }
             for (int i = 0; i < Balance.ShopCompOffers; i++)
                 _offers.Add(ShopOffer.ForComp(Comps.All[random.Next(Comps.All.Count)]));
         }

@@ -19,14 +19,23 @@ namespace HouseEdge.Game
             (PlayerAction.Split, "Split", "P"),
             (PlayerAction.Burn, "Burn", "B"),
             (PlayerAction.Surrender, "Surrender", "R"),
+            (PlayerAction.SwapWithDealer, "Swap", "W"),
             (PlayerAction.TakeInsurance, "Insure (2g)", "I"),
             (PlayerAction.DeclineInsurance, "No insurance", "N"),
+            (PlayerAction.LetDealerDraw, "Let him draw", "H"),
+            (PlayerAction.StopDealer, "Make him stand", "S"),
         };
 
         private readonly VisualElement _root;
-        private readonly Label _dealerLabel, _playerLabel, _message, _breakdown;
-        private readonly VisualElement _dealerCards, _playerHands;
+        private readonly VisualElement _bossBanner;
+        private readonly Label _bossName, _bossTwist;
+        private readonly Label _dealerLabel, _secondDealerLabel, _playerLabel, _message, _breakdown;
+        private readonly VisualElement _dealerCards, _secondDealer, _secondDealerCards, _playerHands;
+        private readonly VisualElement _nextCard, _nextCardSlot;
+        private readonly VisualElement _bets;
+        private readonly Label _betStatus;
         private readonly Dictionary<PlayerAction, Button> _buttons = new Dictionary<PlayerAction, Button>();
+        private readonly Dictionary<PlayerAction, Button> _betButtons = new Dictionary<PlayerAction, Button>();
 
         public event Action<PlayerAction> ActionChosen;
 
@@ -37,38 +46,78 @@ namespace HouseEdge.Game
             _root = Ui.Column(parent);
             Ui.Fill(_root);
             _root.style.left = Hud.Width;
-            Ui.Padding(_root, 22, 24);
+            Ui.Padding(_root, 14, 24);
             _root.style.alignItems = Align.Center;
             _root.pickingMode = PickingMode.Ignore;
 
-            // dealer
-            var dealer = Ui.Column(_root, 8);
+            // boss banner
+            _bossBanner = Ui.Column(_root, 2);
+            _bossBanner.style.alignItems = Align.Center;
+            _bossBanner.style.backgroundColor = new Color(0.45f, 0.06f, 0.08f, 0.85f);
+            Ui.Rounded(_bossBanner, 10);
+            Ui.Padding(_bossBanner, 6, 18);
+            _bossBanner.style.marginBottom = 8;
+            _bossName = Ui.Text(_bossBanner, "", 18, Ui.Gold, bold: true);
+            _bossTwist = Ui.Text(_bossBanner, "", 14, Ui.Cream);
+
+            // dealer, the Twins' second hand and the next-card peek
+            var dealerRow = Ui.Row(_root, 28);
+            dealerRow.style.alignItems = Align.FlexStart;
+            var dealer = Ui.Column(dealerRow, 8);
             dealer.style.alignItems = Align.Center;
-            _dealerLabel = Ui.Text(dealer, "Dealer", 18, Ui.Dim);
+            _dealerLabel = Ui.Text(dealer, "Dealer", 17, Ui.Dim);
             _dealerCards = Ui.Row(dealer, 10);
             _dealerCards.style.height = CardView.Height;
+
+            _secondDealer = Ui.Column(dealerRow, 8);
+            _secondDealer.style.alignItems = Align.Center;
+            _secondDealerLabel = Ui.Text(_secondDealer, "Second hand", 17, Ui.Dim);
+            _secondDealerCards = Ui.Row(_secondDealer, 10);
+            _secondDealerCards.style.height = CardView.Height;
+
+            _nextCard = Ui.Column(dealerRow, 6);
+            _nextCard.style.alignItems = Align.Center;
+            Ui.Text(_nextCard, "NEXT CARD", 11, Ui.Gold, bold: true);
+            _nextCardSlot = Ui.Row(_nextCard);
 
             // result
             var middle = Ui.Column(_root, 4);
             middle.style.alignItems = Align.Center;
             middle.style.flexGrow = 1;
             middle.style.justifyContent = Justify.Center;
-            _message = Ui.Text(middle, "", 30, Ui.Gold, bold: true);
-            _breakdown = Ui.Text(middle, "", 20, Ui.Cream);
+            _message = Ui.Text(middle, "", 28, Ui.Gold, bold: true);
+            _breakdown = Ui.Text(middle, "", 18, Ui.Cream);
             _breakdown.enableRichText = true;
             _breakdown.style.unityTextAlign = TextAnchor.MiddleCenter;
             _breakdown.style.whiteSpace = WhiteSpace.Normal;
 
             // player
-            var player = Ui.Column(_root, 8);
+            var player = Ui.Column(_root, 6);
             player.style.alignItems = Align.Center;
             _playerHands = Ui.Row(player, 36);
             _playerHands.style.minHeight = CardView.Height + 12;
-            _playerLabel = Ui.Text(player, "", 16, Ui.Dim);
+            _playerLabel = Ui.Text(player, "", 15, Ui.Dim);
+
+            // side bets
+            _bets = Ui.Row(_root, 6);
+            _bets.style.marginTop = 8;
+            _bets.style.flexWrap = Wrap.Wrap;
+            _bets.style.justifyContent = Justify.Center;
+            _betStatus = Ui.Text(_bets, "SIDE BET", 12, Ui.Dim, bold: true);
+            foreach (var bet in SideBets.All)
+            {
+                var action = SideBets.ActionFor(bet);
+                var button = SmallButton(_bets, "", () => ActionChosen?.Invoke(action));
+                button.tooltip = SideBets.Description(bet);
+                _betButtons[action] = button;
+            }
+            var ante = SmallButton(_bets, "Ante Up x2", () => ActionChosen?.Invoke(PlayerAction.AnteUp));
+            ante.tooltip = "x2 Mult this hand. If you lose, you also lose 3 gold.";
+            _betButtons[PlayerAction.AnteUp] = ante;
 
             // actions
             var actions = Ui.Row(_root, 8);
-            actions.style.marginTop = 14;
+            actions.style.marginTop = 10;
             actions.style.flexWrap = Wrap.Wrap;
             actions.style.justifyContent = Justify.Center;
             foreach (var (action, label, key) in ActionButtons)
@@ -81,20 +130,49 @@ namespace HouseEdge.Game
             }
         }
 
-        public void Refresh(Table table)
+        private static Button SmallButton(VisualElement parent, string text, Action onClick)
         {
+            var button = Ui.Button(parent, text, onClick);
+            button.style.height = 30;
+            button.style.minWidth = 60;
+            button.style.fontSize = 13;
+            Ui.Padding(button, 0, 10);
+            return button;
+        }
+
+        public void Refresh(Run run)
+        {
+            var table = run.Table;
+            RefreshBoss(run);
             RefreshDealer(table);
             RefreshPlayer(table);
             RefreshResult(table);
+            RefreshBets(table);
 
             var legal = table.LegalActions();
-            bool insurance = table.Phase == TablePhase.InsuranceOffer;
             foreach (var pair in _buttons)
             {
-                bool isInsurance = pair.Key == PlayerAction.TakeInsurance || pair.Key == PlayerAction.DeclineInsurance;
-                Ui.Show(pair.Value, isInsurance == insurance);
+                bool show = pair.Key switch
+                {
+                    PlayerAction.TakeInsurance or PlayerAction.DeclineInsurance => table.Phase == TablePhase.InsuranceOffer,
+                    PlayerAction.LetDealerDraw or PlayerAction.StopDealer => table.Phase == TablePhase.DealerDecision,
+                    PlayerAction.SwapWithDealer => legal.Contains(PlayerAction.SwapWithDealer),
+                    _ => table.Phase != TablePhase.InsuranceOffer && table.Phase != TablePhase.DealerDecision,
+                };
+                Ui.Show(pair.Value, show);
                 Ui.SetEnabled(pair.Value, legal.Contains(pair.Key));
             }
+        }
+
+        private void RefreshBoss(Run run)
+        {
+            Ui.Show(_bossBanner, run.Boss != null);
+            if (run.Boss == null) return;
+            _bossName.text = run.Boss.Name.ToUpperInvariant();
+            string twist = run.Boss.Definition.Twist;
+            if (run.Boss is TheHouse house && house.CurrentTwist != null)
+                twist = $"Now playing as {house.CurrentTwist.Name}: {house.CurrentTwist.Definition.Twist}";
+            _bossTwist.text = twist;
         }
 
         private void RefreshDealer(Table table)
@@ -107,12 +185,22 @@ namespace HouseEdge.Game
             }
             if (table.DealerCards.Count == 0) _dealerLabel.text = "Dealer";
             else if (table.HoleCardHidden) _dealerLabel.text = $"Dealer shows {table.DealerVisibleValue.Total}";
-            else
-            {
-                var value = table.DealerValue;
-                _dealerLabel.text = value.IsBust ? $"Dealer busts with {value.Total}" : $"Dealer has {value.Total}";
-            }
+            else _dealerLabel.text = DealerText("Dealer", table.DealerValue);
+
+            bool twins = table.SecondDealerCards.Count > 0;
+            Ui.Show(_secondDealer, twins || table.Rules.DealerPlaysTwoHands);
+            _secondDealerCards.Clear();
+            foreach (var card in table.SecondDealerCards) Ui.Add(_secondDealerCards, CardView.Create(card));
+            _secondDealerLabel.text = twins ? DealerText("Second hand", table.SecondDealerValue) : "Second hand (plays last)";
+
+            var next = table.NextCardPreview;
+            Ui.Show(_nextCard, next != null);
+            _nextCardSlot.Clear();
+            if (next != null) _nextCardSlot.Add(CardView.Create(next, 0.75f));
         }
+
+        private static string DealerText(string who, HandValue value) =>
+            value.IsBust ? $"{who} busts with {value.Total}" : $"{who} has {value.Total}";
 
         private void RefreshPlayer(Table table)
         {
@@ -127,36 +215,40 @@ namespace HouseEdge.Game
                 bool highlight = active == hand && table.PlayerHands.Count > 1;
                 Ui.Border(group, 2, highlight ? Ui.Gold : new Color(0, 0, 0, 0));
 
+                // the Mime keeps your second card face down until the hand is over
+                bool mimed = table.Rules.SecondCardFaceDown && !hand.IsDone;
                 var cards = Ui.Row(group);
                 for (int i = 0; i < hand.Cards.Count; i++)
                 {
-                    var view = CardView.Create(hand.Cards[i]);
+                    var view = mimed && i == 1 ? CardView.CreateFaceDown() : CardView.Create(hand.Cards[i]);
                     // overlap a little so five-card hands fit
                     if (i > 0) view.style.marginLeft = -18;
                     cards.Add(view);
                 }
 
-                var label = Ui.Text(group, Describe(hand), 16, Ui.Cream);
+                var label = Ui.Text(group, mimed ? "?" : Describe(hand, table), 16, Ui.Cream);
                 if (hand.IsDoubled) label.text += "  x2";
             }
 
             _playerLabel.text = active == null ? "" : ActiveHint(table, active);
         }
 
-        private static string Describe(PlayerHand hand)
+        private static string Describe(PlayerHand hand, Table table)
         {
             var value = hand.Value;
             if (hand.IsBlackjack) return "Blackjack!";
             if (hand.RescuedAsPush) return $"Bust ({value.Total}), saved as a push";
             if (value.IsBust) return $"Bust ({value.Total})";
             if (value.IsCharlie) return "Charlie!";
-            return value.IsSoft ? $"Soft {value.Total}" : value.Total.ToString();
+            string limit = table.Rules.PlayerBustLimit != Balance.BustLimit ? $" (bust over {table.Rules.PlayerBustLimit})" : "";
+            return (value.IsSoft ? $"Soft {value.Total}" : value.Total.ToString()) + limit;
         }
 
         private static string ActiveHint(Table table, PlayerHand hand)
         {
             if (hand.Value.IsBust) return "Bust! Burn the card to redraw it, or Stand to take the loss.";
             if (table.PlayerHands.Count > 1) return $"Playing hand {table.ActiveHandIndex + 1} of {table.PlayerHands.Count}";
+            if (table.Rules.HitCost > 0) return $"Every hit costs {table.Rules.HitCost} gold.";
             return "";
         }
 
@@ -167,6 +259,13 @@ namespace HouseEdge.Game
             {
                 _message.text = "Dealer shows an Ace";
                 _breakdown.text = $"Insurance costs {Balance.InsuranceCost}g. If the dealer has blackjack, your hand becomes a push.";
+                return;
+            }
+            if (table.Phase == TablePhase.DealerDecision)
+            {
+                var next = table.NextCardPreview;
+                _message.text = "Your call";
+                _breakdown.text = $"The dealer has {table.DealerValue.Total} and wants to hit. The next card is {next}. Let him take it?";
                 return;
             }
             if (table.LastScores.Count == 0)
@@ -183,8 +282,36 @@ namespace HouseEdge.Game
             var best = table.LastScores.OrderByDescending(s => s.Total).First();
             _message.text = table.LastScores.Count > 1 ? $"Split hands score {total:N0}" : Headline(best);
             _message.style.color = total > 0 ? Ui.Gold : best.Outcome == Outcome.Push ? Ui.Cream : Ui.Bad;
-            _breakdown.text = string.Join("\n", table.LastScores.Select(Breakdown));
+
+            var lines = table.LastScores.Select(Breakdown).Where(l => l.Length > 0).ToList();
+            if (table.SideBetResult is SideBetResult bet)
+                lines.Add($"{SideBets.Name(bet.Bet)}: {bet.Label}" + (bet.Won ? $" <color=#{Hex(Ui.Gold)}>+{bet.Payout}g</color>" : ""));
+            if (table.AnteLost) lines.Add($"<color=#{Hex(Ui.Bad)}>Ante lost: -{Balance.AnteUpLoss}g</color>");
+            _breakdown.text = string.Join("\n", lines);
         }
+
+        private void RefreshBets(Table table)
+        {
+            bool open = table.Phase == TablePhase.ReadyToDeal;
+            Ui.Show(_bets, open);
+            if (!open) return;
+            var legal = table.LegalActions();
+            _betStatus.text = table.SideBet != SideBet.None
+                ? $"SIDE BET: {SideBets.Name(table.SideBet).ToUpperInvariant()}" + (table.AntedUp ? " + ANTE" : "")
+                : table.AntedUp ? "ANTED UP" : "SIDE BET";
+            foreach (var bet in SideBets.All)
+            {
+                var button = _betButtons[SideBets.ActionFor(bet)];
+                button.text = $"{SideBets.Name(bet)} {table.SideBetCost(bet)}g";
+                Ui.Show(button, table.SideBet == SideBet.None);
+                Ui.SetEnabled(button, legal.Contains(SideBets.ActionFor(bet)));
+            }
+            var ante = _betButtons[PlayerAction.AnteUp];
+            Ui.Show(ante, !table.AntedUp);
+            Ui.SetEnabled(ante, legal.Contains(PlayerAction.AnteUp));
+        }
+
+        private static string Hex(Color c) => ColorUtility.ToHtmlStringRGB(c);
 
         private static string Headline(HandScore score) => score.Outcome switch
         {
@@ -201,8 +328,8 @@ namespace HouseEdge.Game
         private static string Breakdown(HandScore score)
         {
             if (score.Outcome == Outcome.Surrender) return "";
-            string chips = $"<color=#{ColorUtility.ToHtmlStringRGB(Ui.Chips)}>{score.Chips} Chips</color>";
-            string mult = $"<color=#{ColorUtility.ToHtmlStringRGB(Ui.Mult)}>{score.Mult:0.##} Mult</color>";
+            string chips = $"<color=#{Hex(Ui.Chips)}>{score.Chips} Chips</color>";
+            string mult = $"<color=#{Hex(Ui.Mult)}>{score.Mult:0.##} Mult</color>";
             return $"{score.Outcome.Label()}: {chips} x {mult} = <b>{score.Total:N0}</b>";
         }
     }

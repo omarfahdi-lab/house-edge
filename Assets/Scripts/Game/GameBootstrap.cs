@@ -12,6 +12,7 @@ namespace HouseEdge.Game
         private TableView _table;
         private ShopView _shop;
         private RunOverView _runOver;
+        private DeckView _deck;
 
         public Run Run { get; private set; }
 
@@ -30,11 +31,15 @@ namespace HouseEdge.Game
             _table = new TableView(root);
             _shop = new ShopView(root);
             _hud = new Hud(root);
+            _deck = new DeckView(root);
             _runOver = new RunOverView(root);
 
             _table.ActionChosen += action => TryApply(RunInput.Table(action));
             _shop.InputChosen += TryApply;
             _hud.InputChosen += TryApply;
+            _hud.CocktailClicked += UseCocktail;
+            _hud.DeckClicked += () => _deck.ShowDeck(Run);
+            _deck.InputChosen += TryApply;
             _runOver.NewRunClicked += NewRun;
 
             NewRun();
@@ -54,11 +59,19 @@ namespace HouseEdge.Game
             Refresh();
         }
 
+        // Cocktails that work on cards open the deck to pick them
+        private void UseCocktail(int slot)
+        {
+            var cocktail = Run.Gambler.Cocktails[slot];
+            if (cocktail.Targets.max > 0) _deck.PickFor(Run, slot);
+            else TryApply(RunInput.UseCocktail(slot));
+        }
+
         private void Refresh()
         {
             _hud.Refresh(Run);
-            _table.Refresh(Run.Table);
-            bool shop = Run.Phase == RunPhase.Shop;
+            _table.Refresh(Run);
+            bool shop = Run.Phase == RunPhase.Shop || Run.Phase == RunPhase.BossReward;
             Ui.Show(_table.Root, !shop);
             Ui.Show(_shop.Root, shop);
             if (shop) _shop.Refresh(Run);
@@ -71,14 +84,19 @@ namespace HouseEdge.Game
             var keyboard = Keyboard.current;
             if (keyboard == null) return;
 
+            if (keyboard.escapeKey.wasPressedThisFrame) _deck.Close();
+            if (_deck.IsOpen) return;
+
             if (keyboard.spaceKey.wasPressedThisFrame)
             {
                 if (Run.IsOver) NewRun();
                 else if (Run.Phase == RunPhase.Shop) TryApply(RunInput.LeaveShop());
                 else TryApply(RunInput.Table(PlayerAction.Deal));
             }
-            if (keyboard.hKey.wasPressedThisFrame) TryTable(PlayerAction.Hit);
-            if (keyboard.sKey.wasPressedThisFrame) TryTable(PlayerAction.Stand);
+            bool deciding = Run.Phase == RunPhase.AtTable && Run.Table.Phase == TablePhase.DealerDecision;
+            if (keyboard.hKey.wasPressedThisFrame) TryTable(deciding ? PlayerAction.LetDealerDraw : PlayerAction.Hit);
+            if (keyboard.sKey.wasPressedThisFrame) TryTable(deciding ? PlayerAction.StopDealer : PlayerAction.Stand);
+            if (keyboard.wKey.wasPressedThisFrame) TryTable(PlayerAction.SwapWithDealer);
             if (keyboard.dKey.wasPressedThisFrame) TryTable(PlayerAction.DoubleDown);
             if (keyboard.pKey.wasPressedThisFrame) TryTable(PlayerAction.Split);
             if (keyboard.bKey.wasPressedThisFrame) TryTable(PlayerAction.Burn);

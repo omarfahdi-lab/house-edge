@@ -51,11 +51,16 @@ namespace HouseEdge.Game
             int index = parts.Length > 1 ? int.Parse(parts[1]) : 0;
             switch (parts[0])
             {
-                case "Buy": game.TryApply(RunInput.BuyVice(index)); break;
+                case "Buy": game.TryApply(RunInput.Buy(index)); break;
                 case "Sell": game.TryApply(RunInput.SellVice(index)); break;
                 case "Reroll": game.TryApply(RunInput.Reroll()); break;
                 case "Leave": game.TryApply(RunInput.LeaveShop()); break;
                 case "Auto": AutoPlayTable(game); break;
+                case "Skip": game.TryApply(RunInput.SkipReward()); break;
+                case "Drink": game.TryApply(RunInput.UseCocktail(index)); break;
+                case "Gold": game.Run.Gambler.GainGold(index); break;
+                case "Heat": game.Run.Gambler.AddHeat(index); break;
+                case "Refresh": game.TryApply(RunInput.Reroll()); break;
                 default:
                     if (Enum.TryParse(step, out PlayerAction action)) game.TryApply(RunInput.Table(action));
                     else Debug.LogWarning($"DevCapture: unknown step {step}");
@@ -73,6 +78,7 @@ namespace HouseEdge.Game
                 PlayerAction action;
                 if (legal.Contains(PlayerAction.Deal)) action = PlayerAction.Deal;
                 else if (legal.Contains(PlayerAction.DeclineInsurance)) action = PlayerAction.DeclineInsurance;
+                else if (legal.Contains(PlayerAction.LetDealerDraw)) action = PlayerAction.LetDealerDraw;
                 else if (legal.Contains(PlayerAction.Burn) && table.ActiveHand.Value.IsBust) action = PlayerAction.Burn;
                 else if (table.ActiveHand.Value.Total < 17 && legal.Contains(PlayerAction.Hit)) action = PlayerAction.Hit;
                 else action = PlayerAction.Stand;
