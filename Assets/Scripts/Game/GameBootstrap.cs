@@ -13,6 +13,7 @@ namespace HouseEdge.Game
         private ShopView _shop;
         private RunOverView _runOver;
         private DeckView _deck;
+        private RoomView _room;
 
         public Run Run { get; private set; }
 
@@ -30,6 +31,7 @@ namespace HouseEdge.Game
             var root = Ui.CreateDocument(transform, "UI", 0).rootVisualElement;
             _table = new TableView(root);
             _shop = new ShopView(root);
+            _room = new RoomView(root);
             _hud = new Hud(root);
             _deck = new DeckView(root);
             _runOver = new RunOverView(root);
@@ -40,6 +42,10 @@ namespace HouseEdge.Game
             _hud.CocktailClicked += UseCocktail;
             _hud.DeckClicked += () => _deck.ShowDeck(Run);
             _deck.InputChosen += TryApply;
+            _room.InputChosen += TryApply;
+            _room.CardOptionClicked += (option, label) => _deck.Pick(Run, label, "Pick a card from your deck.", 1,
+                card => Run.IsLegal(RunInput.RoomOption(option, Run.Gambler.Deck.IndexOf(card))),
+                picked => RunInput.RoomOption(option, picked.Count > 0 ? picked[0] : -1));
             _runOver.NewRunClicked += NewRun;
 
             NewRun();
@@ -72,8 +78,12 @@ namespace HouseEdge.Game
             _hud.Refresh(Run);
             _table.Refresh(Run);
             bool shop = Run.Phase == RunPhase.Shop || Run.Phase == RunPhase.BossReward;
-            Ui.Show(_table.Root, !shop);
+            bool backRoom = Run.ActiveTable != Run.Table;
+            bool room = !backRoom && (Run.Phase == RunPhase.RoomChoice || Run.Phase == RunPhase.InRoom);
+            Ui.Show(_table.Root, !shop && !room);
             Ui.Show(_shop.Root, shop);
+            Ui.Show(_room.Root, room);
+            if (room) _room.Refresh(Run);
             if (shop) _shop.Refresh(Run);
             Ui.Show(_runOver.Root, Run.IsOver);
             if (Run.IsOver) _runOver.Refresh(Run);
@@ -91,12 +101,18 @@ namespace HouseEdge.Game
             {
                 if (Run.IsOver) NewRun();
                 else if (Run.Phase == RunPhase.Shop) TryApply(RunInput.LeaveShop());
+                else if (Run.Phase == RunPhase.InRoom && Run.IsLegal(RunInput.LeaveRoom())) TryApply(RunInput.LeaveRoom());
                 else TryApply(RunInput.Table(PlayerAction.Deal));
             }
-            bool deciding = Run.Phase == RunPhase.AtTable && Run.Table.Phase == TablePhase.DealerDecision;
+            bool deciding = Run.ActiveTable.Phase == TablePhase.DealerDecision;
             if (keyboard.hKey.wasPressedThisFrame) TryTable(deciding ? PlayerAction.LetDealerDraw : PlayerAction.Hit);
             if (keyboard.sKey.wasPressedThisFrame) TryTable(deciding ? PlayerAction.StopDealer : PlayerAction.Stand);
             if (keyboard.wKey.wasPressedThisFrame) TryTable(PlayerAction.SwapWithDealer);
+            if (Run.Phase == RunPhase.RoomChoice)
+            {
+                if (keyboard.digit1Key.wasPressedThisFrame) TryApply(RunInput.ChooseRoom(0));
+                if (keyboard.digit2Key.wasPressedThisFrame) TryApply(RunInput.ChooseRoom(1));
+            }
             if (keyboard.dKey.wasPressedThisFrame) TryTable(PlayerAction.DoubleDown);
             if (keyboard.pKey.wasPressedThisFrame) TryTable(PlayerAction.Split);
             if (keyboard.bKey.wasPressedThisFrame) TryTable(PlayerAction.Burn);

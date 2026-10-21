@@ -16,8 +16,10 @@ namespace HouseEdge.Game
         private readonly Button _confirm;
         private readonly List<int> _picked = new List<int>();
         private Run _run;
-        private Cocktail _cocktail;
-        private int _slot;
+        // what's being picked for: a Cocktail or a room service. null when just looking
+        private Func<Card, bool> _canPick;
+        private Func<List<int>, RunInput> _makeInput;
+        private int _max;
 
         public event Action<RunInput> InputChosen;
 
@@ -57,7 +59,7 @@ namespace HouseEdge.Game
         public void ShowDeck(Run run)
         {
             _run = run;
-            _cocktail = null;
+            _canPick = null;
             _picked.Clear();
             _title.text = $"YOUR DECK  ({run.Gambler.Deck.Count} cards)";
             _hint.text = "The dealer draws from this deck too.";
@@ -68,13 +70,22 @@ namespace HouseEdge.Game
 
         public void PickFor(Run run, int slot)
         {
+            var cocktail = run.Gambler.Cocktails[slot];
+            var (min, max) = cocktail.Targets;
+            Pick(run, cocktail.Name, $"{cocktail.Description}  Pick {(min == max ? $"{max}" : $"{min} to {max}")} card{(max > 1 ? "s" : "")}.",
+                max, card => Cocktails.CanTarget(cocktail.Kind, card),
+                picked => RunInput.UseCocktail(slot, picked.Count > 0 ? picked[0] : -1, picked.Count > 1 ? picked[1] : -1));
+        }
+
+        public void Pick(Run run, string title, string hint, int max, Func<Card, bool> canPick, Func<List<int>, RunInput> makeInput)
+        {
             _run = run;
-            _slot = slot;
-            _cocktail = run.Gambler.Cocktails[slot];
+            _canPick = canPick;
+            _makeInput = makeInput;
+            _max = max;
             _picked.Clear();
-            _title.text = _cocktail.Name.ToUpperInvariant();
-            var (min, max) = _cocktail.Targets;
-            _hint.text = $"{_cocktail.Description}  Pick {(min == max ? $"{max}" : $"{min} to {max}")} card{(max > 1 ? "s" : "")}.";
+            _title.text = title.ToUpperInvariant();
+            _hint.text = hint;
             Ui.Show(_confirm, true);
             Rebuild();
             Ui.Show(_root, true);
@@ -91,8 +102,8 @@ namespace HouseEdge.Game
                 int index = i;
                 var card = CardView.Create(deck[i], Scale);
                 card.style.marginLeft = card.style.marginRight = card.style.marginTop = card.style.marginBottom = 3;
-                bool eligible = _cocktail == null || Cocktails.CanTarget(_cocktail.Kind, deck[i]);
-                if (_cocktail != null)
+                bool eligible = _canPick == null || _canPick(deck[i]);
+                if (_canPick != null)
                 {
                     card.style.opacity = eligible ? 1f : 0.3f;
                     if (_picked.Contains(i))
@@ -104,7 +115,7 @@ namespace HouseEdge.Game
                 }
                 _grid.Add(card);
             }
-            if (_cocktail != null) Ui.SetEnabled(_confirm, _run.IsLegal(Input()));
+            if (_canPick != null) Ui.SetEnabled(_confirm, _run.IsLegal(_makeInput(_picked)));
         }
 
         private void Toggle(int index)
@@ -112,19 +123,15 @@ namespace HouseEdge.Game
             if (_picked.Contains(index)) _picked.Remove(index);
             else
             {
-                if (_picked.Count >= _cocktail.Targets.max) _picked.RemoveAt(0);
+                if (_picked.Count >= _max) _picked.RemoveAt(0);
                 _picked.Add(index);
             }
             Rebuild();
         }
 
-        private RunInput Input() => RunInput.UseCocktail(_slot,
-            _picked.Count > 0 ? _picked[0] : -1,
-            _picked.Count > 1 ? _picked[1] : -1);
-
         private void Confirm()
         {
-            var input = Input();
+            var input = _makeInput(_picked);
             Close();
             InputChosen?.Invoke(input);
         }

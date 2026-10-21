@@ -710,6 +710,12 @@ namespace HouseEdge.Core
                 Room.Result = $"The house takes all {lost}g.";
             }
             else Room.Result = outcome == Outcome.Surrender ? "You fold and walk away." : "A push. You walk away even.";
+            if (outcome != Outcome.Surrender)
+            {
+                var dealer = table.DealerValue;
+                Room.Result += $" You had {table.PlayerHands[0].Value.Total}, the dealer " +
+                               (dealer.IsBust ? $"busted with {dealer.Total}." : $"had {dealer.Total}.");
+            }
         }
     }
 }

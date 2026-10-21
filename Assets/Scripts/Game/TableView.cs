@@ -29,7 +29,7 @@ namespace HouseEdge.Game
         private readonly VisualElement _root;
         private readonly VisualElement _bossBanner;
         private readonly Label _bossName, _bossTwist;
-        private readonly Label _dealerLabel, _secondDealerLabel, _playerLabel, _message, _breakdown;
+        private readonly Label _dealerLabel, _tell, _secondDealerLabel, _playerLabel, _message, _breakdown;
         private readonly VisualElement _dealerCards, _secondDealer, _secondDealerCards, _playerHands;
         private readonly VisualElement _nextCard, _nextCardSlot;
         private readonly VisualElement _bets;
@@ -67,6 +67,8 @@ namespace HouseEdge.Game
             dealer.style.alignItems = Align.Center;
             _dealerLabel = Ui.Text(dealer, "Dealer", 17, Ui.Dim);
             _dealerCards = Ui.Row(dealer, 10);
+            _tell = Ui.Text(dealer, "", 14, new Color(0.85f, 0.75f, 1f));
+            _tell.style.unityFontStyleAndWeight = FontStyle.Italic;
             _dealerCards.style.height = CardView.Height;
 
             _secondDealer = Ui.Column(dealerRow, 8);
@@ -142,9 +144,10 @@ namespace HouseEdge.Game
 
         public void Refresh(Run run)
         {
-            var table = run.Table;
+            var table = run.ActiveTable;
             RefreshBoss(run);
             RefreshDealer(table);
+            RefreshTell(run, table);
             RefreshPlayer(table);
             RefreshResult(table);
             RefreshBets(table);
@@ -166,8 +169,17 @@ namespace HouseEdge.Game
 
         private void RefreshBoss(Run run)
         {
-            Ui.Show(_bossBanner, run.Boss != null);
-            if (run.Boss == null) return;
+            bool backRoom = run.ActiveTable != run.Table;
+            if (backRoom || run.Boss == null)
+            {
+                Ui.Show(_bossBanner, backRoom || run.Dealer != null);
+                _bossBanner.style.backgroundColor = new Color(0, 0, 0, 0.35f);
+                _bossName.text = backRoom ? "THE BACK ROOM" : run.Dealer?.Name.ToUpperInvariant();
+                _bossTwist.text = backRoom ? $"One hand. Win and your {run.Gambler.Gold}g doubles. Lose and it's gone." : run.Dealer?.Style;
+                return;
+            }
+            Ui.Show(_bossBanner, true);
+            _bossBanner.style.backgroundColor = new Color(0.45f, 0.06f, 0.08f, 0.85f);
             _bossName.text = run.Boss.Name.ToUpperInvariant();
             string twist = run.Boss.Definition.Twist;
             if (run.Boss is TheHouse house && house.CurrentTwist != null)
@@ -197,6 +209,16 @@ namespace HouseEdge.Game
             Ui.Show(_nextCard, next != null);
             _nextCardSlot.Clear();
             if (next != null) _nextCardSlot.Add(CardView.Create(next, 0.75f));
+        }
+
+        // a subtle hint about the hole card, spelled out if you hold Tell Reader
+        private void RefreshTell(Run run, Table table)
+        {
+            var dealer = table == run.Table ? run.Dealer : null;
+            string tell = dealer != null && table.HoleCardHidden && table.DealerCards.Count > 1 ? dealer.Tell(table) : null;
+            if (tell != null && run.Gambler.Vices.Any(v => !v.Disabled && v.RevealsTells)) tell += "  " + dealer.TellMeaning(table);
+            _tell.text = tell ?? "";
+            Ui.Show(_tell, tell != null);
         }
 
         private static string DealerText(string who, HandValue value) =>

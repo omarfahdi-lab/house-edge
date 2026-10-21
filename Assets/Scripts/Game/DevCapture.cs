@@ -57,6 +57,9 @@ namespace HouseEdge.Game
                 case "Leave": game.TryApply(RunInput.LeaveShop()); break;
                 case "Auto": AutoPlayTable(game); break;
                 case "Skip": game.TryApply(RunInput.SkipReward()); break;
+                case "Door": game.TryApply(RunInput.ChooseRoom(index)); break;
+                case "Room": game.TryApply(RunInput.RoomOption(index)); break;
+                case "Out": game.TryApply(RunInput.LeaveRoom()); break;
                 case "Drink": game.TryApply(RunInput.UseCocktail(index)); break;
                 case "Gold": game.Run.Gambler.GainGold(index); break;
                 case "Heat": game.Run.Gambler.AddHeat(index); break;
@@ -71,9 +74,11 @@ namespace HouseEdge.Game
         // hit below 17, burn busts, decline insurance, until the table ends
         private static void AutoPlayTable(GameBootstrap game)
         {
-            for (int guard = 0; guard < 500 && game.Run.Phase == RunPhase.AtTable; guard++)
+            var start = game.Run.ActiveTable;
+            for (int guard = 0; guard < 500 && game.Run.ActiveTable == start && !start.IsOver
+                                && (game.Run.Phase == RunPhase.AtTable || game.Run.Phase == RunPhase.InRoom && !game.Run.Room.Used); guard++)
             {
-                var table = game.Run.Table;
+                var table = start;
                 var legal = table.LegalActions();
                 PlayerAction action;
                 if (legal.Contains(PlayerAction.Deal)) action = PlayerAction.Deal;

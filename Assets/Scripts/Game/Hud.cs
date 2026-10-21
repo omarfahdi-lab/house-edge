@@ -13,10 +13,12 @@ namespace HouseEdge.Game
 
         private readonly Label _floor, _stage, _score, _target, _hands, _burns, _gold;
         private readonly VisualElement _progressFill, _heatFill;
-        private readonly Label _heatLabel;
+        private readonly Label _heatLabel, _debt;
+        private readonly VisualElement _debtRow;
         private readonly VisualElement _cocktails, _vices;
         private readonly Label _vicesTitle, _comps;
         private readonly Button _deckButton;
+        private readonly Button _repay;
 
         public event Action<RunInput> InputChosen;
         public event Action<int> CocktailClicked;
@@ -54,6 +56,14 @@ namespace HouseEdge.Game
             var heat = Ui.Column(panel, 3);
             _heatLabel = Ui.Text(heat, "", 12, Ui.Dim, bold: true);
             _heatFill = Bar(heat, new Color(1f, 0.4f, 0.2f));
+
+            _debtRow = Ui.Row(panel, 6);
+            _debt = Ui.Text(_debtRow, "", 12, Ui.Bad, bold: true);
+            _debt.style.flexGrow = 1;
+            _debt.style.whiteSpace = WhiteSpace.Normal;
+            var repay = Ui.Button(_debtRow, "Repay", () => InputChosen?.Invoke(RunInput.RepayDebt()));
+            Compact(repay);
+            _repay = repay;
 
             var row = Ui.Row(panel, 8);
             Ui.Text(row, "COCKTAILS", 12, Ui.Dim, bold: true).style.flexGrow = 1;
@@ -121,6 +131,9 @@ namespace HouseEdge.Game
             _heatLabel.style.color = gambler.HeatLevel >= HeatLevel.Suspected ? Ui.Bad : Ui.Dim;
             _heatFill.style.width = Length.Percent(gambler.Heat);
             _deckButton.text = $"Deck {gambler.Deck.Count}";
+            Ui.Show(_debtRow, gambler.Debt > 0);
+            _debt.text = $"DEBT {gambler.Debt}g, due end of floor {gambler.DebtDueFloor}";
+            Ui.SetEnabled(_repay, run.IsLegal(RunInput.RepayDebt()));
 
             _cocktails.Clear();
             for (int i = 0; i < gambler.CocktailSlots; i++)
@@ -143,7 +156,7 @@ namespace HouseEdge.Game
 
             _vicesTitle.text = $"VICES  {gambler.Vices.Count}/{gambler.ViceSlots}" + SetBonuses(gambler);
             _vices.Clear();
-            bool between = run.Phase == RunPhase.Shop || run.Phase == RunPhase.BossReward;
+            bool between = run.Phase == RunPhase.Shop || run.Phase == RunPhase.BossReward || run.Phase == RunPhase.InRoom;
             for (int i = 0; i < gambler.Vices.Count; i++) Ui.Add(_vices, ViceRow(run, i, between));
             if (gambler.Vices.Count == 0)
                 Ui.Text(_vices, "None yet. Buy them in the shop after each table.", 12, Ui.Dim).style.whiteSpace = WhiteSpace.Normal;
@@ -169,8 +182,9 @@ namespace HouseEdge.Game
             button.style.backgroundColor = new Color(0.25f, 0.12f, 0.3f, 0.95f);
             button.tooltip = cocktail.Description;
             // usable now? with targets it opens the deck picker, so check the no-target case loosely
-            bool usable = cocktail.Targets.max > 0 ? run.Phase == RunPhase.Shop || run.Phase == RunPhase.BossReward
-                : run.CanUseCocktail(RunInput.UseCocktail(index));
+            bool betweenTables = run.Phase == RunPhase.Shop || run.Phase == RunPhase.BossReward
+                                 || run.Phase == RunPhase.RoomChoice || run.Phase == RunPhase.InRoom && run.ActiveTable == run.Table;
+            bool usable = cocktail.Targets.max > 0 ? betweenTables : run.CanUseCocktail(RunInput.UseCocktail(index));
             Ui.SetEnabled(button, usable);
             return button;
         }

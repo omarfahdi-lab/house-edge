@@ -64,6 +64,9 @@ namespace HouseEdge.Core
 
         public virtual int SideBetDiscount => 0;
 
+        // Tell Reader: the dealer's tell is spelled out
+        public virtual bool RevealsTells => false;
+
         // Loan Officer: Loan Shark debt doesn't grow
         public virtual bool FreezesDebt => false;
 
