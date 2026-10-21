@@ -196,7 +196,8 @@ namespace HouseEdge.Tests
             AutoPlay.Advance(run);
             AutoPlay.Advance(run);
             Assert.That(run.Stage, Is.EqualTo(TableKind.Boss));
-            Assert.That(run.Table.Target, Is.EqualTo((long)(Balance.Target(run.Floor, TableKind.Boss) * 1.5)));
+            long expected = (long)System.Math.Round(Balance.Target(run.Floor, TableKind.Boss) * run.Boss.TargetFactor * Balance.LoungeTargetFactor);
+            Assert.That(run.Table.Target, Is.EqualTo(expected));
         }
 
         [Test]
@@ -315,11 +316,11 @@ namespace HouseEdge.Tests
         [Test]
         public void BorrowedTime_Adds2Hands_ThatCost2GoldEach()
         {
-            var cards = Enumerable.Repeat(new[] { "10", "10", "7", "9" }, 6).SelectMany(x => x).ToArray();
+            var cards = Enumerable.Repeat(new[] { "10", "10", "7", "9" }, Balance.StartingHands + 2).SelectMany(x => x).ToArray();
             var t = new Table(Stack(cards), long.MaxValue, new[] { V("BorrowedTime") }, gold: 10);
             Assert.That(t.HandsLeft, Is.EqualTo(Balance.StartingHands + 2));
-            for (int i = 0; i < 6; i++) Play(t, Deal, Stand);
-            Assert.That(t.Gold, Is.EqualTo(6));
+            for (int i = 0; i < Balance.StartingHands + 2; i++) Play(t, Deal, Stand);
+            Assert.That(t.Gold, Is.EqualTo(6), "the last 2 Hands cost 2 gold each");
         }
     }
 

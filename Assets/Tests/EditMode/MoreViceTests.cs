@@ -241,9 +241,9 @@ namespace HouseEdge.Tests
         [Test]
         public void LastCall_TriplesTheFinalHand()
         {
-            var cards = Enumerable.Repeat(new[] { "K", "9", "Q", "9" }, 4).SelectMany(x => x).Cast<object>().ToArray();
+            var cards = Enumerable.Repeat(new[] { "K", "9", "Q", "9" }, Balance.StartingHands).SelectMany(x => x).Cast<object>().ToArray();
             var t = With(V("Last Call"), cards);
-            for (int i = 0; i < 3; i++) Play(t, Deal, Stand);
+            for (int i = 0; i < Balance.StartingHands - 1; i++) Play(t, Deal, Stand);
             Assert.That(Score(t).Mult, Is.EqualTo(2));
             Play(t, Deal, Stand);
             Assert.That(Score(t).Mult, Is.EqualTo(6));

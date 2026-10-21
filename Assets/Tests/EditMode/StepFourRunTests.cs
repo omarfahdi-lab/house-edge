@@ -58,11 +58,17 @@ namespace HouseEdge.Tests
         [Test]
         public void HeatDrops10_AfterEachTable()
         {
-            var run = new Run(1);
-            run.Gambler.AddHeat(30);
-            AutoPlay.UntilTableEnds(run);
-            if (run.Phase != RunPhase.Shop) Assert.Inconclusive("seed 1 lost its first table");
-            Assert.That(run.Gambler.Heat, Is.EqualTo(20));
+            for (int seed = 1; seed < 100; seed++)
+            {
+                var run = new Run(seed);
+                run.Gambler.AddHeat(30);
+                var table = run.Table;
+                AutoPlay.UntilThisTableEnds(run);
+                if (run.Phase != RunPhase.Shop) continue;
+                Assert.That(run.Gambler.Heat, Is.EqualTo(30 + table.HeatGained - Balance.HeatCooldownPerTable));
+                return;
+            }
+            Assert.Fail("no seed beat the first table");
         }
 
         [Test]

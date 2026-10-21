@@ -12,25 +12,30 @@ namespace HouseEdge.Core
         public const int MaxSplitsPerHand = 1;
 
         // per table
-        public const int StartingHands = 4;
+        // DESIGN.md starts at 4. the balance sim showed 4 Hands of blackjack lose ~10% of tables to
+        // plain bad luck (no winning hand at all), which compounds over 24 tables, so it's 5
+        public const int StartingHands = 5;
         public const int StartingBurns = 3;
-        public const long FirstTableTarget = 150;
+        public const long FirstTableTarget = 50;
 
         // run
         public const int StartingGold = 4;
         public const int Floors = 8;
 
-        // [floor - 1] = Low, High, Pit Boss. floor 8's boss is The House
+        // [floor - 1] = Low, High, Pit Boss. floor 8's boss is The House.
+        // tuned with Tools/BalanceSim: Low grows ~1.7x a floor, High is 1.5x Low, the boss 2x
+        // (The House 2.5x, it has 2 extra Hands). DESIGN.md's first draft started at 150 and doubled
+        // every floor, which the bot never beat. see README "Balance"
         private static readonly long[][] TableTargets =
         {
-            new long[] { 150, 225, 300 },
-            new long[] { 300, 450, 600 },
-            new long[] { 600, 900, 1200 },
+            new long[] { 50, 75, 100 },
+            new long[] { 85, 130, 170 },
+            new long[] { 145, 220, 290 },
+            new long[] { 250, 375, 500 },
+            new long[] { 420, 630, 840 },
+            new long[] { 710, 1070, 1420 },
             new long[] { 1200, 1800, 2400 },
-            new long[] { 2500, 3750, 5000 },
-            new long[] { 5000, 7500, 10000 },
-            new long[] { 10000, 15000, 20000 },
-            new long[] { 20000, 30000, 60000 },
+            new long[] { 2050, 3100, 5100 },
         };
 
         // past floor 8 (Endless) targets double every floor

@@ -8,12 +8,18 @@ namespace HouseEdge.Tests
     public class RunTests
     {
         [Test]
-        public void Targets_FollowTheDesignTable()
+        public void Targets_RiseEveryTable()
         {
-            Assert.That(Balance.Target(1, TableKind.Low), Is.EqualTo(150));
-            Assert.That(Balance.Target(1, TableKind.High), Is.EqualTo(225));
-            Assert.That(Balance.Target(1, TableKind.Boss), Is.EqualTo(300));
-            Assert.That(Balance.Target(8, TableKind.Boss), Is.EqualTo(60000));
+            // harder within a floor, and every kind of table harder than on the floor before
+            for (int floor = 1; floor <= Balance.Floors; floor++)
+            {
+                Assert.That(Balance.Target(floor, TableKind.High), Is.GreaterThan(Balance.Target(floor, TableKind.Low)));
+                Assert.That(Balance.Target(floor, TableKind.Boss), Is.GreaterThan(Balance.Target(floor, TableKind.High)));
+                if (floor > 1)
+                    foreach (TableKind kind in new[] { TableKind.Low, TableKind.High, TableKind.Boss })
+                        Assert.That(Balance.Target(floor, kind), Is.GreaterThan(Balance.Target(floor - 1, kind)), $"floor {floor} {kind}");
+            }
+            Assert.That(Balance.Target(1, TableKind.Low), Is.EqualTo(Balance.FirstTableTarget));
         }
 
         [Test]
@@ -23,7 +29,7 @@ namespace HouseEdge.Tests
             Assert.That(run.Floor, Is.EqualTo(1));
             Assert.That(run.Stage, Is.EqualTo(TableKind.Low));
             Assert.That(run.Phase, Is.EqualTo(RunPhase.AtTable));
-            Assert.That(run.Table.Target, Is.EqualTo(150));
+            Assert.That(run.Table.Target, Is.EqualTo(Balance.Target(1, TableKind.Low)));
             Assert.That(run.Table.HandsLeft, Is.EqualTo(Balance.StartingHands));
         }
 
@@ -58,7 +64,7 @@ namespace HouseEdge.Tests
 
             AutoPlay.ToNextTable(run);
             Assert.That(run.Stage, Is.EqualTo(TableKind.High));
-            Assert.That(run.Table.Target, Is.EqualTo(225));
+            Assert.That(run.Table.Target, Is.EqualTo(Balance.Target(1, TableKind.High)));
             Assert.That(run.Table.HandsLeft, Is.EqualTo(Balance.StartingHands), "Hands reset each table");
             Assert.That(run.Table.BurnsLeft, Is.EqualTo(Balance.StartingBurns), "Burns reset each table");
         }

@@ -36,7 +36,7 @@ namespace HouseEdge.Tests
         public void GreenStake_RaisesTargets_AndIncludesRed()
         {
             var run = new Run(1, new RunOptions { Stake = Stake.Green });
-            Assert.That(run.Table.Target, Is.EqualTo((long)(150 * 1.25 + 0.5)));
+            Assert.That(run.Table.Target, Is.EqualTo((long)System.Math.Round(Balance.Target(1, TableKind.Low) * 1.25)));
         }
 
         [Test]
@@ -70,8 +70,8 @@ namespace HouseEdge.Tests
         [Test]
         public void EndlessTargets_KeepDoubling()
         {
-            Assert.That(Balance.Target(9, TableKind.Low), Is.EqualTo(40000));
-            Assert.That(Balance.Target(10, TableKind.Boss), Is.EqualTo(240000));
+            Assert.That(Balance.Target(9, TableKind.Low), Is.EqualTo(Balance.Target(8, TableKind.Low) * 2));
+            Assert.That(Balance.Target(10, TableKind.Boss), Is.EqualTo(Balance.Target(8, TableKind.Boss) * 4));
         }
     }
 
@@ -184,6 +184,33 @@ namespace HouseEdge.Tests
             }
             Assert.That(run.IsOver, Is.True);
             return run;
+        }
+    }
+}
+
+namespace HouseEdge.Tests
+{
+    public class BalanceRegressionTests
+    {
+        // the tuned curve keeps the bot near its target win rate; CI catches balance changes that break it
+        [Test]
+        public void TunedBalance_KeepsTheBotNearItsTargetWinRate()
+        {
+            var report = BalanceSimulation.Run(300, 1);
+            Assert.That(report.WinRate, Is.InRange(0.12, 0.32), $"bot won {report.WinRate:P1}");
+            Assert.That((double)report.Reached[1, 0] / report.Runs, Is.GreaterThan(0.8), "floor 1 should be forgiving");
+        }
+
+        [Test]
+        public void TheBot_AlwaysFinishesARun()
+        {
+            var bot = new BalanceBot();
+            for (int seed = 1; seed <= 30; seed++)
+            {
+                var run = new Run(seed);
+                bot.Play(run);
+                Assert.That(run.IsOver, Is.True, $"seed {seed} got stuck in {run.Phase}");
+            }
         }
     }
 }

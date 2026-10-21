@@ -32,7 +32,7 @@ namespace HouseEdge.Core
     {
         public BossDefinition Definition { get; internal set; }
         public string Name => Definition.Name;
-        public virtual long TargetFactor => 1;
+        public virtual double TargetFactor => 1;
     }
 
     public static class Bosses
@@ -67,8 +67,11 @@ namespace HouseEdge.Core
             PitBosses.Concat(new[] { EyeInTheSky, Enforcer, TheHouse }).First(b => b.Name == name);
     }
 
+    // the sim showed the Twins, the Ceiling and the Card Mechanic ending 2-3x more runs than
+    // the other bosses, so their targets are lower
     public sealed class TheTwins : Boss
     {
+        public override double TargetFactor => 0.75;
         public override void OnTableStart(Table table) => table.Rules.DealerPlaysTwoHands = true;
     }
 
@@ -99,6 +102,7 @@ namespace HouseEdge.Core
 
     public sealed class TheCeiling : Boss
     {
+        public override double TargetFactor => 0.8;
         public override void OnTableStart(Table table) => table.Rules.PlayerBustLimit = 19;
     }
 
@@ -118,6 +122,7 @@ namespace HouseEdge.Core
 
     public sealed class TheCardMechanic : Boss
     {
+        public override double TargetFactor => 0.8;
         public override void OnStand(Table table, PlayerHand hand)
         {
             int highest = 0;
@@ -142,7 +147,7 @@ namespace HouseEdge.Core
 
     public sealed class TheEyeInTheSky : Boss
     {
-        public override long TargetFactor => Balance.EyeInTheSkyTargetFactor;
+        public override double TargetFactor => Balance.EyeInTheSkyTargetFactor;
 
         public override void OnTableStart(Table table)
         {
