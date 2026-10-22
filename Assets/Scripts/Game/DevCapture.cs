@@ -15,6 +15,7 @@ namespace HouseEdge.Game
         private string[] _steps = Array.Empty<string>();
 
         public static int? SeedOverride => int.TryParse(Arg("-seed"), out int seed) ? seed : (int?)null;
+        public static bool Requested => !string.IsNullOrEmpty(Arg("-capture"));
 
         public static void AttachIfRequested(GameBootstrap game)
         {
@@ -34,11 +35,29 @@ namespace HouseEdge.Game
             yield return null;
             foreach (var raw in _steps)
             {
+                // Bot:N lets the balance bot play N whole runs through the real UI, as a smoke test
+                if (raw.StartsWith("Bot"))
+                {
+                    int runs = raw.Contains(":") ? int.Parse(raw.Split(':')[1]) : 1;
+                    var bot = new BalanceBot();
+                    for (int r = 0; r < runs; r++)
+                    {
+                        if (r > 0) game.StartRun(1000 + r, new RunOptions { Deck = (StartingDeck)(r % Decks.All.Count), Stake = (Stake)(r % Stakes.All.Count) });
+                        for (int i = 0; i < 6000 && !game.Run.IsOver; i++)
+                        {
+                            game.TryApply(bot.Choose(game.Run));
+                            if (i % 25 == 0) yield return null;
+                        }
+                        Debug.Log($"DevCapture: bot run {r + 1} ended in {game.Run.Phase} on floor {game.Run.Floor}, score {game.Run.TotalScore}");
+                    }
+                    continue;
+                }
                 Step(game, raw.Trim());
                 yield return null;
             }
-            // let UI Toolkit lay out and draw
+            // let UI Toolkit lay out, and the card animations finish
             for (int i = 0; i < 10; i++) yield return null;
+            yield return new WaitForSecondsRealtime(float.TryParse(Arg("-wait"), out float wait) ? wait : 1.2f);
             ScreenCapture.CaptureScreenshot(_path);
             yield return null;
             yield return null;
@@ -57,6 +76,7 @@ namespace HouseEdge.Game
                 case "Leave": game.TryApply(RunInput.LeaveShop()); break;
                 case "Auto": AutoPlayTable(game); break;
                 case "Skip": game.TryApply(RunInput.SkipReward()); break;
+                case "Menu": game.OpenMenu(); break;
                 case "Door": game.TryApply(RunInput.ChooseRoom(index)); break;
                 case "Room": game.TryApply(RunInput.RoomOption(index)); break;
                 case "Out": game.TryApply(RunInput.LeaveRoom()); break;

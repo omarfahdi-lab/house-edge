@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using HouseEdge.Core;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -8,14 +9,28 @@ namespace HouseEdge.Game
     // builds the whole game in code after the scene loads, nothing set up in the editor
     public sealed class GameBootstrap : MonoBehaviour
     {
+        private const float ReplayStepSeconds = 0.35f;
+
         private Hud _hud;
         private TableView _table;
         private ShopView _shop;
         private RunOverView _runOver;
         private DeckView _deck;
         private RoomView _room;
+        private MenuView _menu;
+        private Feedback _feedback;
+        private Profile _profile;
+        private List<string> _unlocks = new List<string>();
+        private int _dailyPlace;
+        // false while the placeholder run behind the first menu is showing
+        private bool _playing;
+
+        // a finished run being played back from its inputs
+        private Queue<RunInput> _replay;
+        private float _replayTimer;
 
         public Run Run { get; private set; }
+        public bool Replaying => _replay != null;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Boot()
@@ -28,6 +43,7 @@ namespace HouseEdge.Game
 
         private void Awake()
         {
+            _profile = Saves.LoadProfile();
             var root = Ui.CreateDocument(transform, "UI", 0).rootVisualElement;
             _table = new TableView(root);
             _shop = new ShopView(root);
@@ -35,6 +51,8 @@ namespace HouseEdge.Game
             _hud = new Hud(root);
             _deck = new DeckView(root);
             _runOver = new RunOverView(root);
+            _menu = new MenuView(root);
+            _feedback = Feedback.Create(transform, root);
 
             _table.ActionChosen += action => TryApply(RunInput.Table(action));
             _shop.InputChosen += TryApply;
@@ -46,22 +64,82 @@ namespace HouseEdge.Game
             _room.CardOptionClicked += (option, label) => _deck.Pick(Run, label, "Pick a card from your deck.", 1,
                 card => Run.IsLegal(RunInput.RoomOption(option, Run.Gambler.Deck.IndexOf(card))),
                 picked => RunInput.RoomOption(option, picked.Count > 0 ? picked[0] : -1));
-            _runOver.NewRunClicked += NewRun;
+            _runOver.NewRunClicked += () => StartRun(System.Environment.TickCount, Run.Options);
+            _runOver.MenuClicked += OpenMenu;
+            _runOver.ReplayClicked += StartReplay;
+            _menu.StartClicked += StartRun;
+            _menu.DailyClicked += () => StartRun(Saves.DailySeed(), new RunOptions { Daily = true });
+            _menu.ResumeClicked += () => _menu.Close();
+            _menu.AbandonClicked += OpenMenuAfterAbandon;
 
-            NewRun();
+            // a run sits behind the menu so the table isn't empty
+            Run = new Run(DevCapture.SeedOverride ?? System.Environment.TickCount);
+            _feedback.Reset(Run);
+            Refresh();
+            if (DevCapture.Requested)
+            {
+                _playing = true;
+                _menu.Close();
+            }
+            else OpenMenu();
             DevCapture.AttachIfRequested(this);
         }
 
-        public void NewRun()
+        public void StartRun(int seed, RunOptions options)
         {
-            Run = new Run(DevCapture.SeedOverride ?? System.Environment.TickCount);
+            _replay = null;
+            _playing = true;
+            _unlocks = new List<string>();
+            Run = new Run(seed, options);
+            _menu.Close();
+            _deck.Close();
+            _feedback.Reset(Run);
             Refresh();
+        }
+
+        public void OpenMenu() => _menu.Open(_profile, _playing && !Run.IsOver && !Replaying, Saves.DailyText());
+
+        // an abandoned run isn't recorded
+        private void OpenMenuAfterAbandon()
+        {
+            _replay = null;
+            _playing = false;
+            Run = new Run(System.Environment.TickCount);
+            Refresh();
+            OpenMenu();
         }
 
         public void TryApply(RunInput input)
         {
-            if (!Run.IsLegal(input)) return;
+            if (Replaying || !Run.IsLegal(input)) return;
+            Apply(input);
+        }
+
+        private void Apply(RunInput input)
+        {
+            var before = Snapshot.Of(Run);
             Run.Apply(input);
+            _feedback.After(before, Run);
+            if (Run.IsOver && !Replaying) RecordRun();
+            Refresh();
+        }
+
+        private void RecordRun()
+        {
+            _unlocks = _profile.Record(Run);
+            Saves.SaveProfile(_profile);
+            _dailyPlace = Run.Options.Daily ? Saves.AddDailyScore(Run.TotalScore) : 0;
+        }
+
+        private void StartReplay()
+        {
+            var inputs = new Queue<RunInput>(Run.Inputs);
+            var options = Run.Options;
+            int seed = Run.Seed;
+            Run = new Run(seed, options);
+            _replay = inputs;
+            _replayTimer = 0;
+            _feedback.Reset(Run);
             Refresh();
         }
 
@@ -77,6 +155,7 @@ namespace HouseEdge.Game
         {
             _hud.Refresh(Run);
             _table.Refresh(Run);
+            _table.SetReplay(Replaying);
             bool shop = Run.Phase == RunPhase.Shop || Run.Phase == RunPhase.BossReward;
             bool backRoom = Run.ActiveTable != Run.Table;
             bool room = !backRoom && (Run.Phase == RunPhase.RoomChoice || Run.Phase == RunPhase.InRoom);
@@ -85,21 +164,47 @@ namespace HouseEdge.Game
             Ui.Show(_room.Root, room);
             if (room) _room.Refresh(Run);
             if (shop) _shop.Refresh(Run);
-            Ui.Show(_runOver.Root, Run.IsOver);
-            if (Run.IsOver) _runOver.Refresh(Run);
+            bool over = Run.IsOver && !Replaying;
+            Ui.Show(_runOver.Root, over);
+            if (over) _runOver.Refresh(Run, _unlocks, _dailyPlace);
         }
 
         private void Update()
         {
+            if (Replaying)
+            {
+                _replayTimer += Time.deltaTime;
+                if (_replayTimer < ReplayStepSeconds) return;
+                _replayTimer = 0;
+                if (_replay.Count > 0) Apply(_replay.Dequeue());
+                if (_replay.Count == 0)
+                {
+                    _replay = null;
+                    Refresh();
+                }
+                return;
+            }
+
             var keyboard = Keyboard.current;
             if (keyboard == null) return;
 
-            if (keyboard.escapeKey.wasPressedThisFrame) _deck.Close();
+            if (keyboard.escapeKey.wasPressedThisFrame)
+            {
+                if (_deck.IsOpen) _deck.Close();
+                else if (_menu.IsOpen) { if (_playing && !Run.IsOver) _menu.Close(); }
+                else OpenMenu();
+                return;
+            }
             if (_deck.IsOpen) return;
+            if (_menu.IsOpen)
+            {
+                if (keyboard.spaceKey.wasPressedThisFrame) _menu.NewRun();
+                return;
+            }
 
             if (keyboard.spaceKey.wasPressedThisFrame)
             {
-                if (Run.IsOver) NewRun();
+                if (Run.IsOver) StartRun(System.Environment.TickCount, Run.Options);
                 else if (Run.Phase == RunPhase.Shop) TryApply(RunInput.LeaveShop());
                 else if (Run.Phase == RunPhase.InRoom && Run.IsLegal(RunInput.LeaveRoom())) TryApply(RunInput.LeaveRoom());
                 else TryApply(RunInput.Table(PlayerAction.Deal));

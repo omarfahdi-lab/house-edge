@@ -36,6 +36,11 @@ namespace HouseEdge.Game
         private readonly Label _betStatus;
         private readonly Dictionary<PlayerAction, Button> _buttons = new Dictionary<PlayerAction, Button>();
         private readonly Dictionary<PlayerAction, Button> _betButtons = new Dictionary<PlayerAction, Button>();
+        private readonly Label _replay;
+        // cards already on screen this deal, so only new ones slide in
+        private readonly HashSet<(Card, int, bool)> _shown = new HashSet<(Card, int, bool)>();
+        private Table _shownTable;
+        private int _dealIndex;
 
         public event Action<PlayerAction> ActionChosen;
 
@@ -49,6 +54,12 @@ namespace HouseEdge.Game
             Ui.Padding(_root, 14, 24);
             _root.style.alignItems = Align.Center;
             _root.pickingMode = PickingMode.Ignore;
+
+            _replay = Ui.Text(_root, "REPLAY", 14, Ui.Bad, bold: true);
+            _replay.style.position = Position.Absolute;
+            _replay.style.right = 20;
+            _replay.style.top = 14;
+            _replay.style.letterSpacing = 3;
 
             // boss banner
             _bossBanner = Ui.Column(_root, 2);
@@ -142,9 +153,18 @@ namespace HouseEdge.Game
             return button;
         }
 
+        public void SetReplay(bool replaying) => Ui.Show(_replay, replaying);
+
         public void Refresh(Run run)
         {
             var table = run.ActiveTable;
+            if (table != _shownTable || table.DealsPlayed != _dealIndex)
+            {
+                _shown.Clear();
+                _shownTable = table;
+                _dealIndex = table.DealsPlayed;
+            }
+            _stagger = 0;
             RefreshBoss(run);
             RefreshDealer(table);
             RefreshTell(run, table);
@@ -193,7 +213,7 @@ namespace HouseEdge.Game
             for (int i = 0; i < table.DealerCards.Count; i++)
             {
                 bool hidden = i == 1 && table.HoleCardHidden;
-                Ui.Add(_dealerCards, hidden ? CardView.CreateFaceDown() : CardView.Create(table.DealerCards[i]));
+                Ui.Add(_dealerCards, Animate(hidden ? CardView.CreateFaceDown() : CardView.Create(table.DealerCards[i]), table.DealerCards[i], hidden));
             }
             if (table.DealerCards.Count == 0) _dealerLabel.text = "Dealer";
             else if (table.HoleCardHidden) _dealerLabel.text = $"Dealer shows {table.DealerVisibleValue.Total}";
@@ -202,7 +222,7 @@ namespace HouseEdge.Game
             bool twins = table.SecondDealerCards.Count > 0;
             Ui.Show(_secondDealer, twins || table.Rules.DealerPlaysTwoHands);
             _secondDealerCards.Clear();
-            foreach (var card in table.SecondDealerCards) Ui.Add(_secondDealerCards, CardView.Create(card));
+            foreach (var card in table.SecondDealerCards) Ui.Add(_secondDealerCards, Animate(CardView.Create(card), card, false));
             _secondDealerLabel.text = twins ? DealerText("Second hand", table.SecondDealerValue) : "Second hand (plays last)";
 
             var next = table.NextCardPreview;
@@ -219,6 +239,24 @@ namespace HouseEdge.Game
             if (tell != null && run.Gambler.Vices.Any(v => !v.Disabled && v.RevealsTells)) tell += "  " + dealer.TellMeaning(table);
             _tell.text = tell ?? "";
             Ui.Show(_tell, tell != null);
+        }
+
+        private int _stagger;
+
+        // a card that wasn't on screen yet slides down and fades in, one after another
+        private VisualElement Animate(VisualElement view, Card card, bool faceDown)
+        {
+            if (!_shown.Add((card, _dealIndex, faceDown))) return view;
+            view.style.opacity = 0;
+            view.style.translate = new Translate(0, -24);
+            view.style.transitionProperty = new List<StylePropertyName> { "opacity", "translate" };
+            view.style.transitionDuration = new List<TimeValue> { new TimeValue(0.18f), new TimeValue(0.18f) };
+            view.schedule.Execute(() =>
+            {
+                view.style.opacity = 1;
+                view.style.translate = new Translate(0, 0);
+            }).StartingIn(30 + 90 * _stagger++);
+            return view;
         }
 
         private static string DealerText(string who, HandValue value) =>
@@ -242,7 +280,8 @@ namespace HouseEdge.Game
                 var cards = Ui.Row(group);
                 for (int i = 0; i < hand.Cards.Count; i++)
                 {
-                    var view = mimed && i == 1 ? CardView.CreateFaceDown() : CardView.Create(hand.Cards[i]);
+                    bool down = mimed && i == 1;
+                    var view = Animate(down ? CardView.CreateFaceDown() : CardView.Create(hand.Cards[i]), hand.Cards[i], down);
                     // overlap a little so five-card hands fit
                     if (i > 0) view.style.marginLeft = -18;
                     cards.Add(view);
