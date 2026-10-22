@@ -14,7 +14,7 @@ namespace HouseEdge.Core
         BossReward,
         // buy, sell and reorder, then leave
         Shop,
-        // pick one of two rooms on the floor map
+        // pick the next stop on the floor map
         RoomChoice,
         // inside Run.Room
         InRoom,
@@ -38,14 +38,16 @@ namespace HouseEdge.Core
         }
     }
 
-    // a full climb. each floor: Low Table, a room, High Table, a room, Pit Boss, with a shop after every table.
-    // one seed drives all of it
+    // a full climb. each floor: Low Table, two stops on the map, High Table, two stops, Pit Boss, then a shop.
+    // the stops are Shops and rooms on branching paths. one seed drives all of it
     public sealed class Run
     {
         private readonly List<RunInput> _inputs = new List<RunInput>();
         private readonly List<string> _usedBosses = new List<string>();
         private readonly List<ViceDefinition> _rewards = new List<ViceDefinition>();
-        private readonly List<RoomKind> _roomChoices = new List<RoomKind>();
+        // where you are on the floor map: the section after the Low (0) or High (1) Table, the row (-1 before the
+        // first stop) and the lane
+        private int _section, _row = -1, _lane;
         private bool _skipNextTable;
         private double _nextTargetFactor = 1;
 
@@ -75,7 +77,12 @@ namespace HouseEdge.Core
         public Shop Shop { get; } = new Shop();
         public TablePayout LastPayout { get; private set; }
         public IReadOnlyList<ViceDefinition> Rewards => _rewards;
-        public IReadOnlyList<RoomKind> RoomChoices => _roomChoices;
+        public FloorMap Map { get; private set; }
+        // the stops you can walk to next, and what they are
+        public IReadOnlyList<PathStop> NextStops => Phase == RunPhase.RoomChoice ? Map.NextFrom(_section, _row, _lane) : new List<PathStop>();
+        public IReadOnlyList<RoomKind> RoomChoices => NextStops.Select(s => s.Kind).ToList();
+        // the stop you're at, if any
+        public PathStop Here => _row < 0 ? null : Map.Stop(_section, _row, _lane);
         public Room Room { get; private set; }
         // a Vice handed to you, e.g. for beating The Eye in the Sky
         public ViceDefinition LastFreeVice { get; private set; }
@@ -95,8 +102,11 @@ namespace HouseEdge.Core
             if (Options.Deck == StartingDeck.MarkedDeck) Gambler.AddHeat(Balance.MarkedDeckHeat);
             if (Options.Stake >= Stake.Black) Gambler.Deck.Add(Card.Cursed(Curse.DeadCard));
             PickFloorBoss();
+            BuildMap();
             StartTable();
         }
+
+        private void BuildMap() => Map = new FloorMap(Floor, Random, loungeBeforeBoss: !(Floor == Balance.Floors && !BeatTheHouse));
 
         public static Run Replay(int seed, IEnumerable<RunInput> inputs, RunOptions options = null)
         {
@@ -141,7 +151,7 @@ namespace HouseEdge.Core
                 case RunInputKind.SkipReward:
                     return Phase == RunPhase.BossReward;
                 case RunInputKind.ChooseRoom:
-                    return Phase == RunPhase.RoomChoice && InRange(input.Index, _roomChoices.Count);
+                    return Phase == RunPhase.RoomChoice && InRange(input.Index, NextStops.Count);
                 case RunInputKind.RoomOption:
                     return Phase == RunPhase.InRoom && CanTakeRoomOption(input);
                 case RunInputKind.LeaveRoom:
@@ -239,7 +249,7 @@ namespace HouseEdge.Core
                     OpenShop();
                     break;
                 case RunInputKind.ChooseRoom:
-                    EnterRoom(_roomChoices[input.Index]);
+                    WalkTo(NextStops[input.Index]);
                     break;
                 case RunInputKind.RoomOption:
                     TakeRoomOption(RoomOptions()[input.Index], input.Index2);
@@ -382,7 +392,8 @@ namespace HouseEdge.Core
             else Gambler.CoolDown(Options.Stake >= Stake.Purple ? Balance.HeatCooldownPerTable / 2 : Balance.HeatCooldownPerTable);
 
             if (Stage == TableKind.Boss && !wasEnforcer) OfferBossReward();
-            else OpenShop();
+            else if (Stage == TableKind.Boss) OpenShop();
+            else StartPath();
         }
 
         private void PayOut(TableKind kind)
@@ -429,7 +440,38 @@ namespace HouseEdge.Core
             Phase = RunPhase.Shop;
         }
 
-        // after the shop: a room on the way to the next table, or straight on after a boss
+        // after a Low or High Table: onto the map, choosing the first stop
+        private void StartPath()
+        {
+            _section = Stage == TableKind.Low ? 0 : 1;
+            _row = -1;
+            _lane = 0;
+            Phase = RunPhase.RoomChoice;
+        }
+
+        private void WalkTo(PathStop stop)
+        {
+            _row = stop.Row;
+            _lane = stop.Lane;
+            stop.Visited = true;
+            if (stop.Kind == RoomKind.Shop) OpenShop();
+            else EnterRoom(stop.Kind);
+        }
+
+        // done with a stop: on to the next one, or to the table at the end of the path
+        private void LeaveStop()
+        {
+            if (_row < FloorMap.Rows - 1)
+            {
+                Phase = RunPhase.RoomChoice;
+                return;
+            }
+            _row = -1;
+            AdvanceStage();
+            StartTable();
+        }
+
+        // after a shop: the next stop on the map, or the next floor after a boss
         private void LeaveShop()
         {
             if (Stage == TableKind.Boss)
@@ -445,7 +487,7 @@ namespace HouseEdge.Core
                 StartTable();
                 return;
             }
-            OfferRooms();
+            LeaveStop();
         }
 
         private void AdvanceStage()
@@ -455,26 +497,12 @@ namespace HouseEdge.Core
                 Floor++;
                 Stage = TableKind.Low;
                 PickFloorBoss();
+                BuildMap();
             }
             else Stage++;
         }
 
         // rooms
-
-        private void OfferRooms()
-        {
-            _roomChoices.Clear();
-            var pool = Rooms.All.ToList();
-            // the lounge can't skip The House
-            if (NextStage == (Balance.Floors, TableKind.Boss) && !BeatTheHouse) pool.Remove(RoomKind.HighLimitLounge);
-            for (int i = 0; i < Balance.RoomChoices && pool.Count > 0; i++)
-            {
-                var room = pool[Random.Next(pool.Count)];
-                pool.Remove(room);
-                _roomChoices.Add(room);
-            }
-            Phase = RunPhase.RoomChoice;
-        }
 
         private void EnterRoom(RoomKind kind)
         {
@@ -506,10 +534,12 @@ namespace HouseEdge.Core
                 _skipNextTable = false;
                 _nextTargetFactor = Balance.LoungeTargetFactor;
                 bool skippedBoss = NextStage.stage == TableKind.Boss;
+                _row = -1;
                 AdvanceStage();
                 if (!skippedBoss)
                 {
-                    OfferRooms();
+                    // straight on to the map after the skipped table
+                    StartPath();
                     return;
                 }
                 // skipping the boss doesn't skip the loan shark
@@ -519,9 +549,11 @@ namespace HouseEdge.Core
                     StartTable();
                     return;
                 }
+                AdvanceStage();
+                StartTable();
+                return;
             }
-            AdvanceStage();
-            StartTable();
+            LeaveStop();
         }
 
         public List<RoomOption> RoomOptions()

@@ -23,8 +23,7 @@ namespace HouseEdge.Game
         private RoomView _room;
         private MenuView _menu;
         private MapView _map;
-        // what the map remembers: the room picked at each fork, and each floor's boss
-        private readonly Dictionary<(int floor, int slot), RoomKind> _rooms = new Dictionary<(int, int), RoomKind>();
+        // each floor's boss, for the climb strip on the map
         private readonly Dictionary<int, string> _bosses = new Dictionary<int, string>();
         private int _mapShownFloor;
         private Feedback _feedback;
@@ -66,6 +65,7 @@ namespace HouseEdge.Game
             _hud = new Hud(root);
             _deck = new DeckView(root);
             _map = new MapView(root);
+            _map.InputChosen += TryApply;
             _runOver = new RunOverView(root);
             _menu = new MenuView(root);
             _feedback = Feedback.Create(transform, root);
@@ -133,18 +133,18 @@ namespace HouseEdge.Game
 
         public void ShowDeck() => _deck.ShowDeck(Run);
 
+        // a look at the floor's map. between tables it's open anyway, for picking the next stop
         public void ShowMap()
         {
+            if (Run.Phase == RunPhase.RoomChoice) return;
             SkipPlayback();
             Remember();
-            _map.Open(Run, _rooms, _bosses);
+            _map.Open(Run, _bosses, choosing: false);
         }
 
         private void Remember()
         {
             if (Run.FloorBoss != null) _bosses[Run.Floor] = Run.FloorBoss.Name;
-            if (Run.Phase == RunPhase.InRoom && Run.Room != null && Run.ActiveTable == Run.Table)
-                _rooms[(Run.Floor, Run.Stage == TableKind.Low ? 0 : 1)] = Run.Room.Kind;
         }
 
         public void ShowHowTo(int page)
@@ -158,7 +158,6 @@ namespace HouseEdge.Game
             _replay = null;
             _playing = true;
             _unlocks = new List<string>();
-            _rooms.Clear();
             _bosses.Clear();
             _mapShownFloor = 0;
             Run = new Run(seed, options);
@@ -227,7 +226,6 @@ namespace HouseEdge.Game
         private void StartReplay()
         {
             var inputs = new Queue<RunInput>(Run.Inputs);
-            _rooms.Clear();
             _bosses.Clear();
             var options = Run.Options;
             int seed = Run.Seed;
@@ -261,8 +259,12 @@ namespace HouseEdge.Game
             bool holding = Holding;
             bool shop = !holding && (Run.Phase == RunPhase.Shop || Run.Phase == RunPhase.BossReward);
             bool backRoom = Run.ActiveTable != Run.Table;
-            bool room = !holding && !backRoom && (Run.Phase == RunPhase.RoomChoice || Run.Phase == RunPhase.InRoom);
-            ShowScreen(_table.Root, !shop && !room);
+            bool room = !holding && !backRoom && Run.Phase == RunPhase.InRoom;
+            // between tables the map is where you pick the next stop
+            bool choosing = !holding && Run.Phase == RunPhase.RoomChoice;
+            if (choosing) _map.Open(Run, _bosses, choosing: true);
+            else if (_map.IsOpen && !_map.Viewing) _map.Close();
+            ShowScreen(_table.Root, !shop && !room && !choosing);
             ShowScreen(_shop.Root, shop);
             ShowScreen(_room.Root, room);
             if (room) _room.Refresh(Run);
@@ -331,7 +333,7 @@ namespace HouseEdge.Game
 
             if (keyboard.escapeKey.wasPressedThisFrame)
             {
-                if (_map.IsOpen) _map.Close();
+                if (_map.Viewing) _map.Close();
                 else if (_deck.IsOpen) _deck.Close();
                 else if (_menu.HowToOpen) _menu.CloseHowTo();
                 else if (_menu.IsOpen) { if (_playing && !Run.IsOver) _menu.Close(); }
@@ -352,7 +354,7 @@ namespace HouseEdge.Game
                 SkipPlayback();
                 return;
             }
-            if (_map.IsOpen)
+            if (_map.Viewing)
             {
                 if (keyboard.spaceKey.wasPressedThisFrame || keyboard.escapeKey.wasPressedThisFrame || keyboard.tabKey.wasPressedThisFrame) _map.Close();
                 return;
@@ -384,6 +386,7 @@ namespace HouseEdge.Game
             {
                 if (keyboard.digit1Key.wasPressedThisFrame) TryApply(RunInput.ChooseRoom(0));
                 if (keyboard.digit2Key.wasPressedThisFrame) TryApply(RunInput.ChooseRoom(1));
+                if (keyboard.digit3Key.wasPressedThisFrame) TryApply(RunInput.ChooseRoom(2));
             }
             if (keyboard.dKey.wasPressedThisFrame) TryTable(PlayerAction.DoubleDown);
             if (keyboard.pKey.wasPressedThisFrame) TryTable(PlayerAction.Split);

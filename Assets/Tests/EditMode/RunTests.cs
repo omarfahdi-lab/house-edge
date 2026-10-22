@@ -45,7 +45,7 @@ namespace HouseEdge.Tests
         [Test]
         public void LosingATable_EndsTheRun()
         {
-            var run = PlayUntil(5, r => r.IsOver || r.Phase == RunPhase.Shop, alwaysStand: true);
+            var run = PlayUntil(5, r => r.IsOver || r.Phase != RunPhase.AtTable, alwaysStand: true);
             // standing on everything rarely reaches 150 in 4 Hands, but if it does, keep going until a loss
             while (!run.IsOver)
             {
@@ -56,17 +56,19 @@ namespace HouseEdge.Tests
         }
 
         [Test]
-        public void BeatingATable_OpensTheShop_ThenMovesToTheNextStage()
+        public void BeatingATable_OpensTheMap_ThenMovesToTheNextStage()
         {
-            var run = FindRunThatBeatsFirstTable();
-            Assert.That(run.Phase, Is.EqualTo(RunPhase.Shop));
+            var run = FindRunOnTheMapFrom(1);
+            Assert.That(run.Phase, Is.EqualTo(RunPhase.RoomChoice));
             Assert.That(run.TablesBeaten, Is.EqualTo(1));
 
             AutoPlay.ToNextTable(run);
             Assert.That(run.Stage, Is.EqualTo(TableKind.High));
             Assert.That(run.Table.Target, Is.EqualTo(Balance.Target(1, TableKind.High)));
             Assert.That(run.Table.HandsLeft, Is.EqualTo(Balance.StartingHands), "Hands reset each table");
-            Assert.That(run.Table.BurnsLeft, Is.EqualTo(Balance.StartingBurns), "Burns reset each table");
+            // Old Pete adds a Burn at his table
+            int burns = Balance.StartingBurns + (run.Dealer?.Name == "Old Pete" ? 1 : 0);
+            Assert.That(run.Table.BurnsLeft, Is.EqualTo(burns), "Burns reset each table");
         }
 
         [Test]
@@ -102,12 +104,22 @@ namespace HouseEdge.Tests
             return run;
         }
 
+        // a run that just beat the Low Table and walked into the Shop on the map (the first row always has one)
         internal static Run FindRunThatBeatsFirstTableFrom(int firstSeed)
+        {
+            var run = FindRunOnTheMapFrom(firstSeed);
+            if (run == null) return null;
+            run.Apply(RunInput.ChooseRoom(run.RoomChoices.ToList().IndexOf(RoomKind.Shop)));
+            return run;
+        }
+
+        // a run that just beat the Low Table, choosing its first stop on the map
+        internal static Run FindRunOnTheMapFrom(int firstSeed)
         {
             for (int seed = firstSeed; seed < firstSeed + 500; seed++)
             {
-                var run = PlayUntil(seed, r => r.IsOver || r.Phase == RunPhase.Shop, alwaysStand: false);
-                if (run.Phase == RunPhase.Shop) return run;
+                var run = PlayUntil(seed, r => r.IsOver || r.Phase != RunPhase.AtTable, alwaysStand: false);
+                if (run.Phase == RunPhase.RoomChoice) return run;
             }
             return null;
         }

@@ -5,7 +5,7 @@ using UnityEngine.UIElements;
 
 namespace HouseEdge.Game
 {
-    // the floor map's fork (pick one of two rooms) and the room you walk into
+    // a room you walked into from the map
     public sealed class RoomView
     {
         private readonly VisualElement _root, _content, _icon;
@@ -54,57 +54,7 @@ namespace HouseEdge.Game
             object key = (run.Phase, run.Room);
             bool opened = !Equals(key, _shownFor);
             _shownFor = key;
-            if (run.Phase == RunPhase.RoomChoice) RefreshChoice(opened);
-            else RefreshRoom(opened);
-        }
-
-        private void RefreshChoice(bool opened)
-        {
-            var (floor, stage) = _run.NextStage;
-            _title.text = "PICK A DOOR";
-            _text.text = Ui.Rich($"You can only go through one. Behind it, then on to the {Hud.StageName(stage, floor)}.");
-            _result.text = "";
-            Ui.Show(_leave, false);
-            for (int i = 0; i < _run.RoomChoices.Count; i++)
-            {
-                var kind = _run.RoomChoices[i];
-                var input = RunInput.ChooseRoom(i);
-                var door = Ui.Column(_content, 10);
-                door.style.width = 270;
-                door.style.minHeight = 330;
-                door.style.backgroundImage = Ui.Gradient(new Color(0.42f, 0.24f, 0.12f), new Color(0.2f, 0.1f, 0.05f));
-                door.style.backgroundSize = new BackgroundSize(Length.Percent(100), Length.Percent(100));
-                // an arched top like a doorway
-                door.style.borderTopLeftRadius = door.style.borderTopRightRadius = 135;
-                door.style.borderBottomLeftRadius = door.style.borderBottomRightRadius = 10;
-                Ui.Border(door, 3, Ui.Gold);
-                Ui.Padding(door, 44, 22);
-                door.style.paddingBottom = 18;
-                door.style.alignItems = Align.Center;
-
-                var badge = Ui.Column(door);
-                badge.style.width = badge.style.height = 74;
-                Ui.Rounded(badge, 37);
-                badge.style.backgroundColor = new Color(0, 0, 0, 0.35f);
-                Ui.Border(badge, 2, new Color(0.98f, 0.79f, 0.32f, 0.6f));
-                badge.style.alignItems = Align.Center;
-                badge.style.justifyContent = Justify.Center;
-                Ui.Add(badge, new SuitIcon(RoomIcon(kind), Ui.Gold, 38));
-
-                var name = Ui.Title(door, Rooms.Name(kind).ToUpperInvariant(), 21, Ui.Cream);
-                name.style.unityTextAlign = TextAnchor.MiddleCenter;
-                name.style.whiteSpace = WhiteSpace.Normal;
-                var text = Ui.Body(door, Rooms.Describe(kind), 14, new Color(0.95f, 0.9f, 0.82f), center: true);
-                text.style.flexGrow = 1;
-                var enter = Ui.Button(door, "Enter", () => InputChosen?.Invoke(input), ButtonKind.Gold, (i + 1).ToString());
-                enter.style.alignSelf = Align.Stretch;
-                Ui.Lift(door, 1.03f);
-                door.RegisterCallback<ClickEvent>(e =>
-                {
-                    if (e.target == door) InputChosen?.Invoke(input);
-                });
-                if (opened) Ui.Enter(door, 40, 60 + 140 * i, 0.4f);
-            }
+            RefreshRoom(opened);
         }
 
         private void RefreshRoom(bool opened)

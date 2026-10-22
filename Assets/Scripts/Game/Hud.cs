@@ -67,7 +67,7 @@ namespace HouseEdge.Game
             _pips = Ui.Row(where, 5);
             _stages = Ui.Row(where, 4);
             _special = Ui.Text(where, "", 12, Ui.Bad, Weight.Bold);
-            Ui.Tip(where, "The climb", "8 floors. Each one is a Low Table, a room, a High Table, a room, then a Pit Boss with a twist. Beat The House on floor 8 to win.\nClick (or press Tab) for the map.");
+            Ui.Tip(where, "The climb", "8 floors. Each one is a Low Table, two stops on the map, a High Table, two more stops, then a Pit Boss with a twist. Beat The House on floor 8 to win.\nClick (or press Tab) for the map.");
             where.RegisterCallback<ClickEvent>(_ => MapClicked?.Invoke());
             Ui.Lift(where, 1.02f);
 
@@ -284,7 +284,7 @@ namespace HouseEdge.Game
             }
             if (gambler.Vices.Count == 0)
             {
-                var hint = Ui.Body(_vices, "No Vices yet. They're passive rule-breakers you buy in the shop after each table. Hold 3 of one type for a set bonus.", 12, Ui.Dim);
+                var hint = Ui.Body(_vices, "No Vices yet. They're passive rule-breakers you buy in Shops on the map. Hold 3 of one type for a set bonus.", 12, Ui.Dim);
                 Ui.Padding(hint, 8, 10);
                 Ui.Border(hint, 1, new Color(1, 1, 1, 0.1f));
                 Ui.Rounded(hint, 8);

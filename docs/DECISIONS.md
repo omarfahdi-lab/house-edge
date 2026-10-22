@@ -96,8 +96,13 @@ rescue the hand), `OnDealEnd` and `OnAfterScoring`.
 
 ## Floor map and rooms
 
-- After the Low Table's shop and the High Table's shop you pick 1 of 2 random rooms. The High Limit Lounge is never
-  offered right before The House.
+- **The floor map** (changed from DESIGN.md's "pick 1 of 2 rooms", at the player's request): between the Low and High
+  Tables, and between the High Table and the Pit Boss, there are two rows of three stops. Each stop is a Shop
+  (30% each, and every first row has at least one) or one of the rooms, no repeats in a row. You can start in any lane;
+  each stop leads straight on and sometimes diagonally to a neighbouring lane, never with two paths crossing.
+- Shops are stops on the map now, not automatic after every table. The only automatic shop is the one after a Pit Boss.
+  The table's payout shows on the map. The balance sim barely moved (21.1% to 21.5%), so no numbers changed.
+- The High Limit Lounge only appears in the row right before a table, and never right before The House.
 - **The Bar:** buy any of 3 Cocktails at 2g each, *or* take one random Cocktail free.
 - **Back Room:** one hand with no Vices. Any win doubles your gold, a loss or bust takes all of it, a push changes nothing.
 - **Pawn Shop:** sells Vices at full shop price (Cursed for 1). The used Rare costs 6g and is a random Cursed Vice 1 time in 3.

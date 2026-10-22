@@ -9,13 +9,46 @@ namespace HouseEdge.Tests
     public class FloorMapTests
     {
         [Test]
-        public void AfterTheLowTablesShop_YouPickOneOfTwoRooms()
+        public void AfterTheLowTable_YouPickAnyFirstStop_AndOneOfThemIsAShop()
+        {
+            var run = RunTests.FindRunOnTheMapFrom(1);
+            Assert.That(run.Phase, Is.EqualTo(RunPhase.RoomChoice));
+            Assert.That(run.NextStops.Count, Is.EqualTo(FloorMap.Lanes));
+            Assert.That(run.RoomChoices, Has.Member(RoomKind.Shop));
+            Assert.That(run.RoomChoices.Distinct().Count(), Is.EqualTo(FloorMap.Lanes));
+        }
+
+        [Test]
+        public void FromAStop_YouCanOnlyGoWhereItsPathsLead()
         {
             var run = RunTests.FindRunThatBeatsFirstTable();
+            var here = run.Here;
             run.Apply(RunInput.LeaveShop());
             Assert.That(run.Phase, Is.EqualTo(RunPhase.RoomChoice));
-            Assert.That(run.RoomChoices.Count, Is.EqualTo(2));
-            Assert.That(run.RoomChoices.Distinct().Count(), Is.EqualTo(2));
+            Assert.That(run.NextStops, Is.Not.Empty);
+            foreach (var stop in run.NextStops)
+            {
+                Assert.That(stop.Row, Is.EqualTo(here.Row + 1));
+                Assert.That(run.Map.Linked(here.Section, here.Row, here.Lane, stop.Lane));
+                Assert.That(System.Math.Abs(stop.Lane - here.Lane), Is.LessThanOrEqualTo(1));
+            }
+        }
+
+        [Test]
+        public void EveryFloorMap_HasAShopInEachFirstRow_AndNeverCrossingPaths()
+        {
+            for (int seed = 1; seed <= 200; seed++)
+            {
+                var map = new Run(seed).Map;
+                for (int section = 0; section < FloorMap.Sections; section++)
+                {
+                    Assert.That(Enumerable.Range(0, FloorMap.Lanes).Any(l => map.Stop(section, 0, l).Kind == RoomKind.Shop));
+                    for (int lane = 0; lane < FloorMap.Lanes - 1; lane++)
+                        Assert.That(map.Linked(section, 0, lane, lane + 1) && map.Linked(section, 0, lane + 1, lane), Is.False);
+                    // the lounge only right before a table
+                    Assert.That(Enumerable.Range(0, FloorMap.Lanes).All(l => map.Stop(section, 0, l).Kind != RoomKind.HighLimitLounge));
+                }
+            }
         }
 
         [Test]
@@ -191,10 +224,9 @@ namespace HouseEdge.Tests
             Assert.That(run.Stage, Is.EqualTo(TableKind.Low));
             run.Apply(RunInput.RoomOption(Option(run, RoomActionKind.SkipNextTable)));
             run.Apply(RunInput.LeaveRoom());
-            Assert.That(run.Phase, Is.EqualTo(RunPhase.RoomChoice), "straight to the next room");
+            Assert.That(run.Phase, Is.EqualTo(RunPhase.RoomChoice), "straight on to the map after the skipped table");
             Assert.That(run.Stage, Is.EqualTo(TableKind.High));
-            AutoPlay.Advance(run);
-            AutoPlay.Advance(run);
+            AutoPlay.ToNextTable(run);
             Assert.That(run.Stage, Is.EqualTo(TableKind.Boss));
             long expected = (long)System.Math.Round(Balance.Target(run.Floor, TableKind.Boss) * run.Boss.TargetFactor * Balance.LoungeTargetFactor);
             Assert.That(run.Table.Target, Is.EqualTo(expected));

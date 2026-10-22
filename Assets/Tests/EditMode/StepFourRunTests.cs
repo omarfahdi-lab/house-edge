@@ -64,7 +64,7 @@ namespace HouseEdge.Tests
                 run.Gambler.AddHeat(30);
                 var table = run.Table;
                 AutoPlay.UntilThisTableEnds(run);
-                if (run.Phase != RunPhase.Shop) continue;
+                if (run.Phase != RunPhase.RoomChoice) continue;
                 Assert.That(run.Gambler.Heat, Is.EqualTo(30 + table.HeatGained - Balance.HeatCooldownPerTable));
                 return;
             }

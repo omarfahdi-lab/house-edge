@@ -123,6 +123,8 @@ namespace HouseEdge.Core
 
         // floor map and rooms
         public const int RoomChoices = 2;
+        // the chance (in 100) that a stop on the map is a Shop. the first row after each table always has one
+        public const int PathShopChance = 30;
         public const int BarCocktails = 3;
         // half of a normal Cocktail, rounded up
         public const int BarCocktailPrice = 2;

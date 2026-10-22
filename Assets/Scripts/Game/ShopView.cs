@@ -74,9 +74,12 @@ namespace HouseEdge.Game
             bool opened = !Equals(key, _shownFor);
             _shownFor = key;
 
-            _title.text = reward ? $"{run.Boss?.Name?.ToUpperInvariant() ?? "THE BOSS"} FALLS" : "TABLE CLEARED";
+            // a Shop on the map, or the one that follows a Pit Boss
+            bool stop = run.Here != null;
+            _title.text = reward ? $"{run.Boss?.Name?.ToUpperInvariant() ?? "THE BOSS"} FALLS" : stop ? "THE SHOP" : "TABLE CLEARED";
             if (opened) Ui.Pop(_title, 1.3f);
-            RefreshReceipt(run, opened);
+            if (stop) _receipt.Clear();
+            else RefreshReceipt(run, opened);
 
             string notes = "";
             if (run.LastFreeVice != null) notes += $"You beat security! Heat cleared and a free {run.LastFreeVice.Name}.";
@@ -116,11 +119,13 @@ namespace HouseEdge.Game
             Ui.SetText(_reroll, $"Reroll  ·  {run.RerollCost}g");
             Ui.SetEnabled(_reroll, run.IsLegal(RunInput.Reroll()));
 
-            int nextFloor = run.Stage == TableKind.Boss ? run.Floor + 1 : run.Floor;
-            var nextStage = run.Stage == TableKind.Boss ? TableKind.Low : run.Stage + 1;
-            Ui.SetText(_leave, "Next table");
-            _next.text = $"Floor {nextFloor}  ·  {Hud.StageName(nextStage, nextFloor)}  ·  target {Balance.Target(nextFloor, nextStage):N0}";
-            _nextBoss.text = nextStage == TableKind.Boss ? $"{run.FloorBoss.Name}: {run.FloorBoss.Twist}" : "";
+            var (nextFloor, nextStage) = run.NextStage;
+            bool moreStops = stop && run.Here.Row < FloorMap.Rows - 1;
+            Ui.SetText(_leave, moreStops ? "Back to the map" : "Next table");
+            _next.text = moreStops
+                ? "One more stop before the " + Hud.StageName(nextStage, nextFloor)
+                : $"Floor {nextFloor}  ·  {Hud.StageName(nextStage, nextFloor)}";
+            _nextBoss.text = !moreStops && nextStage == TableKind.Boss ? $"{run.FloorBoss.Name}: {run.FloorBoss.Twist}" : "";
             Ui.Show(_nextBoss, _nextBoss.text.Length > 0);
         }
 

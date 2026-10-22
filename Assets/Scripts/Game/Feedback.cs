@@ -190,7 +190,7 @@ namespace HouseEdge.Game
             float end = scored ? Playback(run, table, settle * TableView.Speed) : 0;
 
             // everything below happens once the playback is over
-            bool cleared = before.Phase == RunPhase.AtTable && (run.Phase == RunPhase.Shop || run.Phase == RunPhase.BossReward) && before.Table == run.Table;
+            bool cleared = before.Phase == RunPhase.AtTable && run.Phase != RunPhase.AtTable && !run.IsOver && before.Table == run.Table;
             int goldGained = run.Gambler.Gold - before.Gold;
             Schedule(end, () =>
             {

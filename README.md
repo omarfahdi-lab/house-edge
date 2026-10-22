@@ -13,7 +13,7 @@ The twist: **the dealer draws from your deck too.** Stack it with 10s and you hi
 | A floor-3 High Table | The shop |
 | -------------------- | -------- |
 | ![Table](docs/table.png) | ![Shop](docs/shop.png) |
-| **Pick a door on the floor map** | **The Purist, a Pit Boss** |
+| **Pick your path on the floor map** | **The Purist, a Pit Boss** |
 | ![Rooms](docs/rooms.png) | ![Boss](docs/boss.png) |
 
 ## Highlights
@@ -36,8 +36,10 @@ The twist: **the dealer draws from your deck too.** Stack it with 10s and you hi
   cards count in, every Vice, Comp and card upgrade that fires shows its "+4 Mult" or "x3 Mult" where it came from, the
   Chips and Mult boxes tick up with a rising pitch, and the total lands in the score. Core records each step
   (`HandScore.Steps`), so the playback is the real calculation, not a guess. 1x/2x/4x speed, and a click skips it.
-- **A map of the climb.** All 8 floors as a winding path of tables, room forks and Pit Bosses, with the rooms you
-  picked and where you are. It opens at the start of every floor (or with Tab).
+- **A Slay the Spire–style floor map.** Between tables, Shops and rooms sit on branching paths across three lanes
+  (`FloorMap`, generated from the run's seed so replays still match). You see the whole floor and plan a route; paths
+  never cross, the first row after a table always has a Shop, and the lounge only appears right before a table. The bot
+  plans paths too, and the win rate held at about 21%.
 - **Game feel.** Cards fly out of the shoe and the dealer's hole card flips over. Each result is acted out: winning
   cards hop and glow while the chips slide over to you, losing cards slump, busts tumble off the felt, and scoring
   hands pop a Chips x Mult breakdown over a turning sunburst. Losing the run rains cards and a sad trombone; winning it
@@ -52,8 +54,9 @@ The twist: **the dealer draws from your deck too.** Stack it with 10s and you hi
 ## How to play
 
 Each **table**: reach the target score before your Hands run out. Win and you're paid gold. Run out of Hands and the
-run is over. Each floor is a Low Table, a room, a High Table, a room, then a Pit Boss with a twist. There's a shop after
-every table.
+run is over. Each floor is a Low Table, two stops on a branching map, a High Table, two more stops, then a Pit Boss
+with a twist and a shop. The stops are Shops and rooms laid out like Slay the Spire: you see the whole floor, start in
+any lane, and follow the paths forward, so you plan where your gold goes.
 
 **Score = Chips x Mult.** Chips start as your card total plus the outcome's base Chips; Mult starts as the outcome's
 Mult. Vices, card enhancements and Comps add to both, left to right.
@@ -85,7 +88,7 @@ The full design is in [DESIGN.md](DESIGN.md). Rules it doesn't spell out are in 
 | `D` / `P` / `B` / `R` | Double Down / Split / Burn / Surrender |
 | `I` / `N` | Take / decline insurance |
 | `W` | Swap with the dealer (Card Mechanic Vice) |
-| `1` / `2` | Pick a door on the floor map |
+| `1` / `2` / `3` | Pick the next stop on the map |
 | `Tab` | The map |
 | Click / `Space` during scoring | Skip the playback |
 | `M` | Mute music and sounds |
@@ -141,19 +144,19 @@ What it found:
 4. **Three bosses were outliers:** The Twins, The Ceiling and The Card Mechanic ended 2-3x more runs than the others,
    so their targets are 0.75x/0.8x/0.8x.
 
-Final numbers (`dotnet run -c Release -- 1000 1 archetypes`): **the bot wins 21.1%** of seeds 1-1000 (22.5% on seeds
-5001-6000), with early tables forgiving and every Pit Boss a clear spike.
+Final numbers (`dotnet run -c Release -- 1000 1 archetypes`): **the bot wins 21.5%** of seeds 1-1000, with early
+tables forgiving and every Pit Boss a clear spike. (Moving the shops onto the floor map barely changed it: 21.1% before.)
 
 | Floor | Low win | High win | Boss win | Runs reaching the floor |
 | ----: | ------: | -------: | -------: | ----------------------: |
-| 1 | 97% | 97% | 93% | 100% |
-| 2 | 98% | 97% | 93% | 88% |
-| 3 | 95% | 94% | 92% | 78% |
-| 4 | 96% | 97% | 89% | 64% |
-| 5 | 94% | 94% | 91% | 53% |
-| 6 | 94% | 93% | 91% | 43% |
-| 7 | 96% | 94% | 86% | 34% |
-| 8 | 94% | 93% | 91% (The House) | 26% |
+| 1 | 97% | 98% | 93% | 100% |
+| 2 | 99% | 97% | 93% | 89% |
+| 3 | 96% | 95% | 90% | 79% |
+| 4 | 96% | 94% | 90% | 65% |
+| 5 | 95% | 95% | 90% | 52% |
+| 6 | 95% | 95% | 90% | 42% |
+| 7 | 96% | 94% | 88% | 35% |
+| 8 | 93% | 93% | 91% (The House) | 27% |
 
 Playing the same seeds with the bot focused on one archetype:
 
@@ -161,10 +164,10 @@ Playing the same seeds with the bot focused on one archetype:
 | ----- | -------: |
 | Steady | 41.8% |
 | Risky | 37.4% |
-| Lucky | 30.4% |
-| Greedy | 23.8% |
-| Combo | 21.8% |
-| Cheater | 19.4% |
+| Lucky | 29.6% |
+| Combo | 24.5% |
+| Greedy | 22.2% |
+| Cheater | 18.7% |
 
 Steady leads because extra Hands attack the variance problem directly. Cheater trails because the bot can't read
 dealer tells and manages Heat cautiously; it went from 14% to 19% once the bot learned to use known cards and swaps.

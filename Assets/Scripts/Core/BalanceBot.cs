@@ -217,20 +217,41 @@ namespace HouseEdge.Core
             return RunInput.PickReward(best);
         }
 
-        private static readonly RoomKind[] RoomPreference =
-        {
-            RoomKind.LostAndFound, RoomKind.Bar, RoomKind.SecurityOffice, RoomKind.PawnShop, RoomKind.CardRoom,
-            RoomKind.BackRoom, RoomKind.LoanShark, RoomKind.HighLimitLounge,
-        };
-
+        // plans a little like a player on the map: a stop's worth plus the best stop it leads to
         private static int ChooseRoom(Run run)
         {
-            var choices = run.RoomChoices.ToList();
-            // hot: go see security
-            if (run.Gambler.Heat >= 50 && choices.Contains(RoomKind.SecurityOffice)) return choices.IndexOf(RoomKind.SecurityOffice);
-            foreach (var room in RoomPreference)
-                if (choices.Contains(room)) return choices.IndexOf(room);
-            return 0;
+            var stops = run.NextStops;
+            int best = 0;
+            double bestValue = double.MinValue;
+            for (int i = 0; i < stops.Count; i++)
+            {
+                var stop = stops[i];
+                var after = run.Map.NextFrom(stop.Section, stop.Row, stop.Lane);
+                double value = StopValue(run, stop.Kind) + (after.Count > 0 ? after.Max(next => StopValue(run, next.Kind)) * 0.8 : 0);
+                if (value > bestValue)
+                {
+                    best = i;
+                    bestValue = value;
+                }
+            }
+            return best;
+        }
+
+        private static double StopValue(Run run, RoomKind kind)
+        {
+            var g = run.Gambler;
+            return kind switch
+            {
+                RoomKind.Shop => g.Gold >= 8 ? 6 : g.Gold >= 4 ? 3 : 0.5,
+                RoomKind.SecurityOffice => g.Heat >= 50 ? 8 : 1,
+                RoomKind.LostAndFound => g.HasFreeViceSlot ? 5 : 1,
+                RoomKind.Bar => g.HasFreeCocktailSlot ? 4 : 1,
+                RoomKind.CardRoom => 3,
+                RoomKind.PawnShop => 2,
+                RoomKind.BackRoom => 1,
+                RoomKind.LoanShark => 0.5,
+                _ => 0,
+            };
         }
 
         private static RunInput ChooseInRoom(Run run)

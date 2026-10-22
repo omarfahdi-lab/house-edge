@@ -60,7 +60,7 @@ namespace HouseEdge.Tests
             {
                 var run = new Run(seed, new RunOptions { Stake = Stake.Red });
                 AutoPlay.UntilThisTableEnds(run);
-                if (run.Phase != RunPhase.Shop) continue;
+                if (run.Phase != RunPhase.RoomChoice) continue;
                 Assert.That(run.LastPayout.Base, Is.EqualTo(0));
                 return;
             }

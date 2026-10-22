@@ -100,13 +100,13 @@ namespace HouseEdge.Game
             Para($"Every table has a target score. You get {Balance.StartingHands} Hands (deals) to reach it. Reach it and you're paid gold and go to the shop. Run out of Hands first and the run is over.");
             var floor = Ui.Row(_page, 6);
             floor.style.flexWrap = Wrap.Wrap;
-            foreach (var (text, color) in new[] { ("LOW TABLE", Ui.Gold), ("pick a room", Ui.Dim), ("HIGH TABLE", Ui.Gold), ("pick a room", Ui.Dim), ("PIT BOSS", Ui.Bad) })
+            foreach (var (text, color) in new[] { ("LOW TABLE", Ui.Gold), ("2 stops", Ui.Dim), ("HIGH TABLE", Ui.Gold), ("2 stops", Ui.Dim), ("PIT BOSS", Ui.Bad) })
             {
                 Ui.Pill(floor, text, color, filled: color != Ui.Dim, size: 12);
                 if (text != "PIT BOSS") Ui.Text(floor, "→", 16, Ui.Dim, Weight.Bold);
             }
             Para("That's one floor. There are 8. Each Pit Boss changes the rules for its table, and on floor 8 you face The House. Beat it to win.");
-            Para("After every table there's a shop. Between tables you pick one of two doors: rooms with deals, gambles and services.");
+            Para("Between tables you walk the floor's map, like Slay the Spire: Shops and rooms (deals, gambles and services) sit on branching paths. Pick your next stop from where your path leads. After a Pit Boss there's always a Shop.");
         }
 
         private void Blackjack()
@@ -238,7 +238,8 @@ namespace HouseEdge.Game
                 ("B / R", "Burn / Surrender"),
                 ("I / N", "Take / decline insurance"),
                 ("W", "Swap with the dealer (Card Mechanic Vice)"),
-                ("1 / 2", "Pick a door"),
+                ("1 / 2 / 3", "Pick the next stop on the map"),
+                ("Tab", "Look at the map"),
                 ("M", "Mute"),
                 ("Esc", "Menu and pause"),
             })

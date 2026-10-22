@@ -3,7 +3,8 @@ using System.Collections.Generic;
 
 namespace HouseEdge.Core
 {
-    public enum RoomKind { Bar, BackRoom, PawnShop, LoanShark, CardRoom, LostAndFound, SecurityOffice, HighLimitLounge }
+    // Shop is a stop on the map like the rooms, but it opens the shop instead of a room
+    public enum RoomKind { Bar, BackRoom, PawnShop, LoanShark, CardRoom, LostAndFound, SecurityOffice, HighLimitLounge, Shop }
 
     public enum RoomActionKind
     {
@@ -38,7 +39,12 @@ namespace HouseEdge.Core
 
     public static class Rooms
     {
-        public static readonly IReadOnlyList<RoomKind> All = (RoomKind[])Enum.GetValues(typeof(RoomKind));
+        // the rooms, not counting the Shop
+        public static readonly IReadOnlyList<RoomKind> All = new[]
+        {
+            RoomKind.Bar, RoomKind.BackRoom, RoomKind.PawnShop, RoomKind.LoanShark, RoomKind.CardRoom,
+            RoomKind.LostAndFound, RoomKind.SecurityOffice, RoomKind.HighLimitLounge,
+        };
 
         public static string Name(RoomKind room) => room switch
         {
@@ -49,6 +55,7 @@ namespace HouseEdge.Core
             RoomKind.CardRoom => "Card Room",
             RoomKind.LostAndFound => "Lost and Found",
             RoomKind.SecurityOffice => "Security Office",
+            RoomKind.Shop => "Shop",
             _ => "High Limit Lounge",
         };
 
@@ -61,6 +68,7 @@ namespace HouseEdge.Core
             RoomKind.CardRoom => "Remove, duplicate or enhance one card in your deck.",
             RoomKind.LostAndFound => "Take a free random Vice. 1 in 3 chance it's Cursed.",
             RoomKind.SecurityOffice => "Pay 2 gold per 10 Heat to clear it, or bribe a guard for a Cheater Vice (+20 Heat).",
+            RoomKind.Shop => "Buy Vices, Cocktails and Comps.",
             _ => "Skip the next table entirely, but the table after it has a 1.5x target.",
         };
     }
