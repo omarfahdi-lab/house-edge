@@ -267,9 +267,18 @@ namespace HouseEdge.Core
 
         private bool CanSwap(PlayerHand hand) => !_swapUsedThisDeal && HasActiveVice(v => v.GrantsSwap);
 
+        // things a boss (or anyone at the table) says out loud this deal, for the game to show
+        public IReadOnlyList<string> Announcements => _announcements;
+        private readonly List<string> _announcements = new List<string>();
+        private bool _dealerRedrawUsed;
+
+        public void Announce(string text) => _announcements.Add(text);
+
         private void Deal()
         {
             ClearTable();
+            _announcements.Clear();
+            _dealerRedrawUsed = false;
             foreach (var effect in ActiveEffects()) effect.OnBeforeDeal(this);
             if (Rules.ReshuffleEveryDeals > 0 && DealsPlayed > 0 && DealsPlayed % Rules.ReshuffleEveryDeals == 0)
                 _shoe.ReshuffleDiscards();
@@ -470,6 +479,15 @@ namespace HouseEdge.Core
             {
                 if (OfferDealerDecision()) return;
                 DrawForDealer();
+                if (Rules.DealerRedrawsFirstBust && !_dealerRedrawUsed && DealerValue.IsBust)
+                {
+                    // The Cheat palms the card that busted him and tries again
+                    _dealerRedrawUsed = true;
+                    var palmed = _dealerCards[_dealerCards.Count - 1];
+                    _dealerCards.RemoveAt(_dealerCards.Count - 1);
+                    _shoe.Discard(palmed);
+                    Announce($"Palms the {palmed.RankLabel} that would have busted him, and draws again.");
+                }
             }
 
             if (Rules.DealerPlaysTwoHands && _secondDealerCards.Count == 0)

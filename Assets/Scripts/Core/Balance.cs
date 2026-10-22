@@ -32,11 +32,11 @@ namespace HouseEdge.Core
             new long[] { 90, 135, 180 },
             new long[] { 190, 290, 380 },
             new long[] { 400, 600, 800 },
-            new long[] { 800, 1200, 1580 },
-            new long[] { 1600, 2400, 3100 },
-            new long[] { 3100, 4700, 6100 },
-            new long[] { 5900, 8900, 11500 },
-            new long[] { 10500, 15800, 26000 },
+            new long[] { 780, 1170, 1580 },
+            new long[] { 1500, 2250, 3100 },
+            new long[] { 2850, 4300, 6100 },
+            new long[] { 5400, 8100, 11500 },
+            new long[] { 9600, 14400, 26000 },
         };
 
         // past floor 8 (Endless) targets double every floor

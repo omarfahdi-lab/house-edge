@@ -31,6 +31,8 @@ namespace HouseEdge.Core
 
         // the dealer hits a hard 17 by mistake with 1 chance in N (0 = never)
         public int DealerMistakeOneIn;
+        // The Cheat: once a deal, a card that busts the dealer goes back and he draws again
+        public bool DealerRedrawsFirstBust;
 
         public TableRules Clone() => (TableRules)MemberwiseClone();
 
@@ -52,6 +54,7 @@ namespace HouseEdge.Core
             ReshuffleEveryDeals = other.ReshuffleEveryDeals;
             ReshuffleAfterDealerBust = other.ReshuffleAfterDealerBust;
             DealerMistakeOneIn = other.DealerMistakeOneIn;
+            DealerRedrawsFirstBust = other.DealerRedrawsFirstBust;
         }
     }
 }

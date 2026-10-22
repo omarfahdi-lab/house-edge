@@ -33,11 +33,24 @@ namespace HouseEdge.Tests
         }
 
         [Test]
-        public void Cheat_DealerWinsPushes()
+        public void Cheat_PalmsTheFirstCardThatWouldBustHim_AndDrawsAgain()
         {
-            var t = At("The Cheat", "10", "10", "8", "8");
+            // you stand on 18; he has 16, draws a King (bust), palms it, then draws a 4 for 20
+            var t = At("The Cheat", "10", "10", "8", "6", "K", "4");
             Play(t, Deal, Stand);
             Assert.That(Result(t), Is.EqualTo(Outcome.Lose));
+            Assert.That(t.DealerValue.Total, Is.EqualTo(20));
+            Assert.That(t.Announcements, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public void Cheat_OnlyPalmsOnceAHand()
+        {
+            // the King is palmed, then a 6 busts him for real
+            var t = At("The Cheat", "10", "10", "8", "6", "K", "6");
+            Play(t, Deal, Stand);
+            Assert.That(t.DealerValue.IsBust);
+            Assert.That(Result(t), Is.EqualTo(Outcome.Win));
         }
 
         [Test]

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -290,6 +291,8 @@ namespace HouseEdge.Core
         // for the tables that were beaten: deals it took, and how far past the target the score went
         public readonly int[,] HandsToClear = new int[Balance.Floors, 3];
         public readonly double[,] Overshoot = new double[Balance.Floors, 3];
+        // each Pit Boss: tables reached and beaten
+        public readonly Dictionary<string, (int reached, int beat)> Bosses = new Dictionary<string, (int, int)>();
         public long GoldAtShops;
         public int ShopVisits;
         public int Busted;
@@ -317,6 +320,11 @@ namespace HouseEdge.Core
                         && (!counted || run.Floor != lastFloor || run.Stage != lastStage))
                     {
                         report.Reached[run.Floor - 1, (int)run.Stage]++;
+                        if (run.Boss != null)
+                        {
+                            report.Bosses.TryGetValue(run.Boss.Name, out var seen);
+                            report.Bosses[run.Boss.Name] = (seen.reached + 1, seen.beat);
+                        }
                         lastFloor = run.Floor;
                         lastStage = run.Stage;
                         counted = true;
@@ -327,6 +335,11 @@ namespace HouseEdge.Core
                     if (phase == RunPhase.AtTable && table.Phase == TablePhase.Won && run.Table != table || phase == RunPhase.AtTable && run.Phase != RunPhase.AtTable && table.Phase == TablePhase.Won)
                     {
                         report.Beat[lastFloor - 1, (int)lastStage]++;
+                        if (lastStage == TableKind.Boss && table.Effects.OfType<Boss>().FirstOrDefault() is Boss beaten && report.Bosses.ContainsKey(beaten.Name))
+                        {
+                            report.Bosses.TryGetValue(beaten.Name, out var seen);
+                            report.Bosses[beaten.Name] = (seen.reached, seen.beat + 1);
+                        }
                         report.HandsToClear[lastFloor - 1, (int)lastStage] += table.DealsPlayed;
                         report.Overshoot[lastFloor - 1, (int)lastStage] += (double)table.Score / table.Target;
                     }
@@ -358,6 +371,11 @@ namespace HouseEdge.Core
                 string Cell(int stage) => r.Reached[f, stage] == 0 ? "-" : $"{(double)r.Beat[f, stage] / r.Reached[f, stage]:P0}";
                 lines.Add($"| {f + 1} | {r.Reached[f, 0]} | {Cell(0)} | {r.Reached[f, 1]} | {Cell(1)} | {r.Reached[f, 2]} | {Cell(2)} |");
             }
+            lines.Add("");
+            lines.Add("| Pit Boss | Reached | Beaten |");
+            lines.Add("| -------- | ------: | -----: |");
+            foreach (var pair in r.Bosses.OrderBy(p => (double)p.Value.beat / Math.Max(1, p.Value.reached)))
+                lines.Add($"| {pair.Key} | {pair.Value.reached} | {(double)pair.Value.beat / Math.Max(1, pair.Value.reached):P0} |");
             lines.Add("");
             lines.Add("| Floor | Low: deals to clear | Low: score / target | High: deals | High: score / target | Boss: deals | Boss: score / target |");
             lines.Add("| ----: | ------------------: | ------------------: | ----------: | -------------------: | ----------: | -------------------: |");
