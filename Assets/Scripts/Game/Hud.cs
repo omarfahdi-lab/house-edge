@@ -74,7 +74,13 @@ namespace HouseEdge.Game
             _comps.style.whiteSpace = WhiteSpace.Normal;
 
             _vicesTitle = Ui.Text(panel, "", 12, Ui.Dim, bold: true);
-            _vices = Ui.Column(panel, 5);
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.style.flexGrow = 1;
+            scroll.style.flexShrink = 1;
+            scroll.verticalScrollerVisibility = ScrollerVisibility.Hidden;
+            Ui.Add(panel, scroll);
+            _vices = Ui.Column(null, 5);
+            scroll.Add(_vices);
         }
 
         private static VisualElement Bar(VisualElement parent, Color color)

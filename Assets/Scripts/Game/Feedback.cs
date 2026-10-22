@@ -93,6 +93,8 @@ namespace HouseEdge.Game
         public void After(Snapshot before, Run run)
         {
             var table = run.ActiveTable;
+            // left the table: clear any popup still floating
+            if (table.IsOver || run.Phase != RunPhase.AtTable && table == run.Table) Reset(run);
             int cards = table.PlayerHands.Sum(h => h.Cards.Count) + table.DealerCards.Count + table.SecondDealerCards.Count;
             if (table == before.Table && cards > before.Cards || table != before.Table && cards > 0) Play(_card);
 
@@ -119,7 +121,8 @@ namespace HouseEdge.Game
             else if (best.Outcome == Outcome.Bust) Play(_bust);
             else Play(_lose);
 
-            if (total <= 0) return;
+            // the shop already shows the payout when this hand ended the table
+            if (total <= 0 || run.ActiveTable != table || table.IsOver) return;
             _popupTotal = total;
             _popupTime = 0;
             _popupDetail.text = table.LastScores.Count == 1 ? $"{best.Chips} Chips x {best.Mult:0.##} Mult" : "split hands";
@@ -128,9 +131,19 @@ namespace HouseEdge.Game
             if (total >= table.Target / 2) _shake = Mathf.Min(0.5f, 0.15f + total / (float)table.Target * 0.1f);
         }
 
+        public bool Muted
+        {
+            get => PlayerPrefs.GetInt("muted", 0) == 1;
+            set
+            {
+                PlayerPrefs.SetInt("muted", value ? 1 : 0);
+                PlayerPrefs.Save();
+            }
+        }
+
         private void Play(AudioClip clip)
         {
-            if (clip == null) return;
+            if (clip == null || Muted) return;
             _audio.pitch = UnityEngine.Random.Range(0.94f, 1.06f);
             _audio.PlayOneShot(clip);
         }

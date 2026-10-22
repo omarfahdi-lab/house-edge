@@ -58,7 +58,7 @@ namespace HouseEdge.Game
             _shop.InputChosen += TryApply;
             _hud.InputChosen += TryApply;
             _hud.CocktailClicked += UseCocktail;
-            _hud.DeckClicked += () => _deck.ShowDeck(Run);
+            _hud.DeckClicked += ShowDeck;
             _deck.InputChosen += TryApply;
             _room.InputChosen += TryApply;
             _room.CardOptionClicked += (option, label) => _deck.Pick(Run, label, "Pick a card from your deck.", 1,
@@ -84,6 +84,8 @@ namespace HouseEdge.Game
             else OpenMenu();
             DevCapture.AttachIfRequested(this);
         }
+
+        public void ShowDeck() => _deck.ShowDeck(Run);
 
         public void StartRun(int seed, RunOptions options)
         {
@@ -195,6 +197,7 @@ namespace HouseEdge.Game
                 else OpenMenu();
                 return;
             }
+            if (keyboard.mKey.wasPressedThisFrame) _feedback.Muted = !_feedback.Muted;
             if (_deck.IsOpen) return;
             if (_menu.IsOpen)
             {

@@ -36,7 +36,7 @@ namespace HouseEdge.Game
             foreach (var raw in _steps)
             {
                 // Bot:N lets the balance bot play N whole runs through the real UI, as a smoke test
-                if (raw.StartsWith("Bot"))
+                if (raw == "Bot" || raw.StartsWith("Bot:"))
                 {
                     int runs = raw.Contains(":") ? int.Parse(raw.Split(':')[1]) : 1;
                     var bot = new BalanceBot();
@@ -77,6 +77,13 @@ namespace HouseEdge.Game
                 case "Auto": AutoPlayTable(game); break;
                 case "Skip": game.TryApply(RunInput.SkipReward()); break;
                 case "Menu": game.OpenMenu(); break;
+                case "Deck": game.ShowDeck(); break;
+                case "BotTo":
+                    // the bot plays until it reaches floor N (or the run ends), then stops at the next shop
+                    var bot = new BalanceBot();
+                    for (int i = 0; i < 6000 && !game.Run.IsOver && !(game.Run.Floor >= index && game.Run.Phase == RunPhase.Shop); i++)
+                        game.TryApply(bot.Choose(game.Run));
+                    break;
                 case "Door": game.TryApply(RunInput.ChooseRoom(index)); break;
                 case "Room": game.TryApply(RunInput.RoomOption(index)); break;
                 case "Out": game.TryApply(RunInput.LeaveRoom()); break;

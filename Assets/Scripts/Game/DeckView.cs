@@ -30,7 +30,7 @@ namespace HouseEdge.Game
         {
             _root = new VisualElement();
             Ui.Fill(_root);
-            _root.style.backgroundColor = new Color(0.02f, 0.08f, 0.05f, 0.96f);
+            _root.style.backgroundColor = new Color(0.02f, 0.08f, 0.05f, 1f);
             _root.style.alignItems = Align.Center;
             Ui.Padding(_root, 18, 24);
             parent.Add(_root);

@@ -117,7 +117,7 @@ namespace HouseEdge.Game
             "Burn redraws the card you just hit (even a bust). Burns reset every table.",
             "Vices bend the rules and trigger left to right. Hold 3 of one archetype for a set bonus.",
             "Cheating builds Heat. At 100, security drags you to The Eye in the Sky.",
-            "Keys: Space deal, H hit, S stand, D double, P split, B burn, R surrender, W swap, Esc menu.",
+            "Keys: Space deal, H hit, S stand, D double, P split, B burn, R surrender, W swap, M mute, Esc menu.",
         };
 
         private static void Section(VisualElement parent, string text)
