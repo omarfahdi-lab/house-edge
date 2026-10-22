@@ -37,16 +37,21 @@ namespace HouseEdge.Game
     public sealed class Feedback : MonoBehaviour
     {
         private AudioSource _audio;
-        private AudioClip _card, _chip, _win, _lose, _coin, _alarm, _bust, _blackjack, _cleared;
+        private AudioClip _card, _chip, _win, _lose, _coin, _alarm, _bust, _blackjack, _cleared, _clink, _trombone, _fanfare, _boom;
         private VisualElement _root, _flash, _popup, _chipsBox, _multBox;
         private Label _chips, _mult, _times, _total;
         private Particles _particles;
+        private Sunburst _rays;
+        private bool _raysOn;
+        private float _clinkCooldown;
         private float _popupTime = -1, _shake, _flashTime, _flashStrength;
         private Color _flashColor;
         private long _popupTotal;
 
         // where coins burst from when you're paid: the gold counter in the sidebar, in world space
         public Func<Vector2> GoldAnchor;
+        // the dealer's cards and yours, in world space, for chips sliding across the table
+        public Func<Vector2> DealerAnchor, PlayerAnchor;
 
         public static Feedback Create(Transform parent, VisualElement root)
         {
@@ -70,12 +75,22 @@ namespace HouseEdge.Game
             _lose = Synth.Tones(new[] { 196f, 147f }, 0.16f, 0.3f);
             _bust = Synth.Tones(new[] { 110f }, 0.25f, 0.3f);
             _alarm = Synth.Siren(1.2f, 0.25f);
+            _clink = Synth.Tones(new[] { 3400f }, 0.05f, 0.12f);
+            _trombone = Synth.Brass(new[] { 196f, 185f, 175f, 165f }, new[] { 0.42f, 0.42f, 0.42f, 1.3f }, 0.3f);
+            _fanfare = Synth.Brass(new[] { 392f, 523f, 659f, 784f, 659f, 1047f }, new[] { 0.14f, 0.14f, 0.14f, 0.3f, 0.14f, 0.9f }, 0.26f);
+            _boom = Synth.Boom(0.7f, 0.35f);
 
             _flash = new VisualElement();
             Ui.Fill(_flash);
             _flash.pickingMode = PickingMode.Ignore;
             _flash.style.backgroundColor = new Color(0, 0, 0, 0);
             root.Add(_flash);
+
+            // light rays behind a big hand
+            _rays = new Sunburst(new Color(0.98f, 0.79f, 0.32f, 0.16f), 620);
+            _rays.style.top = 300 - 310;
+            _rays.style.opacity = 0;
+            root.Add(_rays);
 
             // Chips x Mult = total, in the middle of the table
             _popup = Ui.Column(root, 6);
@@ -118,6 +133,7 @@ namespace HouseEdge.Game
         public void Reset(Run run)
         {
             _popupTime = -1;
+            _raysOn = false;
             Ui.Show(_popup, false);
         }
 
@@ -125,7 +141,7 @@ namespace HouseEdge.Game
         {
             var table = run.ActiveTable;
             // left the table: clear any popup still floating
-            if (table.IsOver || run.Phase != RunPhase.AtTable && table == run.Table) Reset(run);
+            if (run.Phase != RunPhase.AtTable && table == run.Table && before.Phase != RunPhase.AtTable) Reset(run);
             int cards = table.PlayerHands.Sum(h => h.Cards.Count) + table.DealerCards.Count + table.SecondDealerCards.Count;
             if (table == before.Table && cards > before.Cards || table != before.Table && cards > 0) Play(_card);
 
@@ -140,10 +156,13 @@ namespace HouseEdge.Game
                 _particles.Burst(new Vector2(TableCenterX, 120), 70, 640);
                 Flash(new Color(0.98f, 0.79f, 0.32f), 0.5f, 0.14f);
             }
-            if (run.Phase == RunPhase.Won && before.Phase != RunPhase.Won)
+            if (run.Phase == RunPhase.Won && before.Phase != RunPhase.Won) Fireworks();
+            if (run.Phase == RunPhase.Lost && before.Phase != RunPhase.Lost)
             {
-                Play(_cleared);
-                for (int i = 0; i < 4; i++) _particles.Burst(new Vector2(_root.layout.width * (0.2f + i * 0.2f), 200), 60, 700);
+                // the house wins: cards rain down and a sad trombone plays
+                _particles.CardRain(_root.layout.width, 12);
+                StartCoroutine(After(0.5f, () => Play(_trombone, steady: true)));
+                Flash(new Color(0.5f, 0, 0), 1.2f, 0.14f);
             }
 
             if (run.Gambler.Gold > before.Gold)
@@ -177,8 +196,21 @@ namespace HouseEdge.Game
                 Flash(new Color(0.9f, 0.1f, 0.1f), 0.3f, 0.07f);
             }
 
-            // the shop already shows the payout when this hand ended the table
-            if (total <= 0 || run.ActiveTable != table || table.IsOver) return;
+            // the pot slides across the felt: to you when you win, to the dealer when you don't
+            if (DealerAnchor != null && PlayerAnchor != null && run.ActiveTable == table)
+            {
+                var dealer = _root.WorldToLocal(DealerAnchor());
+                var player = _root.WorldToLocal(PlayerAnchor());
+                var chipColor = new[] { new Color(0.8f, 0.14f, 0.16f), new Color(0.13f, 0.5f, 0.3f), new Color(0.13f, 0.13f, 0.15f) };
+                var color = chipColor[table.DealsPlayed % chipColor.Length];
+                bool won = table.LastScores.Any(s => s.Outcome.IsWin());
+                bool lost = table.LastScores.All(s => s.Outcome == Outcome.Lose || s.Outcome == Outcome.Bust);
+                float pot = total / (float)Math.Max(1, table.Target);
+                if (won) _particles.Chips(dealer, player, Mathf.Clamp(4 + (int)(pot * 12), 4, 14), color, Clink, 0.75f);
+                else if (lost) _particles.Chips(player, dealer, 4, color, Clink, 0.75f);
+            }
+
+            if (total <= 0 || run.ActiveTable != table) return;
             _popupTotal = total;
             _popupTime = 0;
             bool split = table.LastScores.Count > 1;
@@ -191,6 +223,7 @@ namespace HouseEdge.Game
             Ui.Pop(_chipsBox, 1.5f, 0);
             Ui.Pop(_times, 1.6f, 120);
             Ui.Pop(_multBox, 1.5f, 220);
+            _raysOn = big || total / (float)Math.Max(1, table.Target) >= 0.5f;
 
             var center = new Vector2(TableCenterX, 300);
             float share = total / (float)Math.Max(1, table.Target);
@@ -199,6 +232,37 @@ namespace HouseEdge.Game
             if (big) Flash(new Color(0.98f, 0.79f, 0.32f), 0.4f, 0.12f);
             // a huge hand shakes the table
             if (share >= 0.5f) _shake = Mathf.Min(0.5f, 0.15f + share * 0.1f);
+        }
+
+        private void Clink()
+        {
+            if (_clinkCooldown > 0) return;
+            _clinkCooldown = 0.05f;
+            Play(_clink);
+        }
+
+        // bursts all over the screen for a few seconds
+        private void Fireworks()
+        {
+            Play(_fanfare, steady: true);
+            var random = new System.Random();
+            for (int i = 0; i < 9; i++)
+            {
+                float at = i * 0.45f;
+                var spot = new Vector2((float)(0.15 + random.NextDouble() * 0.7) * _root.layout.width, (float)(0.15 + random.NextDouble() * 0.4) * _root.layout.height);
+                StartCoroutine(After(at, () =>
+                {
+                    _particles.Burst(spot, 45, 560);
+                    _particles.Coins(spot, 10, 380);
+                    Play(_boom);
+                }));
+            }
+        }
+
+        private static System.Collections.IEnumerator After(float seconds, Action action)
+        {
+            yield return new WaitForSecondsRealtime(seconds);
+            action();
         }
 
         private float TableCenterX => Hud.Width + (_root.layout.width - Hud.Width) / 2f;
@@ -223,15 +287,26 @@ namespace HouseEdge.Game
             }
         }
 
-        private void Play(AudioClip clip)
+        // steady keeps the pitch, for melodies
+        private void Play(AudioClip clip, bool steady = false)
         {
             if (clip == null || Muted) return;
-            _audio.pitch = UnityEngine.Random.Range(0.94f, 1.06f);
+            _audio.pitch = steady ? 1 : UnityEngine.Random.Range(0.94f, 1.06f);
             _audio.PlayOneShot(clip);
         }
 
         private void Update()
         {
+            _clinkCooldown -= Time.deltaTime;
+            float raysTarget = _raysOn && _popupTime >= 0 ? 1 : 0;
+            float raysAlpha = Mathf.MoveTowards(_rays.resolvedStyle.opacity, raysTarget * (_popupTime > 1.7f ? 0 : 1), Time.deltaTime * 3);
+            _rays.style.opacity = raysAlpha;
+            if (raysAlpha > 0)
+            {
+                _rays.style.left = TableCenterX - 310;
+                _rays.style.rotate = new Rotate(Time.time * 25);
+            }
+
             if (_popupTime >= 0)
             {
                 _popupTime += Time.deltaTime;
@@ -286,6 +361,49 @@ namespace HouseEdge.Game
                     data[n * perNote + i] = Mathf.Sin(2 * Mathf.PI * notes[n] * t) * envelope * volume;
                 }
             return Clip("tones", data);
+        }
+
+        // a buzzy brass tone with vibrato: trombones and fanfares
+        public static AudioClip Brass(float[] notes, float[] lengths, float volume)
+        {
+            int total = 0;
+            foreach (float l in lengths) total += (int)(Rate * l);
+            var data = new float[total];
+            int offset = 0;
+            for (int n = 0; n < notes.Length; n++)
+            {
+                int count = (int)(Rate * lengths[n]);
+                float phase = 0;
+                for (int i = 0; i < count; i++)
+                {
+                    float t = i / (float)Rate;
+                    // vibrato grows on long notes
+                    float vibrato = 1 + 0.012f * Mathf.Sin(2 * Mathf.PI * 5.5f * t) * Mathf.Clamp01(t / 0.3f);
+                    phase += 2 * Mathf.PI * notes[n] * vibrato / Rate;
+                    float tone = 0;
+                    for (int h = 1; h <= 6; h++) tone += Mathf.Sin(phase * h) / h;
+                    float env = Mathf.Min(1, t / 0.03f) * Mathf.Min(1, (lengths[n] - t) / 0.06f);
+                    data[offset + i] = tone * env * volume * 0.6f;
+                }
+                offset += count;
+            }
+            return Clip("brass", data);
+        }
+
+        // a low thump with a tail of noise, for fireworks
+        public static AudioClip Boom(float length, float volume)
+        {
+            int count = (int)(Rate * length);
+            var data = new float[count];
+            var random = new System.Random(3);
+            float smooth = 0;
+            for (int i = 0; i < count; i++)
+            {
+                float t = i / (float)Rate;
+                smooth += ((float)(random.NextDouble() * 2 - 1) - smooth) * 0.08f;
+                data[i] = (Mathf.Sin(2 * Mathf.PI * (60 + 80 * Mathf.Exp(-t / 0.05f)) * t) * Mathf.Exp(-t / 0.15f) + smooth * 2 * Mathf.Exp(-t / 0.3f)) * volume;
+            }
+            return Clip("boom", data);
         }
 
         public static AudioClip Noise(float length, float volume)

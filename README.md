@@ -29,12 +29,15 @@ The twist: **the dealer draws from your deck too.** Stack it with 10s and you hi
 - **Everything from the design doc:** 8 floors with a floor map of 8 room types, 12 Pit Bosses plus The Eye in the Sky,
   The Enforcer and a 3-phase House, Heat and casino security, side bets, Cocktails, Comps, archetype set bonuses,
   6 starting decks, 6 stakes, unlocks, the Daily Run, run codes and Endless.
-- **Built entirely in code.** One bootstrap method builds the camera, a UI Toolkit interface, and synthesized sounds.
+- **Built entirely in code.** One bootstrap method builds the camera, a UI Toolkit interface, and synthesized sound and music.
   Cards, suits, icons, poker chips and the table's felt are drawn in code (`Painter2D` vector shapes and generated
   textures, so they work on WebGL with no font fallback). The only assets are two open-source fonts.
-- **Game feel.** Cards fly out of the shoe and the dealer's hole card flips over, each scoring hand pops a
-  Chips x Mult breakdown that counts up, wins burst into coins and confetti, and the score and gold count up instead of
-  jumping. Every control explains itself on hover: UI Toolkit's own tooltips only show in the editor, so the game has
+- **Game feel.** Cards fly out of the shoe and the dealer's hole card flips over. Each result is acted out: winning
+  cards hop and glow while the chips slide over to you, losing cards slump, busts tumble off the felt, and scoring
+  hands pop a Chips x Mult breakdown over a turning sunburst. Losing the run rains cards and a sad trombone; winning it
+  sets off fireworks.
+- **Music made in code.** A lounge-jazz loop (walking bass, FM electric piano, vibraphone, ride cymbal) and a tense
+  minor-key track for Pit Bosses and security are synthesized at startup and crossfade as you move through the casino. Every control explains itself on hover: UI Toolkit's own tooltips only show in the editor, so the game has
   a small tooltip system of its own.
 
 **Tech:** Unity 6.6 · C# · URP 2D · UI Toolkit · Input System · NUnit · WebGL · GitHub Actions
@@ -76,7 +79,7 @@ The full design is in [DESIGN.md](DESIGN.md). Rules it doesn't spell out are in 
 | `I` / `N` | Take / decline insurance |
 | `W` | Swap with the dealer (Card Mechanic Vice) |
 | `1` / `2` | Pick a door on the floor map |
-| `M` | Mute |
+| `M` | Mute music and sounds |
 | `Esc` | Menu (pauses) |
 | Mouse | Everything else: side bets, shop, Vices, Cocktails, the deck view |
 
@@ -208,6 +211,6 @@ screenshot and quits (`Bot:N` lets the balance bot play N whole runs through the
 
 ## Credits
 
-Cards, suits, icons, UI and sounds are generated in code. Fonts: [Limelight](https://fonts.google.com/specimen/Limelight)
+Cards, suits, icons, UI, sounds and music are generated in code. Fonts: [Limelight](https://fonts.google.com/specimen/Limelight)
 by Sorkin Type and [Fira Sans](https://fonts.google.com/specimen/Fira+Sans) by Mozilla, both under the
 SIL Open Font License (license files in `Assets/Resources/Fonts`).

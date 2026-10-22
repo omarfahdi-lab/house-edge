@@ -17,8 +17,39 @@ namespace HouseEdge.Game
         public static int? SeedOverride => int.TryParse(Arg("-seed"), out int seed) ? seed : (int?)null;
         public static bool Requested => !string.IsNullOrEmpty(Arg("-capture"));
 
+        // -wav <dir>: save both music loops as WAV files, to check them outside the game
+        public static void SaveMusicIfRequested()
+        {
+            string dir = Arg("-wav");
+            if (string.IsNullOrEmpty(dir)) return;
+            System.IO.Directory.CreateDirectory(dir);
+            WriteWav(System.IO.Path.Combine(dir, "lounge.wav"), MusicSynth.Lounge());
+            WriteWav(System.IO.Path.Combine(dir, "boss.wav"), MusicSynth.Boss());
+        }
+
+        private static void WriteWav(string path, AudioClip clip)
+        {
+            var samples = new float[clip.samples];
+            clip.GetData(samples, 0);
+            using var writer = new System.IO.BinaryWriter(System.IO.File.Create(path));
+            writer.Write(System.Text.Encoding.ASCII.GetBytes("RIFF"));
+            writer.Write(36 + samples.Length * 2);
+            writer.Write(System.Text.Encoding.ASCII.GetBytes("WAVEfmt "));
+            writer.Write(16);
+            writer.Write((short)1);
+            writer.Write((short)1);
+            writer.Write(clip.frequency);
+            writer.Write(clip.frequency * 2);
+            writer.Write((short)2);
+            writer.Write((short)16);
+            writer.Write(System.Text.Encoding.ASCII.GetBytes("data"));
+            writer.Write(samples.Length * 2);
+            foreach (float s in samples) writer.Write((short)(Mathf.Clamp(s, -1, 1) * 32767));
+        }
+
         public static void AttachIfRequested(GameBootstrap game)
         {
+            SaveMusicIfRequested();
             string path = Arg("-capture");
             if (string.IsNullOrEmpty(path)) return;
             // keep updating when the window isn't focused

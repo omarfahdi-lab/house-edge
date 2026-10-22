@@ -11,6 +11,9 @@ namespace HouseEdge.Game
     public sealed class GameBootstrap : MonoBehaviour
     {
         private const float ReplayStepSeconds = 0.35f;
+        // after the hand that ends a table, the table stays up this long so the result can play out
+        private const float ResultHoldSeconds = 2.3f;
+        private float _holdUntil;
 
         private Hud _hud;
         private TableView _table;
@@ -20,6 +23,7 @@ namespace HouseEdge.Game
         private RoomView _room;
         private MenuView _menu;
         private Feedback _feedback;
+        private Music _music;
         private Profile _profile;
         private List<string> _unlocks = new List<string>();
         private int _dailyPlace;
@@ -60,6 +64,13 @@ namespace HouseEdge.Game
             _menu = new MenuView(root);
             _feedback = Feedback.Create(transform, root);
             _feedback.GoldAnchor = () => _hud.GoldAnchor.worldBound.center;
+            _feedback.DealerAnchor = () => _table.DealerCenter;
+            _feedback.PlayerAnchor = () => _table.PlayerCenter;
+            _music = Music.Create(transform);
+            _menu.MusicOn = () => _music.Enabled;
+            _menu.SoundOn = () => !_feedback.Muted;
+            _menu.ToggleMusic = () => _music.Enabled = !_music.Enabled;
+            _menu.ToggleSound = () => _feedback.Muted = !_feedback.Muted;
             Tooltip.Create(root);
 
             _table.ActionChosen += action => TryApply(RunInput.Table(action));
@@ -125,9 +136,11 @@ namespace HouseEdge.Game
             OpenMenu();
         }
 
+        public bool Holding => Time.time < _holdUntil;
+
         public void TryApply(RunInput input)
         {
-            if (Replaying || !Run.IsLegal(input)) return;
+            if (Replaying || Holding || !Run.IsLegal(input)) return;
             Apply(input);
         }
 
@@ -135,6 +148,9 @@ namespace HouseEdge.Game
         {
             var before = Snapshot.Of(Run);
             Run.Apply(input);
+            // the hand that clears (or loses) a table gets a moment on screen before the shop or the end screen
+            if (before.Phase == RunPhase.AtTable && Run.Phase != RunPhase.AtTable && !Replaying && !DevCapture.Requested)
+                _holdUntil = Time.time + ResultHoldSeconds;
             _feedback.After(before, Run);
             if (Run.IsOver && !Replaying) RecordRun();
             Refresh();
@@ -172,15 +188,16 @@ namespace HouseEdge.Game
             _hud.Refresh(Run);
             _table.Refresh(Run);
             _table.SetReplay(Replaying);
-            bool shop = Run.Phase == RunPhase.Shop || Run.Phase == RunPhase.BossReward;
+            bool holding = Holding;
+            bool shop = !holding && (Run.Phase == RunPhase.Shop || Run.Phase == RunPhase.BossReward);
             bool backRoom = Run.ActiveTable != Run.Table;
-            bool room = !backRoom && (Run.Phase == RunPhase.RoomChoice || Run.Phase == RunPhase.InRoom);
+            bool room = !holding && !backRoom && (Run.Phase == RunPhase.RoomChoice || Run.Phase == RunPhase.InRoom);
             ShowScreen(_table.Root, !shop && !room);
             ShowScreen(_shop.Root, shop);
             ShowScreen(_room.Root, room);
             if (room) _room.Refresh(Run);
             if (shop) _shop.Refresh(Run);
-            bool over = Run.IsOver && !Replaying;
+            bool over = Run.IsOver && !Replaying && !holding;
             Ui.Show(_runOver.Root, over);
             if (over) _runOver.Refresh(Run, _unlocks, _dailyPlace);
         }
@@ -197,8 +214,24 @@ namespace HouseEdge.Game
             }
         }
 
+        // lounge jazz in the casino, something tense when a boss or security is at the table, quiet when it's over
+        private Track ChooseTrack()
+        {
+            if (_menu.IsOpen && !_playing) return Track.Lounge;
+            if (Run.IsOver) return Track.None;
+            bool tense = Run.Phase == RunPhase.AtTable &&
+                         (Run.Stage == TableKind.Boss || Run.AtEyeInTheSky || Run.AtEnforcer || Run.ActiveTable != Run.Table);
+            return tense ? Track.Boss : Track.Lounge;
+        }
+
+        private bool _wasHolding;
+
         private void Update()
         {
+            _music.Play(ChooseTrack());
+            // the hold just ran out: show the shop or the end screen
+            if (_wasHolding && !Holding) Refresh();
+            _wasHolding = Holding;
             if (Replaying)
             {
                 _replayTimer += Time.deltaTime;
@@ -224,8 +257,15 @@ namespace HouseEdge.Game
                 else OpenMenu();
                 return;
             }
-            if (keyboard.mKey.wasPressedThisFrame) _feedback.Muted = !_feedback.Muted;
-            if (_deck.IsOpen) return;
+            if (keyboard.mKey.wasPressedThisFrame)
+            {
+                // M mutes everything, or brings everything back
+                bool anyOn = _music.Enabled || !_feedback.Muted;
+                _music.Enabled = !anyOn;
+                _feedback.Muted = anyOn;
+                if (_menu.IsOpen) OpenMenu();
+            }
+            if (_deck.IsOpen || Holding) return;
             if (_menu.IsOpen)
             {
                 if (keyboard.spaceKey.wasPressedThisFrame && !_menu.HowToOpen && !_menu.Typing) _menu.NewRun();

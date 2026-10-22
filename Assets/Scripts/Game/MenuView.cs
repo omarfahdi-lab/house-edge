@@ -20,6 +20,11 @@ namespace HouseEdge.Game
         private StartingDeck _deck = StartingDeck.Standard, _deckShown = StartingDeck.Standard;
         private Stake _stake = Stake.White, _stakeShown = Stake.White;
 
+        // the audio settings live elsewhere; the menu just shows and flips them
+        public Func<bool> MusicOn, SoundOn;
+        public Action ToggleMusic, ToggleSound;
+        private readonly Switch _musicSwitch, _soundSwitch;
+
         public event Action<int, RunOptions> StartClicked;
         public event Action DailyClicked, ResumeClicked, AbandonClicked;
 
@@ -77,6 +82,12 @@ namespace HouseEdge.Game
             _daily.style.maxWidth = 380;
             _daily.style.marginTop = 6;
             _stats = Ui.Text(left, "", 12, Ui.Dim);
+
+            var audio = Ui.Row(left, 18);
+            audio.style.marginTop = 10;
+            _musicSwitch = AudioSwitch(audio, "Music", () => { ToggleMusic?.Invoke(); Rebuild(); });
+            _soundSwitch = AudioSwitch(audio, "Sounds", () => { ToggleSound?.Invoke(); Rebuild(); });
+            Ui.Text(audio, "M mutes both", 11, Ui.Dim);
 
             // right: what kind of run to start
             var setup = Ui.Glass(_root, 9, radius: 18);
@@ -162,6 +173,16 @@ namespace HouseEdge.Game
             }).Every(16);
         }
 
+        private static Switch AudioSwitch(VisualElement parent, string label, Action clicked)
+        {
+            var row = Ui.Row(parent, 8);
+            var toggle = new Switch(clicked);
+            toggle.style.scale = new Scale(new Vector2(0.85f, 0.85f));
+            Ui.Add(row, toggle);
+            Ui.Text(row, label, 13, Ui.Cream, Weight.Bold);
+            return toggle;
+        }
+
         private static Button MenuButton(VisualElement parent, string text, Action onClick, ButtonKind kind, string key = null)
         {
             var button = Ui.Button(parent, text, onClick, kind, key);
@@ -239,6 +260,8 @@ namespace HouseEdge.Game
                               (stakeLocked ? " Win a run on the chip before it to unlock." : ""));
 
             _endless.Set(_endlessOn);
+            _musicSwitch.Set(MusicOn?.Invoke() ?? true);
+            _soundSwitch.Set(SoundOn?.Invoke() ?? true);
             _summary.text = $"You'll play:  {Decks.Name(_deck)} deck  ·  {Stakes.Name(_stake)}  ·  Endless {(_endlessOn ? "on" : "off")}";
         }
 

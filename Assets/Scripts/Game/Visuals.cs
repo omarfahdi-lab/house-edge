@@ -215,6 +215,40 @@ namespace HouseEdge.Game
         }
     }
 
+    // light rays turning slowly behind a big moment
+    public sealed class Sunburst : VisualElement
+    {
+        private readonly Color _color;
+
+        public Sunburst(Color color, float size)
+        {
+            _color = color;
+            style.position = Position.Absolute;
+            style.width = style.height = size;
+            pickingMode = PickingMode.Ignore;
+            generateVisualContent += Draw;
+        }
+
+        private void Draw(MeshGenerationContext context)
+        {
+            float size = contentRect.width;
+            if (size <= 0) return;
+            var p = context.painter2D;
+            var center = new Vector2(size / 2, size / 2);
+            const int rays = 16;
+            for (int i = 0; i < rays; i++)
+            {
+                float a0 = i * 360f / rays, a1 = a0 + 360f / rays * 0.5f;
+                p.fillColor = new Color(_color.r, _color.g, _color.b, _color.a);
+                p.BeginPath();
+                p.MoveTo(center);
+                p.Arc(center, size / 2, a0, a1);
+                p.ClosePath();
+                p.Fill();
+            }
+        }
+    }
+
     // coins and confetti flying out of a point, with gravity
     public sealed class Particles : VisualElement
     {
@@ -222,8 +256,19 @@ namespace HouseEdge.Game
         {
             public VisualElement View;
             public Vector2 Position, Velocity;
-            public float Life, Age, Spin, Angle;
+            public float Life, Age, Spin, Angle, Gravity = 900;
         }
+
+        // something sliding along an arc from one point to another, like a chip pushed across the table
+        private sealed class Flight
+        {
+            public VisualElement View;
+            public Vector2 From, To;
+            public float Delay, Duration, Age;
+            public Action Landed;
+        }
+
+        private readonly List<Flight> _flights = new List<Flight>();
 
         private readonly List<Bit> _bits = new List<Bit>();
         private readonly System.Random _random = new System.Random();
@@ -265,6 +310,51 @@ namespace HouseEdge.Game
 
         private const int MaxBits = 220;
 
+        // poker chips sliding from one place to another, one after another
+        public void Chips(Vector2 from, Vector2 to, int count, Color color, Action landed = null, float delay = 0)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                var chip = new PokerChip(color, new Color(0.97f, 0.96f, 0.92f), 26);
+                chip.style.position = Position.Absolute;
+                chip.style.opacity = 0;
+                Add(chip);
+                var jitter = new Vector2(_random.Next(-26, 27), _random.Next(-14, 15));
+                _flights.Add(new Flight
+                {
+                    View = chip,
+                    From = from + jitter * 0.5f,
+                    To = to + jitter,
+                    Delay = delay + i * 0.07f,
+                    Duration = 0.45f,
+                    Landed = landed,
+                });
+            }
+        }
+
+        // card backs tumbling down the screen, when the house wins
+        public void CardRain(float width, int count)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                var card = CardView.CreateFaceDown(0.55f);
+                card.style.position = Position.Absolute;
+                card.pickingMode = PickingMode.Ignore;
+                card.style.opacity = 0.85f;
+                Add(card);
+                _bits.Add(new Bit
+                {
+                    View = card,
+                    Position = new Vector2((float)_random.NextDouble() * width, -140 - _random.Next(900)),
+                    Velocity = new Vector2(_random.Next(-60, 61), 120 + _random.Next(160)),
+                    Life = 4.5f,
+                    Spin = _random.Next(-140, 141),
+                    Angle = _random.Next(-40, 41),
+                    Gravity = 260,
+                });
+            }
+        }
+
         private void Spawn(VisualElement view, Vector2 at, float speed, float life)
         {
             // a flood of bursts at once (a fast replay) drops the oldest bits
@@ -301,14 +391,39 @@ namespace HouseEdge.Game
                     _bits.RemoveAt(i);
                     continue;
                 }
-                b.Velocity += new Vector2(0, 900) * dt;
+                b.Velocity += new Vector2(0, b.Gravity) * dt;
                 b.Velocity *= 0.985f;
                 b.Position += b.Velocity * dt;
                 b.Angle += b.Spin * dt;
                 b.View.style.left = b.Position.x;
                 b.View.style.top = b.Position.y;
                 b.View.style.rotate = new Rotate(b.Angle);
-                b.View.style.opacity = Mathf.Clamp01((b.Life - b.Age) / 0.4f);
+                b.View.style.opacity = Mathf.Clamp01((b.Life - b.Age) / 0.4f) * (b.Gravity < 500 ? 0.85f : 1);
+            }
+
+            for (int i = _flights.Count - 1; i >= 0; i--)
+            {
+                var f = _flights[i];
+                f.Age += dt;
+                float t = (f.Age - f.Delay) / f.Duration;
+                if (t < 0) continue;
+                if (t >= 1.6f)
+                {
+                    f.View.RemoveFromHierarchy();
+                    _flights.RemoveAt(i);
+                    continue;
+                }
+                if (t >= 1 && f.Landed != null)
+                {
+                    f.Landed();
+                    f.Landed = null;
+                }
+                float k = Mathf.Clamp01(t);
+                float eased = 1 - Mathf.Pow(1 - k, 3);
+                var p = Vector2.Lerp(f.From, f.To, eased) + new Vector2(0, -60 * Mathf.Sin(k * Mathf.PI));
+                f.View.style.left = p.x - 13;
+                f.View.style.top = p.y - 13;
+                f.View.style.opacity = t < 1 ? Mathf.Clamp01(t * 4) : Mathf.Clamp01((1.6f - t) / 0.4f);
             }
         }
     }

@@ -48,6 +48,14 @@ namespace HouseEdge.Game
         private Table _shownTable;
         private int _dealIndex, _stagger;
         private string _lastMessage;
+        // what's on screen, so the result can animate the cards
+        private readonly List<(PlayerHand hand, VisualElement group, List<VisualElement> cards)> _handViews =
+            new List<(PlayerHand, VisualElement, List<VisualElement>)>();
+        private readonly List<VisualElement> _dealerViews = new List<VisualElement>();
+
+        // world-space centers, for chips sliding between you and the dealer
+        public Vector2 DealerCenter => _dealerCards.worldBound.center;
+        public Vector2 PlayerCenter => _playerHands.worldBound.center;
 
         public event Action<PlayerAction> ActionChosen;
 
@@ -286,12 +294,14 @@ namespace HouseEdge.Game
         private void RefreshDealer(Table table)
         {
             _dealerCards.Clear();
+            _dealerViews.Clear();
             for (int i = 0; i < table.DealerCards.Count; i++)
             {
                 bool hidden = i == 1 && table.HoleCardHidden;
                 var view = Animate(hidden ? CardView.CreateFaceDown() : CardView.Create(table.DealerCards[i]), table.DealerCards[i], hidden);
                 if (i > 0) view.style.marginLeft = 10;
                 _dealerCards.Add(view);
+                _dealerViews.Add(view);
             }
             if (table.DealerCards.Count == 0) Spots(_dealerCards);
             _dealerBadgeSlot.Clear();
@@ -402,6 +412,7 @@ namespace HouseEdge.Game
         private void RefreshPlayer(Table table)
         {
             _playerHands.Clear();
+            _handViews.Clear();
             if (table.PlayerHands.Count == 0)
             {
                 var empty = Ui.Column(_playerHands, 8);
@@ -425,6 +436,7 @@ namespace HouseEdge.Game
                 // the Mime keeps your second card face down until the hand is over
                 bool mimed = table.Rules.SecondCardFaceDown && !hand.IsDone;
                 var cards = Ui.Row(group);
+                var views = new List<VisualElement>();
                 for (int i = 0; i < hand.Cards.Count; i++)
                 {
                     bool down = mimed && i == 1;
@@ -432,7 +444,9 @@ namespace HouseEdge.Game
                     // overlap a little so five-card hands fit
                     if (i > 0) view.style.marginLeft = -20;
                     cards.Add(view);
+                    views.Add(view);
                 }
+                _handViews.Add((hand, group, views));
 
                 var (text, color) = mimed ? ("?", Ui.Cream) : Describe(hand, table);
                 var badges = Ui.Row(group, 6);
@@ -495,11 +509,135 @@ namespace HouseEdge.Game
             if (key != _lastMessage && message.Length > 0)
             {
                 // a scoring hand gets the big Chips x Mult popup first, so the text waits for it to clear
-                bool popup = table.LastScores.Sum(sc => sc.Total) > 0 && !table.IsOver;
+                bool popup = table.LastScores.Sum(sc => sc.Total) > 0;
                 if (popup) Ui.Enter(_message.parent, 10, 1900, 0.3f);
                 else Ui.Pop(_message, 1.3f);
             }
+            bool fresh = key != _lastMessage;
             _lastMessage = key;
+            if (table.LastScores.Count > 0 && (table.Phase == TablePhase.ReadyToDeal || table.IsOver)) PlayOutcome(table, fresh);
+        }
+
+        // the cards act out the result: winners hop and glow, losers slump, busts tumble off the felt
+        private void PlayOutcome(Table table, bool animate)
+        {
+            // wait for the dealer's cards to finish flying in
+            long delay = animate ? 110 * _stagger + 420 : 0;
+            bool anyWin = false, anyLoss = false;
+            foreach (var (hand, group, cards) in _handViews)
+            {
+                var score = table.LastScores.FirstOrDefault(sc => sc.Hand == hand);
+                if (score == null) continue;
+                var outcome = score.Outcome;
+                if (outcome.IsWin())
+                {
+                    anyWin = true;
+                    bool big = outcome == Outcome.Blackjack || outcome == Outcome.Charlie || outcome == Outcome.TwentyOne;
+                    Glow(group, big ? Ui.Gold : Ui.Good, animate, delay);
+                    if (animate) Hop(cards, delay, big ? 34 : 22, big);
+                }
+                else if (outcome == Outcome.Bust)
+                {
+                    anyLoss = true;
+                    Tumble(cards, animate, delay);
+                }
+                else if (outcome == Outcome.Lose || outcome == Outcome.Surrender)
+                {
+                    anyLoss = true;
+                    Slump(cards, animate, delay);
+                    if (animate) Shake(group, delay + 200);
+                }
+            }
+            var dealer = table.DealerValue;
+            if (dealer.IsBust) Tumble(_dealerViews, animate, delay);
+            else if (anyWin && !anyLoss) Slump(_dealerViews, animate, delay);
+            else if (anyLoss && !anyWin && animate) Hop(_dealerViews, delay, 14, false);
+        }
+
+        private static void Hop(List<VisualElement> cards, long delay, float height, bool spin)
+        {
+            for (int i = 0; i < cards.Count; i++)
+            {
+                var card = cards[i];
+                long at = delay + 70 * i;
+                card.schedule.Execute(() =>
+                {
+                    Ui.Transition(card, 0.16f, EasingMode.EaseOutSine, "translate", "rotate");
+                    card.style.translate = new Translate(0, -height);
+                    if (spin) card.style.rotate = new Rotate(i % 2 == 0 ? -8 : 8);
+                }).StartingIn(at);
+                card.schedule.Execute(() =>
+                {
+                    Ui.Transition(card, 0.42f, EasingMode.EaseOutBounce, "translate", "rotate");
+                    card.style.translate = new Translate(0, 0);
+                    card.style.rotate = new Rotate(0);
+                }).StartingIn(at + 170);
+            }
+        }
+
+        private static void Glow(VisualElement group, Color color, bool animate, long delay)
+        {
+            void Apply()
+            {
+                Ui.Transition(group, 0.35f, "background-color", "border-top-color", "border-bottom-color", "border-left-color", "border-right-color");
+                Ui.Border(group, 2, color);
+                group.style.backgroundColor = new Color(color.r, color.g, color.b, 0.12f);
+            }
+            if (!animate) Apply();
+            else group.schedule.Execute(Apply).StartingIn(delay);
+        }
+
+        private void Slump(List<VisualElement> cards, bool animate, long delay)
+        {
+            for (int i = 0; i < cards.Count; i++)
+            {
+                var card = cards[i];
+                float tilt = (i - (cards.Count - 1) / 2f) * 3;
+                void Apply()
+                {
+                    if (animate) Ui.Transition(card, 0.6f, EasingMode.EaseOutCubic, "translate", "rotate", "opacity");
+                    card.style.translate = new Translate(0, 10);
+                    card.style.rotate = new Rotate(tilt);
+                    card.style.opacity = 0.5f;
+                }
+                if (!animate) Apply();
+                else card.schedule.Execute(Apply).StartingIn(delay + 40 * i);
+            }
+        }
+
+        private void Tumble(List<VisualElement> cards, bool animate, long delay)
+        {
+            for (int i = 0; i < cards.Count; i++)
+            {
+                var card = cards[i];
+                // the same hand always lands the same way, even when the table redraws
+                var random = new System.Random(i * 7919 + cards.Count);
+                float angle = (random.Next(2) == 0 ? -1 : 1) * (14 + random.Next(22));
+                var drift = new Translate(random.Next(-26, 27), 34 + random.Next(26));
+                void Apply()
+                {
+                    if (animate) Ui.Transition(card, 0.7f, EasingMode.EaseInCubic, "translate", "rotate", "opacity");
+                    card.style.translate = drift;
+                    card.style.rotate = new Rotate(angle);
+                    card.style.opacity = 0.35f;
+                }
+                if (!animate) Apply();
+                else card.schedule.Execute(Apply).StartingIn(delay + 90 * i);
+            }
+        }
+
+        private static void Shake(VisualElement e, long delay)
+        {
+            float[] steps = { -9, 8, -6, 5, -3, 0 };
+            for (int i = 0; i < steps.Length; i++)
+            {
+                float x = steps[i];
+                e.schedule.Execute(() =>
+                {
+                    Ui.Transition(e, 0.04f, "translate");
+                    e.style.translate = new Translate(x, 0);
+                }).StartingIn(delay + 45 * i);
+            }
         }
 
         // one line that says what you can do right now

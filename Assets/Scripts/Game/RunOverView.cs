@@ -76,8 +76,9 @@ namespace HouseEdge.Game
             _code.text = $"Run code {run.Code}   ({Decks.Name(run.Options.Deck)} deck, {Stakes.Name(run.Options.Stake)})";
             if (!wasShown)
             {
-                Ui.Enter(_card, 40, 100, 0.45f);
-                Ui.Pop(_title, 1.3f, 350);
+                // the card rises after a beat, then the verdict stamps down
+                Ui.Enter(_card, 60, 700, 0.5f);
+                Ui.Pop(_title, won || run.BeatTheHouse ? 1.8f : 2.6f, 1050);
             }
         }
 
