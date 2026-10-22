@@ -13,7 +13,7 @@ The twist: **the dealer draws from your deck too.** Stack it with 10s and you hi
 | A floor-3 High Table | The shop |
 | -------------------- | -------- |
 | ![Table](docs/table.png) | ![Shop](docs/shop.png) |
-| **Pick a door on the floor map** | **The Twins, a Pit Boss** |
+| **Pick a door on the floor map** | **The Purist, a Pit Boss** |
 | ![Rooms](docs/rooms.png) | ![Boss](docs/boss.png) |
 
 ## Highlights
@@ -30,8 +30,12 @@ The twist: **the dealer draws from your deck too.** Stack it with 10s and you hi
   The Enforcer and a 3-phase House, Heat and casino security, side bets, Cocktails, Comps, archetype set bonuses,
   6 starting decks, 6 stakes, unlocks, the Daily Run, run codes and Endless.
 - **Built entirely in code.** One bootstrap method builds the camera, a UI Toolkit interface, and synthesized sounds.
-  Cards and suits are drawn with UI Toolkit (suits as `Painter2D` vector shapes, so they work on WebGL with no font
-  support). There are no art or audio assets.
+  Cards, suits, icons, poker chips and the table's felt are drawn in code (`Painter2D` vector shapes and generated
+  textures, so they work on WebGL with no font fallback). The only assets are two open-source fonts.
+- **Game feel.** Cards fly out of the shoe and the dealer's hole card flips over, each scoring hand pops a
+  Chips x Mult breakdown that counts up, wins burst into coins and confetti, and the score and gold count up instead of
+  jumping. Every control explains itself on hover: UI Toolkit's own tooltips only show in the editor, so the game has
+  a small tooltip system of its own.
 
 **Tech:** Unity 6.6 · C# · URP 2D · UI Toolkit · Input System · NUnit · WebGL · GitHub Actions
 
@@ -89,7 +93,9 @@ Assets/
       CardEffects.cs  enhancements, stamps and curses, run card by card before the Vices
       Balance.cs      every tunable number
       BalanceBot.cs   the bot and BalanceSimulation
-    Game/    HouseEdge.Game   - GameBootstrap, UI Toolkit views, input, Feedback (sound and juice)
+    Game/    HouseEdge.Game   - GameBootstrap, UI Toolkit views, input, Feedback (sound, particles, juice)
+      Ui.cs           fonts, colors, buttons, tweens, keyword coloring and the tooltip system
+      Visuals.cs      Painter2D poker chips, felt markings, the menu backdrop and particles
     Editor/  HouseEdge.Editor - command-line builds
   Tests/
     EditMode/ HouseEdge.Tests - NUnit tests for Core
@@ -202,4 +208,6 @@ screenshot and quits (`Bot:N` lets the balance bot play N whole runs through the
 
 ## Credits
 
-Everything (cards, suits, UI and sounds) is generated in code. No third-party assets.
+Cards, suits, icons, UI and sounds are generated in code. Fonts: [Limelight](https://fonts.google.com/specimen/Limelight)
+by Sorkin Type and [Fira Sans](https://fonts.google.com/specimen/Fira+Sans) by Mozilla, both under the
+SIL Open Font License (license files in `Assets/Resources/Fonts`).

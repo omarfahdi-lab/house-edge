@@ -4,14 +4,14 @@ using UnityEngine.UIElements;
 
 namespace HouseEdge.Game
 {
-    // suits drawn as vector shapes. the built-in font has no ♠♥♦♣ glyphs on WebGL,
+    // suits and small icons drawn as vector shapes. the built-in font has no ♠♥♦♣ glyphs on WebGL,
     // where there's no system font to fall back on
     public sealed class SuitIcon : VisualElement
     {
-        public enum Shape { Spade, Heart, Diamond, Club, Skull }
+        public enum Shape { Spade, Heart, Diamond, Club, Skull, Coin, Flame, Lock, Cards, Glass, Eye, Check, Star, Crown }
 
-        private readonly Shape _shape;
-        private readonly Color _color;
+        private Shape _shape;
+        private Color _color;
 
         public SuitIcon(Shape shape, Color color, float size)
         {
@@ -22,6 +22,13 @@ namespace HouseEdge.Game
             style.flexShrink = 0;
             pickingMode = PickingMode.Ignore;
             generateVisualContent += Draw;
+        }
+
+        public void Set(Shape shape, Color color)
+        {
+            _shape = shape;
+            _color = color;
+            MarkDirtyRepaint();
         }
 
         public static Shape For(Card card) => card.IsCursed ? Shape.Skull : card.Suit switch
@@ -79,7 +86,116 @@ namespace HouseEdge.Game
                     Circle(p, At(0.36f, 0.45f), 0.1f * w);
                     Circle(p, At(0.64f, 0.45f), 0.1f * w);
                     break;
+                case Shape.Coin:
+                    Circle(p, At(0.5f, 0.5f), 0.46f * w);
+                    p.strokeColor = new Color(0, 0, 0, 0.3f);
+                    p.lineWidth = Mathf.Max(1, w * 0.08f);
+                    p.BeginPath();
+                    p.Arc(At(0.5f, 0.5f), 0.3f * w, 0, 360);
+                    p.Stroke();
+                    break;
+                case Shape.Flame:
+                    p.BeginPath();
+                    p.MoveTo(At(0.5f, 0.02f));
+                    p.BezierCurveTo(At(0.62f, 0.3f), At(0.88f, 0.45f), At(0.86f, 0.68f));
+                    p.BezierCurveTo(At(0.84f, 0.9f), At(0.66f, 0.99f), At(0.5f, 0.99f));
+                    p.BezierCurveTo(At(0.32f, 0.99f), At(0.14f, 0.88f), At(0.14f, 0.66f));
+                    p.BezierCurveTo(At(0.14f, 0.48f), At(0.3f, 0.4f), At(0.36f, 0.24f));
+                    p.BezierCurveTo(At(0.44f, 0.36f), At(0.46f, 0.2f), At(0.5f, 0.02f));
+                    p.ClosePath();
+                    p.Fill();
+                    break;
+                case Shape.Lock:
+                    p.strokeColor = _color;
+                    p.lineWidth = w * 0.12f;
+                    p.BeginPath();
+                    p.Arc(At(0.5f, 0.38f), 0.2f * w, 180, 360);
+                    p.Stroke();
+                    p.BeginPath();
+                    p.MoveTo(At(0.3f, 0.38f));
+                    p.LineTo(At(0.3f, 0.48f));
+                    p.MoveTo(At(0.7f, 0.38f));
+                    p.LineTo(At(0.7f, 0.48f));
+                    p.Stroke();
+                    Rect(p, At(0.16f, 0.46f), At(0.84f, 0.96f));
+                    break;
+                case Shape.Cards:
+                    p.fillColor = new Color(_color.r, _color.g, _color.b, _color.a * 0.5f);
+                    Rect(p, At(0.12f, 0.06f), At(0.68f, 0.8f));
+                    p.fillColor = _color;
+                    Rect(p, At(0.32f, 0.2f), At(0.88f, 0.94f));
+                    break;
+                case Shape.Glass:
+                    p.BeginPath();
+                    p.MoveTo(At(0.08f, 0.1f));
+                    p.LineTo(At(0.92f, 0.1f));
+                    p.LineTo(At(0.56f, 0.52f));
+                    p.LineTo(At(0.56f, 0.86f));
+                    p.LineTo(At(0.76f, 0.94f));
+                    p.LineTo(At(0.24f, 0.94f));
+                    p.LineTo(At(0.44f, 0.86f));
+                    p.LineTo(At(0.44f, 0.52f));
+                    p.ClosePath();
+                    p.Fill();
+                    break;
+                case Shape.Eye:
+                    p.BeginPath();
+                    p.MoveTo(At(0.02f, 0.5f));
+                    p.BezierCurveTo(At(0.3f, 0.1f), At(0.7f, 0.1f), At(0.98f, 0.5f));
+                    p.BezierCurveTo(At(0.7f, 0.9f), At(0.3f, 0.9f), At(0.02f, 0.5f));
+                    p.ClosePath();
+                    p.Fill();
+                    p.fillColor = new Color(0.05f, 0.05f, 0.06f);
+                    Circle(p, At(0.5f, 0.5f), 0.17f * w);
+                    break;
+                case Shape.Check:
+                    p.strokeColor = _color;
+                    p.lineWidth = w * 0.16f;
+                    p.lineCap = LineCap.Round;
+                    p.lineJoin = LineJoin.Round;
+                    p.BeginPath();
+                    p.MoveTo(At(0.16f, 0.52f));
+                    p.LineTo(At(0.4f, 0.76f));
+                    p.LineTo(At(0.86f, 0.24f));
+                    p.Stroke();
+                    break;
+                case Shape.Star:
+                    p.BeginPath();
+                    for (int i = 0; i < 10; i++)
+                    {
+                        float angle = -Mathf.PI / 2 + i * Mathf.PI / 5;
+                        float r = i % 2 == 0 ? 0.48f : 0.2f;
+                        var point = At(0.5f + Mathf.Cos(angle) * r, 0.53f + Mathf.Sin(angle) * r);
+                        if (i == 0) p.MoveTo(point);
+                        else p.LineTo(point);
+                    }
+                    p.ClosePath();
+                    p.Fill();
+                    break;
+                case Shape.Crown:
+                    p.BeginPath();
+                    p.MoveTo(At(0.08f, 0.82f));
+                    p.LineTo(At(0.04f, 0.26f));
+                    p.LineTo(At(0.3f, 0.5f));
+                    p.LineTo(At(0.5f, 0.14f));
+                    p.LineTo(At(0.7f, 0.5f));
+                    p.LineTo(At(0.96f, 0.26f));
+                    p.LineTo(At(0.92f, 0.82f));
+                    p.ClosePath();
+                    p.Fill();
+                    break;
             }
+        }
+
+        private static void Rect(Painter2D p, Vector2 min, Vector2 max)
+        {
+            p.BeginPath();
+            p.MoveTo(min);
+            p.LineTo(new Vector2(max.x, min.y));
+            p.LineTo(max);
+            p.LineTo(new Vector2(min.x, max.y));
+            p.ClosePath();
+            p.Fill();
         }
 
         // two lobes and a point. flipped, it's the top of a spade

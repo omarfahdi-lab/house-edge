@@ -107,12 +107,20 @@ namespace HouseEdge.Game
                 case "Auto": AutoPlayTable(game); break;
                 case "Skip": game.TryApply(RunInput.SkipReward()); break;
                 case "Menu": game.OpenMenu(); break;
+                case "Title": game.OpenMenuAfterAbandon(); break;
                 case "Deck": game.ShowDeck(); break;
+                case "HowTo": game.ShowHowTo(index); break;
                 case "BotTo":
                     // the bot plays until it reaches floor N (or the run ends), then stops at the next shop
                     var bot = new BalanceBot();
                     for (int i = 0; i < 6000 && !game.Run.IsOver && !(game.Run.Floor >= index && game.Run.Phase == RunPhase.Shop); i++)
                         game.TryApply(bot.Choose(game.Run));
+                    break;
+                case "ToBoss":
+                    // the bot plays until the next Pit Boss table is about to deal
+                    var bossBot = new BalanceBot();
+                    for (int i = 0; i < 6000 && !game.Run.IsOver && !(game.Run.Stage == TableKind.Boss && game.Run.Phase == RunPhase.AtTable && game.Run.Table.DealsPlayed == 0); i++)
+                        game.TryApply(bossBot.Choose(game.Run));
                     break;
                 case "Door": game.TryApply(RunInput.ChooseRoom(index)); break;
                 case "Room": game.TryApply(RunInput.RoomOption(index)); break;

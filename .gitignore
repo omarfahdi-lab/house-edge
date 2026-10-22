@@ -122,3 +122,4 @@ Tools/**/TestResults/
 
 # Local Claude Code instructions
 CLAUDE.md
+.DS_Store

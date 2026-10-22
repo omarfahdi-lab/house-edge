@@ -3,6 +3,7 @@ using HouseEdge.Core;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.UIElements;
 
 namespace HouseEdge.Game
 {
@@ -45,6 +46,11 @@ namespace HouseEdge.Game
         {
             _profile = Saves.LoadProfile();
             var root = Ui.CreateDocument(transform, "UI", 0).rootVisualElement;
+            var felt = new VisualElement { pickingMode = PickingMode.Ignore };
+            Ui.Fill(felt);
+            felt.style.backgroundColor = Ui.Felt;
+            Ui.Stretch(felt, Ui.FeltTexture());
+            root.Add(felt);
             _table = new TableView(root);
             _shop = new ShopView(root);
             _room = new RoomView(root);
@@ -53,6 +59,8 @@ namespace HouseEdge.Game
             _runOver = new RunOverView(root);
             _menu = new MenuView(root);
             _feedback = Feedback.Create(transform, root);
+            _feedback.GoldAnchor = () => _hud.GoldAnchor.worldBound.center;
+            Tooltip.Create(root);
 
             _table.ActionChosen += action => TryApply(RunInput.Table(action));
             _shop.InputChosen += TryApply;
@@ -87,6 +95,12 @@ namespace HouseEdge.Game
 
         public void ShowDeck() => _deck.ShowDeck(Run);
 
+        public void ShowHowTo(int page)
+        {
+            OpenMenu();
+            _menu.OpenHowTo(page);
+        }
+
         public void StartRun(int seed, RunOptions options)
         {
             _replay = null;
@@ -102,7 +116,7 @@ namespace HouseEdge.Game
         public void OpenMenu() => _menu.Open(_profile, _playing && !Run.IsOver && !Replaying, Saves.DailyText());
 
         // an abandoned run isn't recorded
-        private void OpenMenuAfterAbandon()
+        public void OpenMenuAfterAbandon()
         {
             _replay = null;
             _playing = false;
@@ -161,14 +175,26 @@ namespace HouseEdge.Game
             bool shop = Run.Phase == RunPhase.Shop || Run.Phase == RunPhase.BossReward;
             bool backRoom = Run.ActiveTable != Run.Table;
             bool room = !backRoom && (Run.Phase == RunPhase.RoomChoice || Run.Phase == RunPhase.InRoom);
-            Ui.Show(_table.Root, !shop && !room);
-            Ui.Show(_shop.Root, shop);
-            Ui.Show(_room.Root, room);
+            ShowScreen(_table.Root, !shop && !room);
+            ShowScreen(_shop.Root, shop);
+            ShowScreen(_room.Root, room);
             if (room) _room.Refresh(Run);
             if (shop) _shop.Refresh(Run);
             bool over = Run.IsOver && !Replaying;
             Ui.Show(_runOver.Root, over);
             if (over) _runOver.Refresh(Run, _unlocks, _dailyPlace);
+        }
+
+        // a screen that's just appearing slides in
+        private static void ShowScreen(VisualElement screen, bool visible)
+        {
+            bool was = Ui.IsShown(screen);
+            Ui.Show(screen, visible);
+            if (visible && !was)
+            {
+                Tooltip.HideAll();
+                Ui.Enter(screen, 24, 0, 0.3f);
+            }
         }
 
         private void Update()
@@ -193,6 +219,7 @@ namespace HouseEdge.Game
             if (keyboard.escapeKey.wasPressedThisFrame)
             {
                 if (_deck.IsOpen) _deck.Close();
+                else if (_menu.HowToOpen) _menu.CloseHowTo();
                 else if (_menu.IsOpen) { if (_playing && !Run.IsOver) _menu.Close(); }
                 else OpenMenu();
                 return;
@@ -201,7 +228,7 @@ namespace HouseEdge.Game
             if (_deck.IsOpen) return;
             if (_menu.IsOpen)
             {
-                if (keyboard.spaceKey.wasPressedThisFrame) _menu.NewRun();
+                if (keyboard.spaceKey.wasPressedThisFrame && !_menu.HowToOpen && !_menu.Typing) _menu.NewRun();
                 return;
             }
 
