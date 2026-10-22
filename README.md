@@ -20,7 +20,7 @@ The twist: **the dealer draws from your deck too.** Stack it with 10s and you hi
 
 - **Engine-free, deterministic rules.** Every rule lives in `HouseEdge.Core`, a plain C# assembly with no UnityEngine
   reference. One seeded RNG drives a whole run, so a run is just a seed plus a list of inputs: run codes, the Daily Run
-  and full replays all come from that. **283 NUnit tests** run on plain `dotnet test` in CI, no Unity license needed.
+  and full replays all come from that. **285 NUnit tests** run on plain `dotnet test` in CI, no Unity license needed.
 - **Effects are small classes on hooks.** 65 Vices, 15 bosses, 6 dealers, 7 enhancements, 4 stamps and 4 curse cards
   each override only the hooks they need (`OnCardDrawn`, `OnHit`, `OnStand`, `OnBust`, `OnHandScored`, ...). Adding a
   new one never touches the table's loop.

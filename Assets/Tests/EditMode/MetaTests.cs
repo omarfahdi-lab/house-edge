@@ -214,3 +214,45 @@ namespace HouseEdge.Tests
         }
     }
 }
+
+namespace HouseEdge.Tests
+{
+    public class EndlessTests
+    {
+        [Test]
+        public void Endless_KeepsGoingAfterTheHouse()
+        {
+            var bot = new BalanceBot();
+            for (int seed = 1; seed < 200; seed++)
+            {
+                var run = new Run(seed, new RunOptions { Endless = true });
+                for (int i = 0; i < 8000 && !run.IsOver && !(run.BeatTheHouse && run.Floor > Balance.Floors); i++)
+                    run.Apply(bot.Choose(run));
+                if (!run.BeatTheHouse) continue;
+
+                Assert.That(run.Phase, Is.Not.EqualTo(RunPhase.Won), "Endless runs never end in a win");
+                Assert.That(run.Floor, Is.EqualTo(Balance.Floors + 1));
+                Assert.That(run.FloorBoss.Name, Is.Not.EqualTo("The House"));
+                Assert.That(run.CurrentTarget, Is.GreaterThan(Balance.Target(Balance.Floors, TableKind.Low)));
+                return;
+            }
+            Assert.Fail("the bot never beat The House in 200 seeds");
+        }
+
+        [Test]
+        public void ANormalRun_EndsWhenTheHouseFalls()
+        {
+            var bot = new BalanceBot();
+            for (int seed = 1; seed < 200; seed++)
+            {
+                var run = new Run(seed);
+                bot.Play(run);
+                if (!run.BeatTheHouse) continue;
+                Assert.That(run.Phase, Is.EqualTo(RunPhase.Won));
+                Assert.That(run.Floor, Is.EqualTo(Balance.Floors));
+                return;
+            }
+            Assert.Fail("the bot never beat The House in 200 seeds");
+        }
+    }
+}
