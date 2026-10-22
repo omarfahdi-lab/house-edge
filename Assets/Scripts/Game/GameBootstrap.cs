@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using HouseEdge.Core;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -23,6 +24,9 @@ namespace HouseEdge.Game
         private RoomView _room;
         private MenuView _menu;
         private MapView _map;
+        private BossIntro _bossIntro;
+        private Table _introShownFor, _heardTable;
+        private int _heardDeal, _heard;
         // each floor's boss, for the climb strip on the map
         private readonly Dictionary<int, string> _bosses = new Dictionary<int, string>();
         private int _mapShownFloor;
@@ -68,6 +72,8 @@ namespace HouseEdge.Game
             _map.InputChosen += TryApply;
             _runOver = new RunOverView(root);
             _menu = new MenuView(root);
+            _bossIntro = new BossIntro(root);
+            _bossIntro.Closed += () => Listen(force: true);
             _feedback = Feedback.Create(transform, root);
             _feedback.GoldAnchor = () => _hud.GoldAnchor.worldBound.center;
             _feedback.DealerAnchor = () => _table.DealerCenter;
@@ -140,6 +146,47 @@ namespace HouseEdge.Game
             SkipPlayback();
             Remember();
             _map.Open(Run, _bosses, choosing: false);
+        }
+
+        // the boss walks in before their table's first deal
+        private void IntroduceBoss()
+        {
+            if (!_playing || Replaying || DevCapture.Requested || Holding || _menu.IsOpen || _bossIntro.IsOpen) return;
+            if (Run.Phase != RunPhase.AtTable || Run.Boss == null || Run.Table.DealsPlayed > 0 || _introShownFor == Run.Table) return;
+            _introShownFor = Run.Table;
+            _map.Close();
+            string kind = Run.AtEyeInTheSky ? "SECURITY"
+                : Run.AtEnforcer ? "COLLECTIONS"
+                : Run.Floor == Balance.Floors ? $"FINAL BOSS  ·  FLOOR {Run.Floor}"
+                : $"PIT BOSS  ·  FLOOR {Run.Floor}";
+            _bossIntro.Show(Run.Boss.Definition, kind);
+            _feedback.BossSting();
+        }
+
+        // for screenshots: a boss's entrance on demand
+        public void PreviewBoss(int index)
+        {
+            var all = Bosses.PitBosses.Concat(new[] { Bosses.TheHouse, Bosses.EyeInTheSky, Bosses.Enforcer }).ToList();
+            _bossIntro.Show(all[Mathf.Clamp(index, 0, all.Count - 1)], "PIT BOSS  ·  FLOOR 3");
+        }
+
+        // what the boss just said, as a speech bubble
+        private void Listen(bool force = false)
+        {
+            var table = Run.ActiveTable;
+            if (table != _heardTable || table.DealsPlayed != _heardDeal)
+            {
+                _heardTable = table;
+                _heardDeal = table.DealsPlayed;
+                _heard = 0;
+            }
+            if (_bossIntro.IsOpen || Run.Boss == null || table != Run.Table) return;
+            if (table.Announcements.Count <= _heard && !force) return;
+            var fresh = table.Announcements.Skip(_heard).ToList();
+            _heard = table.Announcements.Count;
+            if (fresh.Count == 0) return;
+            _table.Say($"<b>{Run.Boss.Name}:</b> {string.Join(" ", fresh)}");
+            _feedback.BossSpeaks();
         }
 
         private void Remember()
@@ -265,6 +312,8 @@ namespace HouseEdge.Game
             if (choosing) _map.Open(Run, _bosses, choosing: true);
             else if (_map.IsOpen && !_map.Viewing) _map.Close();
             ShowScreen(_table.Root, !shop && !room && !choosing);
+            IntroduceBoss();
+            Listen();
             ShowScreen(_shop.Root, shop);
             ShowScreen(_room.Root, room);
             if (room) _room.Refresh(Run);
@@ -333,7 +382,8 @@ namespace HouseEdge.Game
 
             if (keyboard.escapeKey.wasPressedThisFrame)
             {
-                if (_map.Viewing) _map.Close();
+                if (_bossIntro.IsOpen) _bossIntro.Close();
+                else if (_map.Viewing) _map.Close();
                 else if (_deck.IsOpen) _deck.Close();
                 else if (_menu.HowToOpen) _menu.CloseHowTo();
                 else if (_menu.IsOpen) { if (_playing && !Run.IsOver) _menu.Close(); }
@@ -352,6 +402,11 @@ namespace HouseEdge.Game
             if (_feedback.Playing && !_menu.IsOpen && (keyboard.spaceKey.wasPressedThisFrame || Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame))
             {
                 SkipPlayback();
+                return;
+            }
+            if (_bossIntro.IsOpen)
+            {
+                if (keyboard.spaceKey.wasPressedThisFrame || keyboard.enterKey.wasPressedThisFrame || keyboard.escapeKey.wasPressedThisFrame) _bossIntro.Close();
                 return;
             }
             if (_map.Viewing)

@@ -8,7 +8,7 @@ namespace HouseEdge.Game
     // between tables: the payout, the shop, and boss rewards
     public sealed class ShopView
     {
-        private readonly VisualElement _root, _receipt, _vices, _extras, _extrasSection;
+        private readonly VisualElement _root, _receipt, _vices, _extras, _extrasSection, _beaten;
         private readonly Label _title, _notes, _vicesTitle, _vicesHint, _next, _nextBoss;
         private readonly Button _reroll, _leave;
         private Run _run;
@@ -27,6 +27,12 @@ namespace HouseEdge.Game
             _root.style.alignItems = Align.Center;
             _root.style.backgroundColor = new Color(0.01f, 0.05f, 0.035f, 0.82f);
 
+            // a beaten boss, stamped
+            _beaten = new VisualElement();
+            _beaten.style.position = Position.Absolute;
+            _beaten.style.left = 40;
+            _beaten.style.top = 16;
+            _root.Add(_beaten);
             _title = Ui.Title(_root, "", 38, Ui.Gold);
             _receipt = Ui.Row(_root, 6);
             _notes = Ui.Text(_root, "", 14, Ui.Cream);
@@ -90,6 +96,8 @@ namespace HouseEdge.Game
 
             _vices.Clear();
             _extras.Clear();
+            Ui.Show(_beaten, reward && run.Boss != null);
+            if (reward && opened && run.Boss != null) ShowBeaten(run.Boss.Name);
             if (reward)
             {
                 _vicesTitle.text = "PICK A REWARD";
@@ -127,6 +135,35 @@ namespace HouseEdge.Game
                 : $"Floor {nextFloor}  ·  {Hud.StageName(nextStage, nextFloor)}";
             _nextBoss.text = !moreStops && nextStage == TableKind.Boss ? $"{run.FloorBoss.Name}: {run.FloorBoss.Twist}" : "";
             Ui.Show(_nextBoss, _nextBoss.text.Length > 0);
+        }
+
+        private void ShowBeaten(string boss)
+        {
+            _beaten.Clear();
+            var face = new BossPortrait(boss, 110);
+            Ui.Border(face, 3, Ui.Gold);
+            _beaten.Add(face);
+            var stamp = Ui.Title(_beaten, "DEFEATED", 22, Ui.Bad, glow: false);
+            stamp.style.position = Position.Absolute;
+            stamp.style.left = -6;
+            stamp.style.top = 40;
+            Ui.Border(stamp, 3, Ui.Bad);
+            Ui.Rounded(stamp, 6);
+            Ui.Padding(stamp, 2, 8);
+            stamp.style.backgroundColor = new Color(0.1f, 0.02f, 0.02f, 0.75f);
+            stamp.style.rotate = new Rotate(-16);
+            // the portrait tips over, then the stamp slams down
+            Ui.Transition(face, 0, "rotate", "translate");
+            face.style.rotate = new Rotate(0);
+            face.schedule.Execute(() =>
+            {
+                Ui.Transition(face, 0.6f, EasingMode.EaseOutBounce, "rotate", "translate");
+                face.style.rotate = new Rotate(-9);
+                face.style.translate = new Translate(0, 8);
+            }).StartingIn(250);
+            stamp.style.opacity = 0;
+            stamp.schedule.Execute(() => stamp.style.opacity = 1).StartingIn(650);
+            Ui.Pop(stamp, 2.4f, 650);
         }
 
         // what the table paid, as a little receipt

@@ -142,6 +142,7 @@ namespace HouseEdge.Game
                 case "Deck": game.ShowDeck(); break;
                 case "HowTo": game.ShowHowTo(index); break;
                 case "Map": game.ShowMap(); break;
+                case "Intro": game.PreviewBoss(index); break;
                 case "BotTo":
                     // the bot plays until it reaches floor N (or the run ends), then stops at the next shop
                     var bot = new BalanceBot();

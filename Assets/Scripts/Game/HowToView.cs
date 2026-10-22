@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using HouseEdge.Core;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -8,7 +9,7 @@ namespace HouseEdge.Game
     // how to play, one short page at a time
     public sealed class HowToView
     {
-        private static readonly string[] Pages = { "The goal", "Blackjack", "Scoring", "Your deck", "Vices & the shop", "Heat", "Controls" };
+        private static readonly string[] Pages = { "The goal", "Blackjack", "Scoring", "Your deck", "Vices & the shop", "Heat", "The bosses", "Controls" };
 
         private readonly VisualElement _root, _tabs, _page;
         private int _current;
@@ -85,8 +86,11 @@ namespace HouseEdge.Game
                 case 3: Deck(); break;
                 case 4: Vices(); break;
                 case 5: Heat(); break;
+                case 6: BossList(); break;
                 default: Controls(); break;
             }
+            // no theme stylesheet: keep the page's rows from squashing each other
+            foreach (var child in _page.Children()) child.style.flexShrink = 0;
             Ui.Enter(_page, 12, 0, 0.2f);
         }
 
@@ -225,6 +229,25 @@ namespace HouseEdge.Game
                 Ui.Body(row, text, 14, Ui.Cream).style.flexShrink = 1;
             }
             Para("The Security Office room lets you pay Heat down. The Loan Shark lends gold, but if you don't repay in time, The Enforcer comes.");
+        }
+
+        // every boss, with their face and their one rule
+        private void BossList()
+        {
+            Heading("Who runs this casino");
+            Para("Every floor ends with a Pit Boss. Each one changes a single rule for their table. You can see the floor's boss on the map before you get there, so plan for them.");
+            foreach (var boss in Bosses.PitBosses.Concat(new[] { Bosses.TheHouse, Bosses.EyeInTheSky, Bosses.Enforcer }))
+            {
+                var row = Ui.Row(_page, 12);
+                row.style.alignItems = Align.FlexStart;
+                Ui.Add(row, new BossPortrait(boss.Name, 56));
+                var text = Ui.Column(row, 1);
+                text.style.flexShrink = 1;
+                var head = Ui.Row(text, 8);
+                Ui.Text(head, boss.Name, 15, Ui.Gold, Weight.Heavy);
+                Ui.Pill(head, boss.Ability.ToUpperInvariant(), Ui.Bad, size: 10);
+                Ui.Body(text, boss.Twist, 13, Ui.Cream);
+            }
         }
 
         private void Controls()

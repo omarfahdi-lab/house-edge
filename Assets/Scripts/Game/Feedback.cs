@@ -57,7 +57,17 @@ namespace HouseEdge.Game
         private float _shake, _flashTime, _flashStrength;
         private Color _flashColor;
         private VisualElement _callouts;
-        private AudioClip _tick;
+        private AudioClip _tick, _sting, _speak;
+
+        // a boss walks in
+        public void BossSting()
+        {
+            Play(_sting, steady: true);
+            Play(_boom);
+            Flash(new Color(0.6f, 0.05f, 0.08f), 0.6f, 0.2f);
+        }
+
+        public void BossSpeaks() => Play(_speak);
 
         // the scoring playback: actions at times in 1x seconds, run as the clock reaches them
         private readonly List<(float at, Action act)> _timeline = new List<(float, Action)>();
@@ -111,6 +121,8 @@ namespace HouseEdge.Game
             _fanfare = Synth.Brass(new[] { 392f, 523f, 659f, 784f, 659f, 1047f }, new[] { 0.14f, 0.14f, 0.14f, 0.3f, 0.14f, 0.9f }, 0.26f);
             _boom = Synth.Boom(0.7f, 0.35f);
             _tick = Synth.Tones(new[] { 880f }, 0.07f, 0.22f);
+            _sting = Synth.Brass(new[] { 110f, 104f, 98f }, new[] { 0.22f, 0.22f, 1.1f }, 0.34f);
+            _speak = Synth.Tones(new[] { 330f, 262f }, 0.08f, 0.18f);
 
             _flash = new VisualElement();
             Ui.Fill(_flash);

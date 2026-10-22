@@ -21,6 +21,9 @@ The twist: **the dealer draws from your deck too.** Stack it with 10s and you hi
 - **Engine-free, deterministic rules.** Every rule lives in `HouseEdge.Core`, a plain C# assembly with no UnityEngine
   reference. One seeded RNG drives a whole run, so a run is just a seed plus a list of inputs: run codes, the Daily Run
   and full replays all come from that. **285 NUnit tests** run on plain `dotnet test` in CI, no Unity license needed.
+- **Pit Bosses are characters.** Each has a portrait drawn in code, a title, a line, one named ability in plain words
+  and a tip, shown in an entrance before their table. Bosses announce their ability when it fires ("Swaps your 7 for
+  his Q") through `Table.Announce`, so the rule is never invisible.
 - **Effects are small classes on hooks.** 65 Vices, 15 bosses, 6 dealers, 7 enhancements, 4 stamps and 4 curse cards
   each override only the hooks they need (`OnCardDrawn`, `OnHit`, `OnStand`, `OnBust`, `OnHandScored`, ...). Adding a
   new one never touches the table's loop.
@@ -53,7 +56,7 @@ The twist: **the dealer draws from your deck too.** Stack it with 10s and you hi
 
 ## How to play
 
-Each **table**: reach the target score before your Hands run out. Win and you're paid gold. Run out of Hands and the
+Each **table**: reach the target score before your 7 Hands run out. Win and you're paid gold. Run out of Hands and the
 run is over. Each floor is a Low Table, two stops on a branching map, a High Table, two more stops, then a Pit Boss
 with a twist and a shop. The stops are Shops and rooms laid out like Slay the Spire: you see the whole floor, start in
 any lane, and follow the paths forward, so you plan where your gold goes.
@@ -130,49 +133,38 @@ Tools/
 
 DESIGN.md's targets were "a starting point to tune with the balance bot". `BalanceBot` plays close to basic strategy
 (and uses X-Ray Specs, Card Counter and Card Mechanic when it has them), buys Vices and Comps while keeping an interest
-reserve, and walks into the safer rooms. `Tools/BalanceSim` runs it over many seeds.
+reserve, and plans a route across each floor's map. `Tools/BalanceSim` runs it over many seeds and reports, per table,
+how often it's beaten, how many deals it took and how far past the target the score went, plus every Pit Boss's record.
 
-What it found:
+What it found, in order:
 
-1. **The draft targets couldn't be won.** Starting at 150 and doubling every floor, the bot won **0%** of 500 runs, and
-   only 32% got past floor 1.
-2. **Four Hands is a variance trap.** With a ~45% hand win rate, about 1 table in 10 gives you no winning hand at all,
-   whatever you build. Across 24 tables that bad luck alone ended most runs, even with very low targets. Going to
-   **5 Hands** fixed the per-table floor.
-3. **The bot hoarded ~190 gold by floor 8** once its 5 Vice slots were full. Teaching it to spend above the interest
-   reserve on Comps and rerolls (as a player would) changed its scaling far more than any target tweak.
-4. **Three bosses were outliers:** The Twins, The Ceiling and The Card Mechanic ended 2-3x more runs than the others,
-   so their targets are 0.75x/0.8x/0.8x.
+1. **The draft targets couldn't be won.** Starting at 150 and doubling every floor, the bot won **0%**.
+2. **Then the game was too easy, table by table.** After the first fix, tables were cleared in about 2 deals with
+   the score 2-9x the target: your first winning hand usually ended the table. Players felt it before the numbers did.
+3. **Blackjack scoring is lumpy.** About half of all hands score 0, so raising targets alone turned tables into coin
+   flips (the bot fell to 2%). The fix was **7 Hands with targets that need ~3 good hands**, so a table is a series of
+   decisions and luck evens out. Targets now roughly double every floor, like Balatro's antes.
+4. **Bosses were uneven** (beaten 79-95%). Each boss's target is now scaled to its rule, so all 13 sit at 83-91%.
 
-Final numbers (`dotnet run -c Release -- 1000 1 archetypes`): **the bot wins 21.5%** of seeds 1-1000, with early
-tables forgiving and every Pit Boss a clear spike. (Moving the shops onto the floor map barely changed it: 21.1% before.)
+Research targets: Slay the Spire 2's reported overall win rate is about 25%, and 16% at its base difficulty. The bot
+now wins **about 14%** (13.4% on seeds 1-1000, 14.4% on 5001-6000) and a player who builds well should do better.
+Floors 1-2 are forgiving (97-99% of tables) and every Pit Boss is a spike.
 
-| Floor | Low win | High win | Boss win | Runs reaching the floor |
-| ----: | ------: | -------: | -------: | ----------------------: |
-| 1 | 97% | 98% | 93% | 100% |
-| 2 | 99% | 97% | 93% | 89% |
-| 3 | 96% | 95% | 90% | 79% |
-| 4 | 96% | 94% | 90% | 65% |
-| 5 | 95% | 95% | 90% | 52% |
-| 6 | 95% | 95% | 90% | 42% |
-| 7 | 96% | 94% | 88% | 35% |
-| 8 | 93% | 93% | 91% (The House) | 27% |
+| Floor | Low win | High win | Boss win | Runs reaching | Deals to clear a table |
+| ----: | ------: | -------: | -------: | ------------: | ---------------------: |
+| 1 | 98% | 99% | 94% | 100% | 2.4-2.7 |
+| 2 | 99% | 97% | 88% | 91% | 2.3-3.0 |
+| 3 | 95% | 95% | 89% | 77% | 2.7-3.2 |
+| 4 | 95% | 93% | 87% | 62% | 2.6-3.2 |
+| 5 | 95% | 91% | 83% | 48% | 2.7-3.1 |
+| 6 | 94% | 94% | 81% | 34% | 2.6-3.3 |
+| 7 | 94% | 92% | 82% | 24% | 2.5-3.5 |
+| 8 | 95% | 91% | 89% (The House) | 17% | 2.6-4.1 |
 
-Playing the same seeds with the bot focused on one archetype:
-
-| Focus | Win rate |
-| ----- | -------: |
-| Steady | 41.8% |
-| Risky | 37.4% |
-| Lucky | 29.6% |
-| Combo | 24.5% |
-| Greedy | 22.2% |
-| Cheater | 18.7% |
-
-Steady leads because extra Hands attack the variance problem directly. Cheater trails because the bot can't read
-dealer tells and manages Heat cautiously; it went from 14% to 19% once the bot learned to use known cards and swaps.
+Focusing the bot on one archetype shows the next thing to tune: Risky 21.6%, Steady 16.6%, Greedy 11.1%, Combo 7.7%,
+Lucky 6.7%, Cheater 2.3%. Cheater builds trail because Heat sends you to security and the bot can't read tells.
 A test (`TunedBalance_KeepsTheBotNearItsTargetWinRate`) runs 300 seeded runs and fails if the bot's win rate leaves
-12-32%, so CI catches balance regressions.
+7-25%, so CI catches balance regressions.
 
 ### Running the simulation
 

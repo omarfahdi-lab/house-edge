@@ -7,9 +7,10 @@ covered by a test in `Assets/Tests/EditMode`.
 
 | What | DESIGN.md | Now | Why |
 | ---- | --------- | --- | --- |
-| Starting Hands | 4 | **5** | With 4 Hands, about 10% of tables end with no winning hand at all. Over 24 tables that luck alone ended most runs. |
-| Table targets | 150 at floor 1, doubling every floor (60,000 for The House) | **50 at floor 1, about 1.7x a floor** (High 1.5x Low, boss 2x, The House 2.5x, so 5,100) | The draft curve: the bot won 0% and only 32% got past floor 1. |
-| The Twins, The Ceiling, The Card Mechanic | same target as other bosses | **0.75x, 0.8x, 0.8x** | They ended 2-3x more runs than the other Pit Bosses. |
+| Starting Hands | 4 | **7** | Blackjack scoring is lumpy (about half of all hands score 0). With few Hands, any target that needs more than one win is a coin flip. 7 Hands lets a table ask for ~3 good hands. |
+| Table targets | 150 at floor 1, doubling every floor | **90 at floor 1, roughly doubling** (High 1.5x Low, boss ~2x, The House 26,000) | The draft curve: the bot won 0%. A gentler curve then made tables end on the first winning hand (2 deals, 2-9x the target). Now tables take ~3 deals and the bot wins ~14%. |
+| Boss targets | same for every boss | **0.6x (The Ceiling) to 1.4x (The Mime, The Pit Boss)** | Scaled to each rule so every boss is beaten 83-91% of the time. |
+| The Cheat | the dealer wins pushes | **once a hand, the dealer palms the card that would bust him and draws again** | A push rule is invisible; a palmed card is a moment you see and remember. |
 
 See the README's Balance section for the results.
 

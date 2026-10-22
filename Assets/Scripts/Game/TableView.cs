@@ -27,8 +27,9 @@ namespace HouseEdge.Game
         };
 
         private readonly VisualElement _root;
-        private readonly VisualElement _plate;
-        private readonly Label _plateTag, _plateName, _plateText;
+        private readonly VisualElement _plate, _plateFace, _bubble;
+        private readonly Label _plateTag, _plateName, _plateText, _bubbleText;
+        private string _plateFor;
         private readonly Label _tell;
         private readonly VisualElement _dealerCards, _secondDealer, _secondDealerCards, _playerHands;
         private readonly VisualElement _dealerBadgeSlot, _secondBadgeSlot;
@@ -115,14 +116,34 @@ namespace HouseEdge.Game
             Ui.Tip(_shoe, "The shoe", "Your deck, shuffled at the start of each table. You AND the dealer draw from it, so the cards you add change what the dealer gets too.");
 
             // who you're playing: the dealer or the Pit Boss
-            _plate = Ui.Glass(_root, 2, radius: 12);
-            _plate.style.alignItems = Align.Center;
-            _plate.style.maxWidth = 560;
-            Ui.Padding(_plate, 7, 20);
-            var plateTop = Ui.Row(_plate, 8);
+            // a boss's portrait sits on the left of the plate
+            _plate = Ui.Glass(_root, 12, row: true, radius: 12);
+            _plate.style.maxWidth = 620;
+            Ui.Padding(_plate, 7, 16);
+            _plateFace = new VisualElement();
+            _plate.Add(_plateFace);
+            var plateText = Ui.Column(_plate, 2);
+            plateText.style.alignItems = Align.Center;
+            plateText.style.flexShrink = 1;
+            var plateTop = Ui.Row(plateText, 8);
             _plateTag = Ui.Pill(plateTop, "", Ui.Gold, size: 10);
             _plateName = Ui.Title(plateTop, "", 20, Ui.Gold);
-            _plateText = Ui.Body(_plate, "", 13, Ui.Cream, center: true);
+            _plateText = Ui.Body(plateText, "", 13, Ui.Cream, center: true);
+
+            // what the boss says when their ability goes off
+            _bubble = Ui.Row(_root, 8);
+            _bubble.style.position = Position.Absolute;
+            _bubble.style.top = 70;
+            _bubble.style.left = Length.Percent(58);
+            _bubble.style.backgroundColor = new Color(0.98f, 0.95f, 0.87f);
+            Ui.Rounded(_bubble, 14);
+            Ui.Padding(_bubble, 8, 14);
+            Ui.Border(_bubble, 2, Ui.Gold);
+            _bubble.pickingMode = PickingMode.Ignore;
+            _bubbleText = Ui.Text(_bubble, "", 15, Ui.Ink, Weight.Bold);
+            _bubbleText.style.whiteSpace = WhiteSpace.Normal;
+            _bubbleText.style.maxWidth = 340;
+            Ui.Show(_bubble, false);
 
             // dealer, the Twins' second hand and the next-card peek
             var dealerRow = Ui.Row(_root, 30);
@@ -252,6 +273,7 @@ namespace HouseEdge.Game
             _cursor = 0;
             _shoeCount.text = $"{table.CardsInShoe} LEFT";
             RefreshPlate(run);
+            if (run.Boss == null || table != run.Table) Ui.Show(_bubble, false);
             // your cards first, then the dealer plays
             RefreshPlayer(table);
             RefreshDealer(table);
@@ -272,6 +294,10 @@ namespace HouseEdge.Game
                 };
                 Ui.Show(pair.Value.parent, show);
                 Ui.SetEnabled(pair.Value, legal.Contains(pair.Key));
+                if (pair.Key == PlayerAction.Hit)
+                    Ui.SetText(pair.Value, table.Rules.HitCost > 0 ? $"Hit  ·  {table.Rules.HitCost}g" : "Hit");
+                if (pair.Key == PlayerAction.Burn && table.Rules.BurnsDisabled) Ui.SetText(pair.Value, "No Burns");
+                else if (pair.Key == PlayerAction.Burn) Ui.SetText(pair.Value, "Burn");
             }
         }
 
@@ -290,14 +316,25 @@ namespace HouseEdge.Game
                 _plateText.text = Ui.Rich($"One hand, no Vices. Win and your {run.Gambler.Gold}g doubles. Lose and it's gone.");
                 return;
             }
+            string face = boss ? run.Boss.Name : null;
+            if (face != _plateFor)
+            {
+                _plateFor = face;
+                _plateFace.Clear();
+                if (face != null) _plateFace.Add(new BossPortrait(face, 58));
+                Ui.Show(_plateFace, face != null);
+            }
             if (boss)
             {
-                _plateTag.text = run.AtEyeInTheSky ? "SECURITY" : run.Floor == Balance.Floors ? "FINAL BOSS" : "PIT BOSS";
+                var definition = run.Boss.Definition;
+                _plateTag.text = (run.AtEyeInTheSky ? "SECURITY" : run.AtEnforcer ? "COLLECTIONS" : run.Floor == Balance.Floors ? "FINAL BOSS" : "PIT BOSS")
+                                 + "  ·  " + definition.Ability.ToUpperInvariant();
                 _plateName.text = run.Boss.Name.ToUpperInvariant();
-                string twist = run.Boss.Definition.Twist;
+                string twist = definition.Twist;
                 if (run.Boss is TheHouse house && house.CurrentTwist != null)
-                    twist = $"Now playing as {house.CurrentTwist.Name}: {house.CurrentTwist.Definition.Twist}";
+                    twist = $"Now playing as {house.CurrentTwist.Name} ({house.CurrentTwist.Definition.Ability}): {house.CurrentTwist.Definition.Twist}";
                 _plateText.text = Ui.Rich(twist);
+                Ui.Tip(_plate, $"{run.Boss.Name}: {definition.Ability}", $"{twist}\nHow to beat them: {definition.Tip}");
                 return;
             }
             _plateTag.text = "YOUR DEALER";
@@ -545,6 +582,24 @@ namespace HouseEdge.Game
                 _resultPending = false;
                 _message.parent.style.opacity = 1;
             }
+        }
+
+        // a speech bubble from the boss, with their portrait giving a little jolt
+        public void Say(string text)
+        {
+            _bubbleText.text = Ui.Rich(text);
+            Ui.Show(_bubble, true);
+            Ui.Transition(_bubble, 0, "opacity");
+            _bubble.style.opacity = 1;
+            Ui.Pop(_bubble, 1.25f);
+            Ui.Pop(_plateFace, 1.2f);
+            string said = text;
+            _bubble.schedule.Execute(() =>
+            {
+                if (_bubbleText.text != Ui.Rich(said)) return;
+                Ui.Transition(_bubble, 0.4f, "opacity");
+                _bubble.style.opacity = 0;
+            }).StartingIn(3200);
         }
 
         // the playback finished: show the verdict and let the cards act it out
