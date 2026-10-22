@@ -29,10 +29,27 @@ namespace HouseEdge.Game
             if (!string.IsNullOrEmpty(play)) capture._steps = play.Split(',');
         }
 
+        // -record <dir>: save a frame every 0.1 s while the steps play, for the README GIF
+        private IEnumerator Record(string dir)
+        {
+            System.IO.Directory.CreateDirectory(dir);
+            int frame = 0;
+            while (true)
+            {
+                yield return new WaitForEndOfFrame();
+                var shot = ScreenCapture.CaptureScreenshotAsTexture();
+                System.IO.File.WriteAllBytes(System.IO.Path.Combine(dir, $"frame{frame++:0000}.png"), shot.EncodeToPNG());
+                Destroy(shot);
+                yield return new WaitForSecondsRealtime(0.1f);
+            }
+        }
+
         private IEnumerator Start()
         {
             var game = GetComponent<GameBootstrap>();
             yield return null;
+            string record = Arg("-record");
+            if (!string.IsNullOrEmpty(record)) StartCoroutine(Record(record));
             foreach (var raw in _steps)
             {
                 // Bot:N lets the balance bot play N whole runs through the real UI, as a smoke test
@@ -49,6 +66,19 @@ namespace HouseEdge.Game
                             if (i % 25 == 0) yield return null;
                         }
                         Debug.Log($"DevCapture: bot run {r + 1} ended in {game.Run.Phase} on floor {game.Run.Floor}, score {game.Run.TotalScore}");
+                    }
+                    continue;
+                }
+                // Watch:N plays N bot inputs slowly enough to see (and record)
+                if (raw.StartsWith("Watch:"))
+                {
+                    var bot = new BalanceBot();
+                    int count = int.Parse(raw.Split(':')[1]);
+                    for (int i = 0; i < count && !game.Run.IsOver; i++)
+                    {
+                        var phase = game.Run.Phase;
+                        game.TryApply(bot.Choose(game.Run));
+                        yield return new WaitForSecondsRealtime(phase == RunPhase.AtTable ? 0.55f : 1.1f);
                     }
                     continue;
                 }

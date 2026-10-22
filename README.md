@@ -1,0 +1,205 @@
+# House Edge
+
+A blackjack roguelike deckbuilder made in Unity 6. You climb a cursed casino one floor at a time. Every table is a game
+of blackjack against a score target, but you build the deck, collect Vices that bend the rules, cheat when you can get
+away with it, and chase huge Chips x Mult combos. Beat The House on floor 8 to win the run.
+
+The twist: **the dealer draws from your deck too.** Stack it with 10s and you hit 20 more often, but so does the dealer.
+
+![The balance bot playing floor 3: the shop, the floor map, dealer tables and a Pit Boss](docs/gameplay.gif)
+
+**Play in the browser:** _coming soon on itch.io_ <!-- TODO: replace with https://<user>.itch.io/house-edge -->
+
+| A floor-3 High Table | The shop |
+| -------------------- | -------- |
+| ![Table](docs/table.png) | ![Shop](docs/shop.png) |
+| **Pick a door on the floor map** | **The Twins, a Pit Boss** |
+| ![Rooms](docs/rooms.png) | ![Boss](docs/boss.png) |
+
+## Highlights
+
+- **Engine-free, deterministic rules.** Every rule lives in `HouseEdge.Core`, a plain C# assembly with no UnityEngine
+  reference. One seeded RNG drives a whole run, so a run is just a seed plus a list of inputs: run codes, the Daily Run
+  and full replays all come from that. **283 NUnit tests** run on plain `dotnet test` in CI, no Unity license needed.
+- **Effects are small classes on hooks.** 65 Vices, 15 bosses, 6 dealers, 7 enhancements, 4 stamps and 4 curse cards
+  each override only the hooks they need (`OnCardDrawn`, `OnHit`, `OnStand`, `OnBust`, `OnHandScored`, ...). Adding a
+  new one never touches the table's loop.
+- **Balance tuned with a bot.** A headless bot plays the real `Run` API: 1,000 full runs in about a second. It showed
+  the first draft of the design couldn't be won and why, and drove every number change (see [Balance](#balance)).
+- **Everything from the design doc:** 8 floors with a floor map of 8 room types, 12 Pit Bosses plus The Eye in the Sky,
+  The Enforcer and a 3-phase House, Heat and casino security, side bets, Cocktails, Comps, archetype set bonuses,
+  6 starting decks, 6 stakes, unlocks, the Daily Run, run codes and Endless.
+- **Built entirely in code.** One bootstrap method builds the camera, a UI Toolkit interface, and synthesized sounds.
+  Cards and suits are drawn with UI Toolkit (suits as `Painter2D` vector shapes, so they work on WebGL with no font
+  support). There are no art or audio assets.
+
+**Tech:** Unity 6.6 · C# · URP 2D · UI Toolkit · Input System · NUnit · WebGL · GitHub Actions
+
+## How to play
+
+Each **table**: reach the target score before your Hands run out. Win and you're paid gold. Run out of Hands and the
+run is over. Each floor is a Low Table, a room, a High Table, a room, then a Pit Boss with a twist. There's a shop after
+every table.
+
+**Score = Chips x Mult.** Chips start as your card total plus the outcome's base Chips; Mult starts as the outcome's
+Mult. Vices, card enhancements and Comps add to both, left to right.
+
+| Outcome | Base Chips | Base Mult |
+| ------- | ---------: | --------: |
+| Win | 10 | 2 |
+| 21 (3+ cards) | 20 | 3 |
+| Blackjack | 30 | 4 |
+| Five-card Charlie | 40 | 4 |
+| Dealer Bust | +15 | +0 |
+| Push | cards only | 1 |
+
+- **Burn** throws away the card you just hit and draws again (even a bust). Burns reset every table.
+- **Vices** (5 slots) are passive rule-breakers. Hold 3 of one archetype (Lucky, Risky, Cheater, Greedy, Steady, Combo)
+  for a set bonus.
+- **Heat:** Cheater Vices and huge hands draw attention. At 100, security drags you to The Eye in the Sky.
+- **Rooms:** The Bar, Back Room (double or nothing), Pawn Shop, Loan Shark, Card Room, Lost and Found, Security
+  Office, High Limit Lounge.
+
+The full design is in [DESIGN.md](DESIGN.md). Rules it doesn't spell out are in [docs/DECISIONS.md](docs/DECISIONS.md).
+
+## Controls
+
+| Input | Action |
+| ----- | ------ |
+| `Space` | Deal, leave the shop or room, start a new run |
+| `H` / `S` | Hit / Stand (or let the dealer draw / make him stand with Cold Read) |
+| `D` / `P` / `B` / `R` | Double Down / Split / Burn / Surrender |
+| `I` / `N` | Take / decline insurance |
+| `W` | Swap with the dealer (Card Mechanic Vice) |
+| `1` / `2` | Pick a door on the floor map |
+| `M` | Mute |
+| `Esc` | Menu (pauses) |
+| Mouse | Everything else: side bets, shop, Vices, Cocktails, the deck view |
+
+## Architecture
+
+```
+Assets/
+  Scripts/
+    Core/    HouseEdge.Core   - rules only, noEngineReferences: true
+      Table.cs        one blackjack table: a state machine driven by LegalActions() / Apply(action)
+      Run.cs          8 floors: tables, shop, floor map, rooms, debt, Heat, bosses. Apply(RunInput)
+      TableEffect.cs  the hooks. Vices, bosses, dealers and card effects all derive from it
+      Vices/          65 Vices, one small class each; ViceCatalog lists them
+      CardEffects.cs  enhancements, stamps and curses, run card by card before the Vices
+      Balance.cs      every tunable number
+      BalanceBot.cs   the bot and BalanceSimulation
+    Game/    HouseEdge.Game   - GameBootstrap, UI Toolkit views, input, Feedback (sound and juice)
+    Editor/  HouseEdge.Editor - command-line builds
+  Tests/
+    EditMode/ HouseEdge.Tests - NUnit tests for Core
+Tools/
+  CoreTests/  compiles Core + the tests for plain `dotnet test` (what CI runs)
+  BalanceSim/ console runner for the balance simulation
+```
+
+- **The UI never changes game state.** Views read `Run`/`Table` and turn clicks and keys into `RunInput`s; `Run.Apply`
+  checks they're legal. That's what makes replays exact: the same seed and inputs rebuild the same run.
+- **Determinism:** Core never touches `UnityEngine.Random`, `System.Random`, `DateTime` or hash-order iteration. Its own
+  `GameRandom` (xorshift seeded by splitmix) is passed through everything. The Daily Run's date comes in from the game.
+- **Effects:** a table builds its effect list once: card rules, Comps, boss, dealer, stake rules, then your Vices in
+  order. Each hook runs over that list, so trigger order is just list order.
+
+## Balance
+
+DESIGN.md's targets were "a starting point to tune with the balance bot". `BalanceBot` plays close to basic strategy
+(and uses X-Ray Specs, Card Counter and Card Mechanic when it has them), buys Vices and Comps while keeping an interest
+reserve, and walks into the safer rooms. `Tools/BalanceSim` runs it over many seeds.
+
+What it found:
+
+1. **The draft targets couldn't be won.** Starting at 150 and doubling every floor, the bot won **0%** of 500 runs, and
+   only 32% got past floor 1.
+2. **Four Hands is a variance trap.** With a ~45% hand win rate, about 1 table in 10 gives you no winning hand at all,
+   whatever you build. Across 24 tables that bad luck alone ended most runs, even with very low targets. Going to
+   **5 Hands** fixed the per-table floor.
+3. **The bot hoarded ~190 gold by floor 8** once its 5 Vice slots were full. Teaching it to spend above the interest
+   reserve on Comps and rerolls (as a player would) changed its scaling far more than any target tweak.
+4. **Three bosses were outliers:** The Twins, The Ceiling and The Card Mechanic ended 2-3x more runs than the others,
+   so their targets are 0.75x/0.8x/0.8x.
+
+Final numbers (`dotnet run -c Release -- 1000 1 archetypes`): **the bot wins 21.1%** of seeds 1-1000 (22.5% on seeds
+5001-6000), with early tables forgiving and every Pit Boss a clear spike.
+
+| Floor | Low win | High win | Boss win | Runs reaching the floor |
+| ----: | ------: | -------: | -------: | ----------------------: |
+| 1 | 97% | 97% | 93% | 100% |
+| 2 | 98% | 97% | 93% | 88% |
+| 3 | 95% | 94% | 92% | 78% |
+| 4 | 96% | 97% | 89% | 64% |
+| 5 | 94% | 94% | 91% | 53% |
+| 6 | 94% | 93% | 91% | 43% |
+| 7 | 96% | 94% | 86% | 34% |
+| 8 | 94% | 93% | 91% (The House) | 26% |
+
+Playing the same seeds with the bot focused on one archetype:
+
+| Focus | Win rate |
+| ----- | -------: |
+| Steady | 41.8% |
+| Risky | 37.4% |
+| Lucky | 30.4% |
+| Greedy | 23.8% |
+| Combo | 21.8% |
+| Cheater | 19.4% |
+
+Steady leads because extra Hands attack the variance problem directly. Cheater trails because the bot can't read
+dealer tells and manages Heat cautiously; it went from 14% to 19% once the bot learned to use known cards and swaps.
+A test (`TunedBalance_KeepsTheBotNearItsTargetWinRate`) runs 300 seeded runs and fails if the bot's win rate leaves
+12-32%, so CI catches balance regressions.
+
+### Running the simulation
+
+With any .NET 8 SDK (Unity ships one at `Unity.app/Contents/Resources/Scripting/DotNetSdk/dotnet`):
+
+```sh
+cd Tools/BalanceSim
+dotnet run -c Release -- 1000 1              # runs, first seed
+dotnet run -c Release -- 1000 1 archetypes   # plus one batch per archetype focus
+```
+
+## Running
+
+Open the project in **Unity 6000.6.5f1** and press Play in any scene; the bootstrap builds the game.
+
+## Tests
+
+Without Unity (about a second, any .NET 8 SDK):
+
+```sh
+dotnet test Tools/CoreTests
+```
+
+In the editor: **Window > General > Test Runner > EditMode > Run All**. From the command line (editor closed):
+
+```sh
+/Applications/Unity/Hub/Editor/6000.6.5f1/Unity.app/Contents/MacOS/Unity \
+  -batchmode -nographics -projectPath . -runTests -testPlatform EditMode -testResults results.xml
+```
+
+## Building
+
+```sh
+Unity -batchmode -quit -projectPath . -executeMethod HouseEdge.Editor.BuildScript.WebGL   # Builds/WebGL
+Unity -batchmode -quit -projectPath . -executeMethod HouseEdge.Editor.BuildScript.MacOS   # Builds/macOS
+```
+
+The WebGL build is Brotli-compressed with the decompression fallback on, so it runs on any static host (itch.io
+included). For itch.io, zip the contents of `Builds/WebGL` with `index.html` at the top level and upload it as an
+HTML game. A 960x600 embed matches the default canvas.
+
+A built player also takes `-seed N -play Deal,Stand,... -capture shot.png`, which plays scripted steps, saves a
+screenshot and quits (`Bot:N` lets the balance bot play N whole runs through the real UI as a smoke test).
+
+## CI
+
+`.github/workflows/ci.yml` runs `dotnet test Tools/CoreTests` on every push and pull request.
+
+## Credits
+
+Everything (cards, suits, UI and sounds) is generated in code. No third-party assets.

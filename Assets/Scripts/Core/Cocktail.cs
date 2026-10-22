@@ -87,10 +87,10 @@ namespace HouseEdge.Core
             _ => (1, 1),
         };
 
-        // a card a cocktail can't change: curses only go away at the Card Room or with a Screwdriver
+        // curses can only be removed (Screwdriver, Card Room), never improved or copied
         public static bool CanTarget(CocktailKind kind, Card card)
         {
-            if (kind == CocktailKind.Screwdriver || kind == CocktailKind.Martini) return true;
+            if (kind == CocktailKind.Screwdriver) return true;
             if (card.IsCursed) return false;
             if (kind == CocktailKind.LongIsland) return card.Rank != Rank.Ace;
             if (kind == CocktailKind.LastWord) return card.Rank != Rank.Two;
