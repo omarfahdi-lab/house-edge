@@ -55,13 +55,13 @@ namespace HouseEdge.Game
             corner.style.top = 3 * scale;
             corner.style.alignItems = Align.Center;
             Ui.Text(corner, card.RankLabel, (int)(20 * scale), ink, bold: true);
-            Ui.Text(corner, card.SuitSymbol, (int)(16 * scale), ink);
+            Ui.Add(corner, new SuitIcon(SuitIcon.For(card), ink, 13 * scale)).style.marginTop = 2 * scale;
 
-            var center = Ui.Text(root, card.SuitSymbol, (int)(44 * scale), ink);
+            var center = new SuitIcon(SuitIcon.For(card), ink, 36 * scale);
             center.style.position = Position.Absolute;
-            center.style.left = center.style.right = 0;
-            center.style.top = 30 * scale;
-            center.style.unityTextAlign = TextAnchor.MiddleCenter;
+            center.style.left = (Width - 36) / 2 * scale;
+            center.style.top = 40 * scale;
+            root.Add(center);
 
             if (enhanced)
             {
@@ -106,7 +106,7 @@ namespace HouseEdge.Game
             column.style.flexGrow = 1;
             column.style.alignItems = Align.Center;
             column.style.justifyContent = Justify.Center;
-            Ui.Text(column, "☠", (int)(34 * scale), CurseInk);
+            Ui.Add(column, new SuitIcon(SuitIcon.Shape.Skull, CurseInk, 32 * scale));
             var name = Ui.Text(column, card.CurseName.ToUpperInvariant(), (int)(11 * scale), CurseInk, bold: true);
             name.style.unityTextAlign = TextAnchor.MiddleCenter;
             name.style.whiteSpace = WhiteSpace.Normal;

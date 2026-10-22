@@ -75,7 +75,9 @@ namespace HouseEdge.Game
                 Ui.Border(door, 3, Ui.Gold);
                 Ui.Padding(door, 18, 18);
                 door.style.alignItems = Align.Center;
-                Ui.Text(door, RoomIcon(kind), 40, Ui.Gold);
+                var icon = RoomIcon(kind);
+                if (icon.shape.HasValue) Ui.Add(door, new SuitIcon(icon.shape.Value, Ui.Gold, 40));
+                else Ui.Text(door, icon.text, 40, Ui.Gold, bold: true);
                 Ui.Text(door, Rooms.Name(kind), 22, Ui.Cream, bold: true);
                 var text = Ui.Text(door, Rooms.Describe(kind), 14, Ui.Dim);
                 text.style.whiteSpace = WhiteSpace.Normal;
@@ -121,16 +123,17 @@ namespace HouseEdge.Game
             return false;
         }
 
-        private static string RoomIcon(RoomKind kind) => kind switch
+        // a suit drawn as a shape, or plain text
+        private static (SuitIcon.Shape? shape, string text) RoomIcon(RoomKind kind) => kind switch
         {
-            RoomKind.Bar => "♥",
-            RoomKind.BackRoom => "♠",
-            RoomKind.PawnShop => "$",
-            RoomKind.LoanShark => "%",
-            RoomKind.CardRoom => "♦",
-            RoomKind.LostAndFound => "?",
-            RoomKind.SecurityOffice => "!",
-            _ => "♣",
+            RoomKind.Bar => (SuitIcon.Shape.Heart, null),
+            RoomKind.BackRoom => (SuitIcon.Shape.Spade, null),
+            RoomKind.PawnShop => (null, "$"),
+            RoomKind.LoanShark => (null, "%"),
+            RoomKind.CardRoom => (SuitIcon.Shape.Diamond, null),
+            RoomKind.LostAndFound => (null, "?"),
+            RoomKind.SecurityOffice => (null, "!"),
+            _ => (SuitIcon.Shape.Club, null),
         };
     }
 }

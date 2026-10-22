@@ -219,8 +219,8 @@ namespace HouseEdge.Game
             {
                 var buttons = Ui.Row(row, 4);
                 buttons.style.marginTop = 3;
-                SmallButton(buttons, "◀", RunInput.MoveVice(index, index - 1), run);
-                SmallButton(buttons, "▶", RunInput.MoveVice(index, index + 1), run);
+                SmallButton(buttons, "<", RunInput.MoveVice(index, index - 1), run);
+                SmallButton(buttons, ">", RunInput.MoveVice(index, index + 1), run);
                 SmallButton(buttons, $"Sell {run.SellValue(vice)}g", RunInput.SellVice(index), run);
             }
             return row;

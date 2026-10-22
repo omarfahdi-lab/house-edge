@@ -106,6 +106,7 @@ namespace HouseEdge.Core
             }
         }
 
+        // for logs and tests. the game draws suits as shapes (no font has them on WebGL)
         public string SuitSymbol => IsCursed ? "☠" : Suit switch
         {
             Suit.Spades => "♠",
