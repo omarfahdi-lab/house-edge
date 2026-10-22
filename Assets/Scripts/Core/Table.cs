@@ -269,6 +269,8 @@ namespace HouseEdge.Core
 
         // things a boss (or anyone at the table) says out loud this deal, for the game to show
         public IReadOnlyList<string> Announcements => _announcements;
+        // winning deals in a row at this table
+        public int WinStreak { get; private set; }
         private readonly List<string> _announcements = new List<string>();
         private bool _dealerRedrawUsed;
 
@@ -577,6 +579,11 @@ namespace HouseEdge.Core
                 Gambler.LoseGold(Balance.AnteUpLoss);
             }
 
+            // wins in a row build a streak; a loss breaks it, a push leaves it alone
+            bool anyLoss = _lastScores.Any(s => s.Outcome == Outcome.Lose || s.Outcome == Outcome.Bust);
+            if (anyWin) WinStreak++;
+            else if (anyLoss) WinStreak = 0;
+
             foreach (var effect in ActiveEffects()) effect.OnDealEnd(this);
 
             SideBet = SideBet.None;
@@ -652,6 +659,23 @@ namespace HouseEdge.Core
             }
             if (SideBet == SideBet.HotHand && win) score.AddMult(Balance.HotHandMult);
             score.Mark(ScoreSource.Bonus, "Hot Hand");
+
+            // combos only pay when you beat the dealer
+            if (win)
+            {
+                var combos = Combos.Find(hand.Cards);
+                score.Combos = combos;
+                foreach (var combo in combos)
+                {
+                    var (chips, mult) = Combos.Base(combo);
+                    score.AddChips(chips);
+                    score.AddMult(mult);
+                    score.Mark(ScoreSource.Combo, Combos.Name(combo), combo);
+                }
+                int streak = System.Math.Min(WinStreak * Balance.StreakMultPerWin, Balance.MaxStreakBonus);
+                score.AddMult(streak);
+                score.Mark(ScoreSource.Streak, $"{WinStreak + 1} wins in a row");
+            }
 
             foreach (var effect in ActiveEffects())
             {

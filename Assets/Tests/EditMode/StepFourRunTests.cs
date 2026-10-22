@@ -30,8 +30,8 @@ namespace HouseEdge.Tests
         [Test]
         public void ScoringOver3xTheTargetInOneHand_Adds10Heat()
         {
-            // blackjack scores 204 against a target of 50
-            var t = new Table(Stack("A", "9", "K", "8"), 50);
+            // blackjack scores (21 + 25) x 3 = 138, over 3x a target of 40
+            var t = new Table(Stack("A", "9", "K", "8"), 40);
             t.Apply(Deal);
             Assert.That(t.Gambler.Heat, Is.EqualTo(Balance.BigHandHeat));
         }
@@ -228,8 +228,9 @@ namespace HouseEdge.Tests
             t.Gambler.LevelUp(Comp.Win);
             t.Gambler.LevelUp(Comp.Win);
             Play(t, Deal, Stand);
-            Assert.That(t.LastScores.Single().Chips, Is.EqualTo(30 + 20));
-            Assert.That(t.LastScores.Single().Mult, Is.EqualTo(2 + 2));
+            // win with 20: (20 + 5) x 1, plus 2 levels of +10 Chips +1 Mult
+            Assert.That(t.LastScores.Single().Chips, Is.EqualTo(25 + 20));
+            Assert.That(t.LastScores.Single().Mult, Is.EqualTo(1 + 2));
         }
 
         [Test]
@@ -238,7 +239,7 @@ namespace HouseEdge.Tests
             var t = new Table(Stack("K", "9", "Q", "9"), long.MaxValue);
             t.Gambler.LevelUp(Comp.Blackjack);
             Play(t, Deal, Stand);
-            Assert.That(t.LastScores.Single().Chips, Is.EqualTo(30));
+            Assert.That(t.LastScores.Single().Chips, Is.EqualTo(20 + 5));
         }
 
         [Test]

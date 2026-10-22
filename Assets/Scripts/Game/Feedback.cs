@@ -406,6 +406,36 @@ namespace HouseEdge.Game
             _audio.PlayOneShot(_tick);
         }
 
+        // "FLUSH!" in big letters, with what it added underneath
+        private void Banner(string title, string detail, Color color)
+        {
+            var box = Ui.Column(_callouts, 2);
+            box.style.position = Position.Absolute;
+            // to the right of the Chips x Mult boxes, where the felt is empty
+            box.style.left = TableCenterX + 300;
+            box.style.top = 225;
+            box.style.alignItems = Align.Center;
+            box.style.translate = new Translate(Length.Percent(-50), 0);
+            box.pickingMode = PickingMode.Ignore;
+            var head = Ui.Title(box, title, 44, color);
+            head.style.textShadow = new TextShadow { offset = new Vector2(0, 4), blurRadius = 16, color = new Color(0, 0, 0, 0.95f) };
+            var line = Ui.Text(box, detail, 18, Ui.Cream, Weight.Heavy);
+            line.style.backgroundColor = new Color(0.03f, 0.04f, 0.05f, 0.9f);
+            Ui.Rounded(line, 10);
+            Ui.Padding(line, 3, 10);
+            foreach (var e in box.Query<VisualElement>().ToList()) e.pickingMode = PickingMode.Ignore;
+            Ui.Pop(box, 1.8f);
+            _particles.Burst(new Vector2(TableCenterX + 300, 255), 18, 380);
+            float life = 0.8f / TableView.Speed;
+            box.schedule.Execute(() =>
+            {
+                Ui.Transition(box, 0.3f, "opacity", "top");
+                box.style.opacity = 0;
+                box.style.top = 200;
+            }).StartingIn((long)(life * 1000));
+            box.schedule.Execute(box.RemoveFromHierarchy).StartingIn((long)(life * 1000) + 350);
+        }
+
         // a little "+4 Mult" that rises from whatever caused it
         private void Callout(ScoreStep step, int hand)
         {
@@ -415,6 +445,14 @@ namespace HouseEdge.Game
             if (step.Multiplied) parts.Add(Ui.Colored($"×{step.Factor:0.##} Mult", Ui.Mult));
             else if (step.MultAdded != 0) parts.Add(Ui.Colored($"{(step.MultAdded > 0 ? "+" : "")}{step.MultAdded:0.##} Mult", Ui.Mult));
             if (parts.Count == 0) return;
+
+            // combos and streaks get a big banner in the middle of the table
+            if (step.Kind == ScoreSource.Combo || step.Kind == ScoreSource.Streak)
+            {
+                Banner(step.Kind == ScoreSource.Combo ? step.Name.ToUpperInvariant() + "!" : "STREAK!", string.Join("  ", parts),
+                    step.Kind == ScoreSource.Combo ? Ui.Cocktail : Ui.HeatColor);
+                return;
+            }
 
             Vector2 at;
             string name = step.Name;

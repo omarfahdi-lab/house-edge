@@ -121,7 +121,7 @@ namespace HouseEdge.Tests
             // you K + 7 stand. he takes your K for his 5: you have 5 + 7 = 12, he has K + 6 = 16, draws a 2 -> 18
             var t = At("The Card Mechanic", "K", "5", "7", "6", "2");
             Play(t, Deal, Stand);
-            Assert.That(t.PlayerHands[0].Cards.Select(c => c.ToString()), Is.EqualTo(new[] { "5♠", "7♠" }));
+            Assert.That(t.PlayerHands[0].Cards.Select(c => c.ToString()), Is.EqualTo(new[] { "5♥", "7♣" }));
             Assert.That(t.DealerCards[0].ToString(), Is.EqualTo("K♠"));
             Assert.That(Result(t), Is.EqualTo(Outcome.Lose));
         }

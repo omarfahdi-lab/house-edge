@@ -75,7 +75,8 @@ namespace HouseEdge.Tests
             t.Apply(Stand);
 
             Assert.That(t.LastScores.Select(s => s.Outcome), Is.EqualTo(new[] { Outcome.TwentyOne, Outcome.Win }));
-            Assert.That(t.Score, Is.EqualTo((21 + 20) * 3 + (18 + 10) * 2));
+            // 8-3-10 is a 21: (21 + 15) x 2. 8-K is a plain win: (18 + 5) x 1. neither makes a combo
+            Assert.That(t.Score, Is.EqualTo((21 + 15) * 2 + (18 + 5) * 1));
             Assert.That(t.HandsLeft, Is.EqualTo(Balance.StartingHands - 1), "a split deal uses one Hand");
         }
 
@@ -92,10 +93,11 @@ namespace HouseEdge.Tests
         [Test]
         public void SplitAces_Making21_Score21_NotBlackjack()
         {
-            var t = StackedTableNoTarget("A", "10", "A", "7", "K", "9");
+            // a heart King so A-K isn't Suited: a plain win, (21 + 5) x 1
+            var t = StackedTableNoTarget("A", "10", "A", "7", "Kh", "9");
             Play(t, Deal, Split, Stand, Stand);
             Assert.That(t.LastScores[0].Outcome, Is.EqualTo(Outcome.Win));
-            Assert.That(t.LastScores[0].Total, Is.EqualTo((21 + 10) * 2));
+            Assert.That(t.LastScores[0].Total, Is.EqualTo((21 + 5) * 1));
         }
 
         // burn
@@ -115,7 +117,7 @@ namespace HouseEdge.Tests
         {
             var t = StackedTableNoTarget("10", "10", "2", "9", "3", "7");
             Play(t, Deal, Hit, Burn);
-            Assert.That(t.PlayerHands[0].Cards.Select(c => c.ToString()), Is.EqualTo(new[] { "10♠", "2♠", "7♠" }));
+            Assert.That(t.PlayerHands[0].Cards.Select(c => c.Rank), Is.EqualTo(new[] { Rank.Ten, Rank.Two, Rank.Seven }));
             Assert.That(t.BurnsLeft, Is.EqualTo(Balance.StartingBurns - 1));
         }
 

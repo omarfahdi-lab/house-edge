@@ -36,10 +36,11 @@ namespace HouseEdge.Tests
         [Test]
         public void Stacked_DrawsInTheGivenOrder()
         {
+            // unsuffixed labels rotate suits by position: spades, hearts, clubs, diamonds
             var shoe = Stack("A", "K", "2");
             Assert.That(shoe.Draw().ToString(), Is.EqualTo("A♠"));
-            Assert.That(shoe.Draw().ToString(), Is.EqualTo("K♠"));
-            Assert.That(shoe.Draw().ToString(), Is.EqualTo("2♠"));
+            Assert.That(shoe.Draw().ToString(), Is.EqualTo("K♥"));
+            Assert.That(shoe.Draw().ToString(), Is.EqualTo("2♣"));
         }
 
         [Test]

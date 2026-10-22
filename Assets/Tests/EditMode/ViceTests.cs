@@ -33,10 +33,10 @@ namespace HouseEdge.Tests
         [Test]
         public void LuckyPenny_Adds4MultOnAWin_NotOnAPush()
         {
-            // the DESIGN.md example: win with 20 -> 30 Chips, 2 + 4 Mult
+            // win with 20 -> 20 + 5 = 25 Chips, 1 + 4 Mult
             var win = With(V("Lucky Penny"), "K", "9", "Q", "9");
             Play(win, Deal, Stand);
-            Assert.That(Score(win).Total, Is.EqualTo(30 * 6));
+            Assert.That(Score(win).Total, Is.EqualTo(25 * 5));
 
             var push = With(V("Lucky Penny"), "K", "9", "9", "K");
             Play(push, Deal, Stand);
@@ -51,12 +51,13 @@ namespace HouseEdge.Tests
                 "K", "9", "Q", "9",   // win
                 "K", "10", "7", "9",  // lose
                 "K", "9", "Q", "9");  // win
+            // a win's x1 + Hot Streak. the second win also gets the table's own +1 streak Mult
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(2 + 2));
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 2));
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(2 + 4));
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 1 + 4));
             Play(t, Deal, Stand, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(2 + 2));
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 2));
         }
 
         [Test]
@@ -65,16 +66,16 @@ namespace HouseEdge.Tests
             // 5 + 3 + 10 = 18 beats 17. two low cards -> +16 Chips
             var t = With(V("Low Roller"), "5", "10", "3", "7", "10");
             Play(t, Deal, Hit, Stand);
-            Assert.That(Score(t).Chips, Is.EqualTo(18 + 10 + 16));
+            Assert.That(Score(t).Chips, Is.EqualTo(18 + 5 + 16));
         }
 
         [Test]
         public void HighRoller_Adds2MultPerTenValueCard()
         {
-            // the DESIGN.md example: two 10s, Lucky Penny + High Roller -> 30 x 10 = 300
+            // two 10s, Lucky Penny + High Roller -> (20 + 5) x (1 + 4 + 2 + 2) = 225
             var t = new Table(Stack("K", "9", "Q", "9"), long.MaxValue, new[] { V("Lucky Penny"), V("High Roller") });
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Total, Is.EqualTo(300));
+            Assert.That(Score(t).Total, Is.EqualTo(25 * 9));
         }
 
         [Test]
@@ -83,7 +84,7 @@ namespace HouseEdge.Tests
             // 2 + 3 + 5 + 10 = 20 beats 17 with four cards
             var t = With(V("Card Sharp"), "2", "10", "3", "7", "5", "10");
             Play(t, Deal, Hit, Hit, Stand);
-            Assert.That(Score(t).Chips, Is.EqualTo(20 + 10 + 25));
+            Assert.That(Score(t).Chips, Is.EqualTo(20 + 5 + 25));
         }
 
         [Test]
@@ -91,11 +92,11 @@ namespace HouseEdge.Tests
         {
             var t = With(V("Photo Finish"), "K", "9", "9", "9");
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(2 + 10));
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 10));
 
             var byTwo = With(V("Photo Finish"), "K", "8", "Q", "10");
             Play(byTwo, Deal, Stand);
-            Assert.That(Score(byTwo).Mult, Is.EqualTo(2));
+            Assert.That(Score(byTwo).Mult, Is.EqualTo(1));
         }
 
         [Test]
@@ -111,7 +112,8 @@ namespace HouseEdge.Tests
         {
             var t = With(V("Dealer's Friend"), "10", "10", "8", "6", "K");
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Chips, Is.EqualTo(18 + 10 + 15 + 30));
+            // cards + Win bonus + dealer bust bonus + Dealer's Friend
+            Assert.That(Score(t).Chips, Is.EqualTo(18 + 5 + 10 + 30));
         }
 
         [Test]
@@ -119,7 +121,8 @@ namespace HouseEdge.Tests
         {
             var t = With(V("Pocket Pair"), "9", "10", "9", "7");
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(2 + 6));
+            // a win's x1 + the Pair combo's +1 + Pocket Pair's +6
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 1 + 6));
         }
 
         [Test]
@@ -127,7 +130,8 @@ namespace HouseEdge.Tests
         {
             var t = With(V("Suit Up"), "Kh", "9", "9h", "7", "K");
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(2 + 5));
+            // a win's x1 + the Suited combo's +1 + Suit Up's +5
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 1 + 5));
         }
 
         [Test]
@@ -151,7 +155,7 @@ namespace HouseEdge.Tests
         {
             var t = With(V("Steady Hand"), "10", "10", "7", "6", "K");
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Chips, Is.EqualTo(17 + 10 + 15 + 20));
+            Assert.That(Score(t).Chips, Is.EqualTo(17 + 5 + 10 + 20));
         }
 
         [Test]
@@ -159,7 +163,7 @@ namespace HouseEdge.Tests
         {
             var t = With(V("Even Money"), "K", "9", "Q", "9");
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(2 + 8));
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 8));
         }
 
         [Test]
@@ -173,7 +177,7 @@ namespace HouseEdge.Tests
             }
             var results = Enumerable.Range(1, 20).Select(ScoreWithSeed).ToList();
             Assert.That(results, Is.EqualTo(Enumerable.Range(1, 20).Select(ScoreWithSeed).ToList()));
-            Assert.That(results.Distinct(), Is.EquivalentTo(new long[] { 60, 360 }), "either 30 x 2 or 30 x 12");
+            Assert.That(results.Distinct(), Is.EquivalentTo(new long[] { 25, 275 }), "either 25 x 1 or 25 x 11");
         }
 
         [Test]
@@ -183,9 +187,10 @@ namespace HouseEdge.Tests
                 "10", "10", "6", "6", "K",   // stand on 16, dealer busts
                 "K", "9", "Q", "9");         // win with 20
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(2 + 3));
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 3));
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(2 + 3), "standing on 20 doesn't count");
+            // x1 + the table's +1 streak Mult for the earlier win + Iron Will's 3
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 1 + 3), "standing on 20 doesn't count");
         }
 
         [Test]
@@ -193,7 +198,8 @@ namespace HouseEdge.Tests
         {
             var t = With(V("Soft Touch"), "A", "10", "8", "8");
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(4));
+            // a win's x1, doubled
+            Assert.That(Score(t).Mult, Is.EqualTo(1 * 2));
         }
 
         [Test]
@@ -214,9 +220,10 @@ namespace HouseEdge.Tests
         {
             var t = With(V("Fresh Felt"), "K", "9", "Q", "9", "K", "9", "Q", "9");
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(6));
+            Assert.That(Score(t).Mult, Is.EqualTo(1 * 3));
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(2));
+            // x1 + the table's +1 streak Mult, not tripled
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 1));
         }
 
         [Test]
@@ -224,8 +231,8 @@ namespace HouseEdge.Tests
         {
             var t = With(V("Face Value"), "K", "9", "Q", "9");
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Chips, Is.EqualTo(30 + 20));
-            Assert.That(Score(t).Mult, Is.EqualTo(2 + 2));
+            Assert.That(Score(t).Chips, Is.EqualTo(25 + 20));
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 2));
         }
     }
 }

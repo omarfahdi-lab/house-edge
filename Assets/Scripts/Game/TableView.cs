@@ -512,6 +512,26 @@ namespace HouseEdge.Game
                 var badges = Ui.Row(group, 6);
                 Badge(badges, text, color);
                 if (hand.IsDoubled) Ui.Pill(badges, "DOUBLED x2", Ui.Mult, filled: true, size: 10);
+
+                // the combos these cards make right now. they only pay if the hand beats the dealer
+                if (!mimed)
+                {
+                    var combos = Combos.Find(hand.Cards);
+                    var score = table.LastScores.FirstOrDefault(sc => sc.Hand == hand);
+                    bool paid = score != null && score.Outcome.IsWin();
+                    bool lost = score != null && !paid;
+                    if (combos.Count > 0)
+                    {
+                        var row = Ui.Row(group, 4);
+                        foreach (var combo in combos)
+                        {
+                            var (chips, mult) = Combos.Base(combo);
+                            var pill = Ui.Pill(row, Combos.Name(combo).ToUpperInvariant(), lost ? Ui.Dim : Ui.Cocktail, filled: paid, size: 11);
+                            Ui.Tip(pill, Combos.Name(combo), $"{Combos.Describe(combo)}\n+{chips} Chips, +{mult} Mult if this hand beats the dealer." +
+                                (lost ? "\nThis hand didn't win, so it doesn't pay." : ""));
+                        }
+                    }
+                }
             }
         }
 
@@ -774,8 +794,10 @@ namespace HouseEdge.Game
             {
                 case TablePhase.ReadyToDeal:
                     hint = table.DealsPlayed == 0
-                        ? $"Score {table.Target:N0} points in {table.HandsLeft} Hands to clear this table. Place a side bet if you like, then Deal."
+                        ? $"Score {table.Target:N0} points in {table.HandsLeft} Hands to clear this table. Combos like a Pair or a Flush only pay when you beat the dealer."
                         : $"{table.HandsLeft} Hands left. Deal the next one when you're ready.";
+                    if (table.WinStreak > 0)
+                        hint += $" Win streak {table.WinStreak}: your next win gets +{System.Math.Min(table.WinStreak * Balance.StreakMultPerWin, Balance.MaxStreakBonus)} Mult.";
                     break;
                 case TablePhase.InsuranceOffer:
                     hint = $"Insurance costs {Balance.InsuranceCost}g. If the dealer has blackjack, your hand becomes a push instead of a loss.";

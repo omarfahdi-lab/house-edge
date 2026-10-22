@@ -12,45 +12,47 @@ namespace HouseEdge.Tests
         private static HandScore Only(Table t) => t.LastScores.Single();
 
         [Test]
-        public void Win_Is_CardsPlus10Chips_Times2Mult()
+        public void Win_Is_CardsPlus5Chips_Times1Mult()
         {
-            // the DESIGN.md example: win with 20 -> (20 + 10) x 2 = 60
+            // win with 20 -> (20 + 5) x 1 = 25
             var t = StackedTableNoTarget("K", "9", "Q", "9");
             Play(t, Deal, Stand);
             Assert.That(Only(t).Outcome, Is.EqualTo(Outcome.Win));
-            Assert.That(Only(t).Chips, Is.EqualTo(30));
-            Assert.That(Only(t).Mult, Is.EqualTo(2));
-            Assert.That(Only(t).Total, Is.EqualTo(60));
-            Assert.That(t.Score, Is.EqualTo(60));
+            Assert.That(Only(t).Chips, Is.EqualTo(25));
+            Assert.That(Only(t).Mult, Is.EqualTo(1));
+            Assert.That(Only(t).Total, Is.EqualTo(25));
+            Assert.That(t.Score, Is.EqualTo(25));
         }
 
         [Test]
-        public void TwentyOne_WithThreeCards_Is_CardsPlus20Chips_Times3Mult()
+        public void TwentyOne_WithThreeCards_Is_CardsPlus15Chips_Times2Mult()
         {
             var t = StackedTableNoTarget("K", "9", "5", "9", "6");
             Play(t, Deal, Hit, Stand);
             Assert.That(Only(t).Outcome, Is.EqualTo(Outcome.TwentyOne));
-            Assert.That(Only(t).Total, Is.EqualTo((21 + 20) * 3));
+            Assert.That(Only(t).Total, Is.EqualTo((21 + 15) * 2));
         }
 
         [Test]
-        public void Blackjack_Is_CardsPlus30Chips_Times4Mult_AndEndsTheTurn()
+        public void Blackjack_Is_CardsPlus25Chips_Times3Mult_AndEndsTheTurn()
         {
             var t = StackedTableNoTarget("A", "9", "K", "8");
             t.Apply(Deal);
             Assert.That(Only(t).Outcome, Is.EqualTo(Outcome.Blackjack));
-            Assert.That(Only(t).Total, Is.EqualTo((21 + 30) * 4));
+            Assert.That(Only(t).Total, Is.EqualTo((21 + 25) * 3));
             Assert.That(t.Phase, Is.EqualTo(TablePhase.ReadyToDeal));
         }
 
         [Test]
-        public void Charlie_WinsAutomatically_With40ChipsTimes4Mult()
+        public void Charlie_WinsAutomatically_With30ChipsTimes3Mult()
         {
-            // dealer has 20 and would beat 15, but five cards without busting wins
-            var t = StackedTableNoTarget("2", "K", "3", "K", "2", "4", "4");
+            // dealer has 20 and would beat 19, but five cards without busting wins.
+            // A-2-4-5-7 makes no combo (no pair, no run of 3, a 7 so no Low Ball, mixed suits)
+            var t = StackedTableNoTarget("A", "K", "2", "K", "4", "5", "7");
             Play(t, Deal, Hit, Hit, Hit);
             Assert.That(Only(t).Outcome, Is.EqualTo(Outcome.Charlie));
-            Assert.That(Only(t).Total, Is.EqualTo((15 + 40) * 4));
+            Assert.That(Only(t).Combos, Is.Empty);
+            Assert.That(Only(t).Total, Is.EqualTo((19 + 30) * 3));
             Assert.That(t.DealerCards.Count, Is.EqualTo(2), "the dealer doesn't draw against a Charlie");
         }
 
@@ -63,14 +65,14 @@ namespace HouseEdge.Tests
         }
 
         [Test]
-        public void DealerBust_Adds15Chips_OnTopOfTheWin()
+        public void DealerBust_Adds10Chips_OnTopOfTheWin()
         {
-            // player 18 stands, dealer 16 hits a K and busts -> (18 + 10 + 15) x 2
+            // player 18 stands, dealer 16 hits a K and busts -> (18 + 5 + 10) x 1
             var t = StackedTableNoTarget("10", "10", "8", "6", "K");
             Play(t, Deal, Stand);
             Assert.That(Only(t).Outcome, Is.EqualTo(Outcome.Win));
             Assert.That(Only(t).DealerBusted, Is.True);
-            Assert.That(Only(t).Total, Is.EqualTo((18 + 10 + 15) * 2));
+            Assert.That(Only(t).Total, Is.EqualTo((18 + 5 + 10) * 1));
         }
 
         [Test]
@@ -106,12 +108,12 @@ namespace HouseEdge.Tests
         [Test]
         public void DoubleDown_DoublesTheMult_OnAWin()
         {
-            // 11 doubles into 21 with three cards: (21 + 20) x 3 x 2
+            // 11 doubles into 21 with three cards: (21 + 15) x 2 x 2
             var t = StackedTableNoTarget("6", "10", "5", "8", "K");
             Play(t, Deal, DoubleDown);
             Assert.That(Only(t).Outcome, Is.EqualTo(Outcome.TwentyOne));
-            Assert.That(Only(t).Mult, Is.EqualTo(6));
-            Assert.That(Only(t).Total, Is.EqualTo(41 * 6));
+            Assert.That(Only(t).Mult, Is.EqualTo(4));
+            Assert.That(Only(t).Total, Is.EqualTo(36 * 4));
         }
 
         [Test]
@@ -124,8 +126,8 @@ namespace HouseEdge.Tests
             var steps = score.Steps;
             Assert.That(steps.Select(s => s.Kind), Is.EqualTo(new[] { ScoreSource.Hand, ScoreSource.Bonus, ScoreSource.Double }));
             Assert.That(steps[0].ChipsAdded, Is.EqualTo(20));
-            Assert.That(steps[1].ChipsAdded, Is.EqualTo(10));
-            Assert.That(steps[1].MultAdded, Is.EqualTo(2));
+            Assert.That(steps[1].ChipsAdded, Is.EqualTo(5));
+            Assert.That(steps[1].MultAdded, Is.EqualTo(1));
             Assert.That(steps[2].Factor, Is.EqualTo(2));
             Assert.That(steps.Last().Chips, Is.EqualTo(score.Chips));
             Assert.That(steps.Last().Mult, Is.EqualTo(score.Mult));
@@ -167,7 +169,8 @@ namespace HouseEdge.Tests
         [Test]
         public void ReachingTheTarget_WinsTheTable()
         {
-            var t = new Table(Stack("A", "9", "K", "8"), 150);
+            // a blackjack scores (21 + 25) x 3 = 138
+            var t = new Table(Stack("A", "9", "K", "8"), 130);
             t.Apply(Deal);
             Assert.That(t.Phase, Is.EqualTo(TablePhase.Won));
             Assert.That(t.LegalActions(), Is.Empty);

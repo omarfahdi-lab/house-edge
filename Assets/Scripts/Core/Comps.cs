@@ -3,14 +3,23 @@ using System.Collections.Generic;
 
 namespace HouseEdge.Core
 {
-    // a Comp levels up an outcome for the rest of the run, like upgrading a poker hand
-    public enum Comp { Win, TwentyOne, Blackjack, Charlie, DoubleDown, SplitWin, DealerBust }
+    // a Comp levels up an outcome or a combo for the rest of the run, like upgrading a poker hand
+    public enum Comp
+    {
+        Win, TwentyOne, Blackjack, Charlie, DoubleDown, SplitWin, DealerBust,
+        Pair, TwoPair, ThreeOfAKind, Suited, Flush, Run, RoyalCourt, LowBall,
+    }
 
     public static class Comps
     {
         public static readonly IReadOnlyList<Comp> All = (Comp[])Enum.GetValues(typeof(Comp));
 
-        public static string Name(Comp comp) => comp switch
+        // the Comp that levels up a combo
+        public static Comp For(Combo combo) => (Comp)Enum.Parse(typeof(Comp), combo.ToString());
+
+        public static bool IsCombo(Comp comp) => comp >= Comp.Pair;
+
+        public static string Name(Comp comp) => IsCombo(comp) ? Combos.Name((Combo)Enum.Parse(typeof(Combo), comp.ToString())) : comp switch
         {
             Comp.TwentyOne => "21",
             Comp.DoubleDown => "Double Down",
@@ -19,7 +28,9 @@ namespace HouseEdge.Core
             _ => comp.ToString(),
         };
 
-        public static (int chips, int mult) PerLevel(Comp comp) => comp switch
+        public static (int chips, int mult) PerLevel(Comp comp) => IsCombo(comp)
+            ? Combos.Base((Combo)Enum.Parse(typeof(Combo), comp.ToString()))
+            : comp switch
         {
             Comp.Win => (10, 1),
             Comp.TwentyOne => (15, 1),
@@ -38,6 +49,7 @@ namespace HouseEdge.Core
                 Comp.DoubleDown => " on doubled wins",
                 Comp.SplitWin => " on each split hand that wins",
                 Comp.DealerBust => " when the dealer busts",
+                _ when IsCombo(comp) => $" on a winning {Name(comp)}",
                 _ => $" on a {Name(comp)}",
             };
             return $"+{chips} Chips, +{mult} Mult{when}.";
@@ -57,6 +69,7 @@ namespace HouseEdge.Core
             if (score.Hand.IsDoubled) yield return Comp.DoubleDown;
             if (score.Hand.IsFromSplit) yield return Comp.SplitWin;
             if (score.DealerBusted) yield return Comp.DealerBust;
+            foreach (var combo in score.Combos) yield return For(combo);
         }
     }
 

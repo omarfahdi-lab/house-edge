@@ -13,7 +13,8 @@ namespace HouseEdge.Core
         public int Chips { get; private set; }
         public double Mult { get; private set; }
 
-        public long Total => (long)Math.Floor(Chips * Mult);
+        // a curse can push Mult below zero, but a hand never takes points away
+        public long Total => Math.Max(0, (long)Math.Floor(Chips * Mult));
 
         // wins and pushes score their cards. losses, busts and surrenders score nothing
         public bool ScoresCards => Balance.ScoresCards(Outcome);
@@ -24,6 +25,9 @@ namespace HouseEdge.Core
             Outcome = outcome;
             DealerBusted = dealerBusted;
         }
+
+        // the combos the hand made (only a win scores them)
+        public IReadOnlyList<Combo> Combos { get; internal set; } = new List<Combo>();
 
         // how many Vices changed this score
         public int ViceTriggers { get; internal set; }
@@ -58,7 +62,7 @@ namespace HouseEdge.Core
         public override string ToString() => $"{Outcome.Label()}: {Chips} Chips x {Mult:0.##} Mult = {Total}";
     }
 
-    public enum ScoreSource { Hand, Bonus, Card, Comp, Boss, Dealer, Rule, Vice, Double, Ante }
+    public enum ScoreSource { Hand, Bonus, Combo, Streak, Card, Comp, Boss, Dealer, Rule, Vice, Double, Ante }
 
     // one beat of scoring: who changed the hand and how
     public readonly struct ScoreStep

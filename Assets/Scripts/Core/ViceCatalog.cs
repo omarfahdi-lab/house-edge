@@ -30,6 +30,7 @@ namespace HouseEdge.Core
             V("Side Hustle", Rarity.Common, Archetype.Greedy, "Side bets cost 1 less gold.", () => new SideHustle()),
             V("Coin Flip", Rarity.Common, Archetype.Lucky, "1 in 2 chance for +10 Mult.", () => new CoinFlip()),
             V("Iron Will", Rarity.Common, Archetype.Steady, "+3 Mult for each hand this table where you stood on 16 or less.", () => new IronWill()),
+            V("Matchmaker", Rarity.Common, Archetype.Lucky, "Pair: +4 Mult. Two Pair: +8 Mult. Three of a Kind: +12 Mult.", () => new Matchmaker()),
 
             V("Card Counter", Rarity.Uncommon, Archetype.Cheater, "Always see the next card in the deck. +3 Heat per hand.", () => new CardCounter()),
             V("X-Ray Specs", Rarity.Uncommon, Archetype.Cheater, "The dealer's hole card is dealt face up. +5 Heat per hand.", () => new XRaySpecs()),
@@ -51,6 +52,8 @@ namespace HouseEdge.Core
             V("Horseshoe", Rarity.Uncommon, Archetype.Lucky, "1 in 4 chance a bust turns into a 21.", () => new Horseshoe()),
             V("Snowball", Rarity.Uncommon, Archetype.Combo, "+5 Chips permanently every win. Resets when you bust.", () => new Snowball()),
             V("Patience", Rarity.Uncommon, Archetype.Steady, "Gains +1 Mult permanently each hand you win without hitting.", () => new Patience()),
+            V("Straight Shooter", Rarity.Uncommon, Archetype.Combo, "Winning hands with a Run get x2 Mult.", () => new StraightShooter()),
+            V("Court Jester", Rarity.Uncommon, Archetype.Risky, "Winning hands with a Royal Court get x3 Mult.", () => new CourtJester()),
 
             V("Rigged Shoe", Rarity.Rare, Archetype.Cheater, "The dealer must hit until they reach 18. +5 Heat per hand.", () => new RiggedShoe()),
             V("Lucky Sevens", Rarity.Rare, Archetype.Lucky, "Each 7 in your hand gives x1.5 Mult. Three 7s gives x7.", () => new LuckySevens()),
@@ -58,6 +61,8 @@ namespace HouseEdge.Core
             V("Black Cat", Rarity.Rare, Archetype.Risky, "When you bust, your next hand gets x3 Mult.", () => new BlackCat()),
             V("All In", Rarity.Rare, Archetype.Risky, "x4 Mult on every hand, but you earn no interest.", () => new AllIn()),
             V("Last Call", Rarity.Rare, Archetype.Steady, "Your final hand at each table gets x3 Mult.", () => new LastCall()),
+            V("Flush Royale", Rarity.Rare, Archetype.Lucky, "Flushes get x2.5 Mult. Suited hands get +6 Mult.", () => new FlushRoyale()),
+            V("Combo King", Rarity.Rare, Archetype.Combo, "x1.5 Mult for every combo your winning hand makes.", () => new ComboKing()),
             V("Twins", Rarity.Rare, Archetype.Combo, "Split hands are scored twice.", () => new TwinsVice()),
             V("Cold Read", Rarity.Rare, Archetype.Cheater, "After you stand, see the dealer's next card and choose whether they take it. +8 Heat.", () => new ColdRead()),
             V("Card Mechanic", Rarity.Rare, Archetype.Cheater, "Once per hand, swap your last card with the dealer's face-up card. +10 Heat.", () => new CardMechanicVice()),

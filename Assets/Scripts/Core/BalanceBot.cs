@@ -178,6 +178,8 @@ namespace HouseEdge.Core
                     return offer.Comp switch
                     {
                         Comp.Win => 3,
+                        Comp.Suited => 3,
+                        Comp.Pair => 2.5,
                         Comp.DealerBust => 2.5,
                         Comp.TwentyOne => 2,
                         Comp.Blackjack => 1.5,

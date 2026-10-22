@@ -24,7 +24,7 @@ namespace HouseEdge.Tests
             // dealer 10 + 2, then 3 and 2 -> 17 and stops
             var t = StackedTableNoTarget("10", "10", "9", "2", "3", "2", "K");
             Play(t, Deal, Stand);
-            Assert.That(t.DealerCards.Select(c => c.ToString()), Is.EqualTo(new[] { "10♠", "2♠", "3♠", "2♠" }));
+            Assert.That(t.DealerCards.Select(c => c.ToString()), Is.EqualTo(new[] { "10♥", "2♦", "3♠", "2♥" }));
             Assert.That(t.LastScores.Single().Outcome, Is.EqualTo(Outcome.Win));
         }
 

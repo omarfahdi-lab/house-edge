@@ -41,14 +41,22 @@ namespace HouseEdge.Tests
 
         // mix of plain labels and prepared cards (enhanced, stamped, cursed)
         public static Shoe StackOf(params object[] topFirst) =>
-            Shoe.Stacked(topFirst.Select(o => o as Card ?? C((string)o)), new GameRandom(1));
+            Shoe.Stacked(topFirst.Select((o, i) => o as Card ?? Mixed((string)o, i)), new GameRandom(1));
+
+        // a stacked deck mixes suits by position (spades, hearts, clubs, diamonds), so a test hand only makes a
+        // Flush or Suited combo when the test asks for it with "7h"-style labels
+        private static Card Mixed(string label, int index)
+        {
+            if ("shdc".IndexOf(label[label.Length - 1]) >= 0) return C(label);
+            return new Card(C(label).Rank, new[] { Suit.Spades, Suit.Hearts, Suit.Clubs, Suit.Diamonds }[index % 4]);
+        }
 
         public static Table TableOf(params object[] topFirst) => new Table(StackOf(topFirst), long.MaxValue);
 
         public static HandValue Value(params string[] labels) => HandValue.Of(Cards(labels));
 
         // deal order is player, dealer up, player, dealer hole, then whatever is drawn next
-        public static Shoe Stack(params string[] topFirst) => Shoe.Stacked(Cards(topFirst), new GameRandom(1));
+        public static Shoe Stack(params string[] topFirst) => Shoe.Stacked(topFirst.Select(Mixed), new GameRandom(1));
 
         public static Table StackedTable(params string[] topFirst) => new Table(Stack(topFirst), Balance.FirstTableTarget);
 

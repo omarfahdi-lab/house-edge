@@ -37,22 +37,22 @@ namespace HouseEdge.Tests
         [Test]
         public void ScoringEffect_ChangesTheScore()
         {
-            // DESIGN.md: win with 20 is 30 x 2. with +4 Mult it's 30 x 6
+            // win with 20 is (20 + 5) x 1. with +4 Mult it's 25 x 5
             var t = new Table(Stack("K", "9", "Q", "9"), long.MaxValue, new[] { new PlusMultOnWin() });
             Play(t, Deal, Stand);
-            Assert.That(t.LastScores.Single().Total, Is.EqualTo(30 * 6));
+            Assert.That(t.LastScores.Single().Total, Is.EqualTo(25 * 5));
         }
 
         [Test]
         public void Effects_TriggerLeftToRight()
         {
-            // (2 + 4) x 2 = 12 one way, 2 x 2 + 4 = 8 the other
+            // (1 + 4) x 2 = 10 one way, 1 x 2 + 4 = 6 the other
             var addThenTimes = new Table(Stack("K", "9", "Q", "9"), long.MaxValue, new TableEffect[] { new PlusMultOnWin(), new TimesTwoMult() });
             var timesThenAdd = new Table(Stack("K", "9", "Q", "9"), long.MaxValue, new TableEffect[] { new TimesTwoMult(), new PlusMultOnWin() });
             Play(addThenTimes, Deal, Stand);
             Play(timesThenAdd, Deal, Stand);
-            Assert.That(addThenTimes.LastScores.Single().Mult, Is.EqualTo(12));
-            Assert.That(timesThenAdd.LastScores.Single().Mult, Is.EqualTo(8));
+            Assert.That(addThenTimes.LastScores.Single().Mult, Is.EqualTo(10));
+            Assert.That(timesThenAdd.LastScores.Single().Mult, Is.EqualTo(6));
         }
 
         [Test]
@@ -64,10 +64,10 @@ namespace HouseEdge.Tests
             Play(t, Deal, Hit, Stand);
             Assert.That(recorder.Calls, Is.EqualTo(new[]
             {
-                "player 10♠", "dealer 10♠", "player 6♠", "dealer 6♠",
+                "player 10♠", "dealer 10♥", "player 6♣", "dealer 6♦",
                 "player 2♠", "hit",
                 "stand",
-                "dealer K♠", "dealer bust",
+                "dealer K♥", "dealer bust",
                 "scored Win",
                 "table won",
             }));

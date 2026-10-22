@@ -25,11 +25,11 @@ namespace HouseEdge.Tests
         [Test]
         public void TheCatalog_HasEveryViceFromTheDesign()
         {
-            // 18 common, 20 uncommon, 16 rare, 7 legendary, 4 cursed
-            Assert.That(ViceCatalog.All.Count, Is.EqualTo(65));
+            // 19 common, 22 uncommon, 18 rare, 7 legendary, 4 cursed (the 5 combo Vices brought it from 65 to 70)
+            Assert.That(ViceCatalog.All.Count, Is.EqualTo(70));
             Assert.That(ViceCatalog.OfRarity(Rarity.Legendary).Count(), Is.EqualTo(7));
             Assert.That(ViceCatalog.OfRarity(Rarity.Cursed).Count(), Is.EqualTo(4));
-            Assert.That(ViceCatalog.All.Select(v => v.Id).Distinct().Count(), Is.EqualTo(65));
+            Assert.That(ViceCatalog.All.Select(v => v.Id).Distinct().Count(), Is.EqualTo(70));
         }
 
         [Test]
@@ -103,7 +103,8 @@ namespace HouseEdge.Tests
             var t = With(V("Bankroll"), "K", "9", "Q", "9");
             t.Gambler.GainGold(6);
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(2 + 2));
+            // a win's x1 + 10 gold / 5
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 2));
         }
 
         [Test]
@@ -111,7 +112,7 @@ namespace HouseEdge.Tests
         {
             var t = With(V("Burnout"), "10", "10", "6", "8", "K", "3");
             Play(t, Deal, Hit, Burn, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(2 + 3));
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 3));
         }
 
         [Test]
@@ -131,7 +132,8 @@ namespace HouseEdge.Tests
             var t = With(cube, "6", "10", "5", "8", "K", "K", "9", "Q", "9");
             Play(t, Deal, DoubleDown);
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(2 + 1));
+            // a win's x1 + the table's +1 streak Mult for the first win + the cube's +1
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 1 + 1));
         }
 
         [Test]
@@ -148,7 +150,7 @@ namespace HouseEdge.Tests
         {
             var t = With(V("Bookie"), "K", "9", "Q", "9");
             Play(t, BetLuckyLadies, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(2 + 5));
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 5));
         }
 
         [Test]
@@ -156,7 +158,7 @@ namespace HouseEdge.Tests
         {
             var t = With(V("Daredevil"), "10", "10", "5", "8", "4");
             Play(t, Deal, Hit, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(2 + 4));
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 4));
         }
 
         [Test]
@@ -180,9 +182,10 @@ namespace HouseEdge.Tests
             var snow = (Vice)V("Snowball");
             var t = With(snow, "K", "9", "Q", "9", "K", "9", "Q", "9", "10", "10", "6", "9", "K", "K", "9", "Q", "9");
             Play(t, Deal, Stand, Deal, Stand);
-            Assert.That(Score(t).Chips, Is.EqualTo(30 + 5));
+            // (20 + 5) for the win, + 5 from the first win
+            Assert.That(Score(t).Chips, Is.EqualTo(25 + 5));
             Play(t, Deal, Hit, Stand, Deal, Stand);
-            Assert.That(Score(t).Chips, Is.EqualTo(30));
+            Assert.That(Score(t).Chips, Is.EqualTo(25));
         }
 
         [Test]
@@ -190,7 +193,8 @@ namespace HouseEdge.Tests
         {
             var t = With(V("Patience"), "K", "9", "Q", "9", "K", "9", "Q", "9");
             Play(t, Deal, Stand, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(2 + 1));
+            // a win's x1 + the table's +1 streak Mult + Patience's +1 from the first win
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 1 + 1));
         }
 
         [Test]
@@ -206,11 +210,13 @@ namespace HouseEdge.Tests
         {
             var two = With(V("Lucky Sevens"), "7", "9", "7", "8", "5");
             Play(two, Deal, Hit, Stand);
-            Assert.That(Score(two).Mult, Is.EqualTo(2 * 1.5 * 1.5).Within(0.001));
+            // a win's x1 + the Pair combo's +1, then x1.5 per 7
+            Assert.That(Score(two).Mult, Is.EqualTo((1 + 1) * 1.5 * 1.5).Within(0.001));
 
             var three = With(V("Lucky Sevens"), "7", "9", "7", "8", "7");
             Play(three, Deal, Hit, Stand);
-            Assert.That(Score(three).Mult, Is.EqualTo(3 * 7));
+            // a 21's x2 + Three of a Kind's +3, then x7
+            Assert.That(Score(three).Mult, Is.EqualTo((2 + 3) * 7));
         }
 
         [Test]
@@ -218,7 +224,7 @@ namespace HouseEdge.Tests
         {
             var t = With(new[] { V("Mirror"), V("Lucky Penny") }, "K", "9", "Q", "9");
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(2 + 4 + 4));
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 4 + 4));
         }
 
         [Test]
@@ -226,7 +232,8 @@ namespace HouseEdge.Tests
         {
             var t = With(V("Black Cat"), "10", "10", "6", "9", "K", "K", "9", "Q", "9");
             Play(t, Deal, Hit, Stand, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(6));
+            // a win's x1, tripled (the bust broke any streak)
+            Assert.That(Score(t).Mult, Is.EqualTo(1 * 3));
         }
 
         [Test]
@@ -234,27 +241,31 @@ namespace HouseEdge.Tests
         {
             var t = With(V("All In"), "K", "9", "Q", "9");
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(8));
+            Assert.That(Score(t).Mult, Is.EqualTo(1 * 4));
             Assert.That(t.Gambler.Vices[0].BlocksInterest, Is.True);
         }
 
         [Test]
         public void LastCall_TriplesTheFinalHand()
         {
-            var cards = Enumerable.Repeat(new[] { "K", "9", "Q", "9" }, Balance.StartingHands).SelectMany(x => x).Cast<object>().ToArray();
+            // pushes until the final hand, so no win streak builds up, then a win
+            var cards = Enumerable.Repeat(new[] { "K", "9", "9", "K" }, Balance.StartingHands - 1).SelectMany(x => x)
+                .Concat(new[] { "K", "9", "Q", "9" }).Cast<object>().ToArray();
             var t = With(V("Last Call"), cards);
             for (int i = 0; i < Balance.StartingHands - 1; i++) Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(2));
+            Assert.That(Score(t).Outcome, Is.EqualTo(Outcome.Push));
+            Assert.That(Score(t).Mult, Is.EqualTo(1));
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(6));
+            Assert.That(Score(t).Mult, Is.EqualTo(1 * 3));
         }
 
         [Test]
         public void Twins_DoubleSplitHands()
         {
-            var t = With(V("Twins"), "8", "10", "8", "7", "K", "K");
+            // 8-K and 8-K, both 18 beating 17. a diamond K keeps the first hand from being Suited: x1 doubled
+            var t = With(V("Twins"), "8", "10", "8", "7", "Kd", "K");
             Play(t, Deal, Split, Stand, Stand);
-            Assert.That(t.LastScores.All(s => s.Mult == 4), Is.True);
+            Assert.That(t.LastScores.All(s => s.Mult == 1 * 2), Is.True);
         }
 
         [Test]
@@ -285,7 +296,7 @@ namespace HouseEdge.Tests
             var t = With(V("Smooth Talker"), "K", "9", "Q", "9");
             t.Gambler.AddHeat(20);
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(2 + 4));
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 4));
         }
 
         [Test]
@@ -293,7 +304,8 @@ namespace HouseEdge.Tests
         {
             var t = With(V("Knife's Edge"), "10", "10", "8", "7");
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(1));
+            // a win's x1, halved
+            Assert.That(Score(t).Mult, Is.EqualTo(1 * 0.5));
         }
 
         [Test]
@@ -319,7 +331,8 @@ namespace HouseEdge.Tests
         {
             var t = With(V("Echo"), "K", "9", "Q", "9");
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Chips, Is.EqualTo(30 + 10));
+            // (20 + 5) for the win, then the K's 10 again
+            Assert.That(Score(t).Chips, Is.EqualTo(25 + 10));
         }
 
         [Test]
@@ -336,7 +349,8 @@ namespace HouseEdge.Tests
             var t = With(V("Natural Born"), "A", "K", "Q", "A");
             t.Apply(Deal);
             Assert.That(Score(t).Outcome, Is.EqualTo(Outcome.Blackjack));
-            Assert.That(Score(t).Mult, Is.EqualTo(4 * 5));
+            // a blackjack's x3, times 5
+            Assert.That(Score(t).Mult, Is.EqualTo(3 * 5));
         }
 
         [Test]
@@ -344,7 +358,7 @@ namespace HouseEdge.Tests
         {
             var t = With(V("High Stakes"), "10", "10", "7", "8", "2", "K", "9", "Q", "9");
             Play(t, Deal, Hit, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(2 * 1.25).Within(0.001));
+            Assert.That(Score(t).Mult, Is.EqualTo(1 * 1.25).Within(0.001));
         }
 
         [Test]
@@ -363,7 +377,8 @@ namespace HouseEdge.Tests
             var t = With(V("Whale"), "K", "9", "Q", "9");
             t.Gambler.GainGold(26);
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(2 * 3));
+            // a win's x1, times 30 gold / 10
+            Assert.That(Score(t).Mult, Is.EqualTo(1 * 3));
         }
 
         [Test]
@@ -371,7 +386,7 @@ namespace HouseEdge.Tests
         {
             var t = With(new[] { V("Lucky Penny"), V("Even Money"), V("Chain Reaction") }, "K", "9", "Q", "9");
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo((2 + 4 + 8) * 1.1 * 1.1).Within(0.001));
+            Assert.That(Score(t).Mult, Is.EqualTo((1 + 4 + 8) * 1.1 * 1.1).Within(0.001));
         }
 
         [Test]

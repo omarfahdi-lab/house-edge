@@ -48,7 +48,8 @@ namespace HouseEdge.Tests
             gambler.Deck.Add(fragile);
             var t = new Table(gambler, StackOf(fragile, "9", "Q", "9"), new GameRandom(1), long.MaxValue);
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(4));
+            // a win's x1 Mult, doubled
+            Assert.That(Score(t).Mult, Is.EqualTo(1 * 2));
             Assert.That(fragile.FragileWins, Is.EqualTo(1));
 
             fragile.FragileWins = 2;
@@ -83,7 +84,8 @@ namespace HouseEdge.Tests
             var t = TableOf("10", "10", "9", "8", C("5", Enhancement.Ghost));
             Play(t, Deal, Hit, Stand);
             Assert.That(t.PlayerHands[0].Value.Total, Is.EqualTo(19));
-            Assert.That(Score(t).Chips, Is.EqualTo(19 + 10 + 15));
+            // cards + Win bonus + ghost
+            Assert.That(Score(t).Chips, Is.EqualTo(19 + 5 + 15));
         }
 
         [Test]
@@ -93,7 +95,8 @@ namespace HouseEdge.Tests
             hot.TimesDrawnThisTable = 2;
             var t = TableOf(hot, "9", "Q", "9");
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(2 + 3));
+            // a win's x1, plus 1 per draw (2 earlier + this one)
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 3));
         }
 
         [Test]
@@ -102,7 +105,7 @@ namespace HouseEdge.Tests
             var t = TableOf(C("8", Enhancement.Heavy), "9", "10", "9");
             Play(t, Deal, Stand);
             Assert.That(t.PlayerHands[0].Value.Total, Is.EqualTo(19));
-            Assert.That(Score(t).Chips, Is.EqualTo(19 + 10 + 20));
+            Assert.That(Score(t).Chips, Is.EqualTo(19 + 5 + 20));
         }
 
         // stamps
@@ -112,7 +115,8 @@ namespace HouseEdge.Tests
         {
             var t = TableOf(C("K", Stamp.Red), "9", "Q", "9");
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Chips, Is.EqualTo(30 + 10));
+            // (20 + 5) for the win, then the K's 10 again
+            Assert.That(Score(t).Chips, Is.EqualTo(25 + 10));
         }
 
         [Test]
@@ -121,7 +125,7 @@ namespace HouseEdge.Tests
             var t = TableOf(C("K", Enhancement.Heavy, Stamp.Red), "9", "9", "9");
             Play(t, Deal, Stand);
             // a Heavy K is 11: 11 + 9 = 20 beats 18. +20 twice and the card's 11 again
-            Assert.That(Score(t).Chips, Is.EqualTo(20 + 10 + 20 + 11 + 20));
+            Assert.That(Score(t).Chips, Is.EqualTo(20 + 5 + 20 + 11 + 20));
         }
 
         [Test]
@@ -157,7 +161,8 @@ namespace HouseEdge.Tests
             var t = TableOf(Card.Cursed(Curse.DeadCard), "9", "K", "9");
             Play(t, Deal, Stand);
             Assert.That(t.PlayerHands[0].Value.Total, Is.EqualTo(20));
-            Assert.That(Score(t).Mult, Is.EqualTo(2 - 2));
+            // a win's x1 Mult, minus 2
+            Assert.That(Score(t).Mult, Is.EqualTo(1 - 2));
         }
 
         [Test]
@@ -209,7 +214,7 @@ namespace HouseEdge.Tests
             Play(pair, BetPerfectPair, Deal);
             Assert.That(pair.SideBetResult?.Payout, Is.EqualTo(8));
 
-            var perfect = TableOf("8", "10", "8", "9");
+            var perfect = TableOf("8h", "10", "8h", "9");
             Play(perfect, BetPerfectPair, Deal);
             Assert.That(perfect.SideBetResult?.Payout, Is.EqualTo(20));
         }
@@ -217,7 +222,7 @@ namespace HouseEdge.Tests
         [Test]
         public void TwentyOnePlus3_PaysForFlushStraightOrTrips()
         {
-            var flush = TableOf("2", "9", "7", "Q");
+            var flush = TableOf("2h", "9h", "7h", "Q");
             Play(flush, Bet21Plus3, Deal);
             Assert.That(flush.SideBetResult?.Payout, Is.EqualTo(6));
 
@@ -257,7 +262,7 @@ namespace HouseEdge.Tests
         {
             var t = TableOf("K", "9", "Q", "9");
             Play(t, BetHotHand, Deal, Stand);
-            Assert.That(t.LastScores.Single().Mult, Is.EqualTo(2 + 5));
+            Assert.That(t.LastScores.Single().Mult, Is.EqualTo(1 + 5));
             Assert.That(t.Gold, Is.EqualTo(Balance.StartingGold - 1 + 2));
         }
 
@@ -266,7 +271,8 @@ namespace HouseEdge.Tests
         {
             var t = TableOf("K", "9", "Q", "9");
             Play(t, AnteUp, Deal, Stand);
-            Assert.That(t.LastScores.Single().Total, Is.EqualTo(30 * 4));
+            // (20 + 5) x 1, Mult doubled
+            Assert.That(t.LastScores.Single().Total, Is.EqualTo(25 * 2));
         }
 
         [Test]

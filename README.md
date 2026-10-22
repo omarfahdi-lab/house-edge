@@ -21,6 +21,11 @@ The twist: **the dealer draws from your deck too.** Stack it with 10s and you hi
 - **Engine-free, deterministic rules.** Every rule lives in `HouseEdge.Core`, a plain C# assembly with no UnityEngine
   reference. One seeded RNG drives a whole run, so a run is just a seed plus a list of inputs: run codes, the Daily Run
   and full replays all come from that. **285 NUnit tests** run on plain `dotnet test` in CI, no Unity license needed.
+- **Combos, so winning isn't enough.** A plain win scores little. The big numbers come from poker patterns inside a
+  blackjack hand (Pair, Two Pair, Three of a Kind, Suited, Flush, Run, Royal Court, Low Ball) that pay only when the hand
+  beats the dealer, plus a win streak. Comps level combos up like Balatro's Planet cards, combo Vices multiply them,
+  and your hand shows its combos live, so Hit or Stand becomes "do I chase the Flush?". `Combos.Find` is pure, so the
+  rules are tested card by card.
 - **Pit Bosses are characters.** Each has a portrait drawn in code, a title, a line, one named ability in plain words
   and a tip, shown in an entrance before their table. Bosses announce their ability when it fires ("Swaps your 7 for
   his Q") through `Table.Announce`, so the rule is never invisible.
@@ -62,16 +67,27 @@ with a twist and a shop. The stops are Shops and rooms laid out like Slay the Sp
 any lane, and follow the paths forward, so you plan where your gold goes.
 
 **Score = Chips x Mult.** Chips start as your card total plus the outcome's base Chips; Mult starts as the outcome's
-Mult. Vices, card enhancements and Comps add to both, left to right.
+Mult. Then a winning hand adds its **combos** and **win streak**, and card enhancements, Comps and Vices add to both,
+left to right.
 
 | Outcome | Base Chips | Base Mult |
 | ------- | ---------: | --------: |
-| Win | 10 | 2 |
-| 21 (3+ cards) | 20 | 3 |
-| Blackjack | 30 | 4 |
-| Five-card Charlie | 40 | 4 |
-| Dealer Bust | +15 | +0 |
+| Win | 5 | 1 |
+| 21 (3+ cards) | 15 | 2 |
+| Blackjack | 25 | 3 |
+| Five-card Charlie | 30 | 3 |
+| Dealer Bust | +10 | +0 |
 | Push | cards only | 1 |
+
+| Combo (winning hands only) | Chips | Mult |
+| -------------------------- | ----: | ---: |
+| Pair / Suited (2 cards of one suit) | +10 | +1 |
+| Two Pair | +20 | +2 |
+| Flush (3+ of one suit) / Run (3+ in a row) | +30 | +3 |
+| Three of a Kind | +35 | +3 |
+| Royal Court (J, Q and K) / Low Ball (4+ cards, all 5 or lower) | +40 | +4 |
+
+Each win in a row at a table adds +1 Mult to the next winning hand (up to +6).
 
 - **Burn** throws away the card you just hit and draws again (even a bust). Burns reset every table.
 - **Vices** (5 slots) are passive rule-breakers. Hold 3 of one archetype (Lucky, Risky, Cheater, Greedy, Steady, Combo)
@@ -146,23 +162,26 @@ What it found, in order:
    decisions and luck evens out. Targets now roughly double every floor, like Balatro's antes.
 4. **Bosses were uneven** (beaten 79-95%). Each boss's target is now scaled to its rule, so all 13 sit at 83-91%.
 
+5. **Combos changed the curve again.** Plain wins now score far less (a win with 20 went from 60 to 25), so targets
+   were scaled down to match. The bot plays plain blackjack and never chases a combo, so it's a floor, not an average.
+
 Research targets: Slay the Spire 2's reported overall win rate is about 25%, and 16% at its base difficulty. The bot
-now wins **about 14%** (13.4% on seeds 1-1000, 14.4% on 5001-6000) and a player who builds well should do better.
-Floors 1-2 are forgiving (97-99% of tables) and every Pit Boss is a spike.
+now wins **about 10%** (9.7% on seeds 1-1000, 10.3% on 5001-6000) without ever building for combos, so a player who does
+should land well above it. Floors 1-2 are forgiving (96-97% of tables) and every Pit Boss is a spike (83-91%).
 
 | Floor | Low win | High win | Boss win | Runs reaching | Deals to clear a table |
 | ----: | ------: | -------: | -------: | ------------: | ---------------------: |
-| 1 | 98% | 99% | 94% | 100% | 2.4-2.7 |
-| 2 | 99% | 97% | 88% | 91% | 2.3-3.0 |
-| 3 | 95% | 95% | 89% | 77% | 2.7-3.2 |
-| 4 | 95% | 93% | 87% | 62% | 2.6-3.2 |
-| 5 | 95% | 91% | 83% | 48% | 2.7-3.1 |
-| 6 | 94% | 94% | 81% | 34% | 2.6-3.3 |
-| 7 | 94% | 92% | 82% | 24% | 2.5-3.5 |
-| 8 | 95% | 91% | 89% (The House) | 17% | 2.6-4.1 |
+| 1 | 96% | 97% | 91% | 100% | 2.8-3.0 |
+| 2 | 97% | 96% | 87% | 84% | 2.4-3.2 |
+| 3 | 96% | 92% | 85% | 68% | 2.6-3.2 |
+| 4 | 94% | 94% | 83% | 51% | 2.7-3.0 |
+| 5 | 94% | 92% | 83% | 37% | 2.7-3.2 |
+| 6 | 95% | 94% | 83% | 27% | 2.7-3.5 |
+| 7 | 92% | 92% | 83% | 20% | 2.7-3.5 |
+| 8 | 94% | 89% | 84% (The House) | 14% | 2.7-4.5 |
 
-Focusing the bot on one archetype shows the next thing to tune: Risky 21.6%, Steady 16.6%, Greedy 11.1%, Combo 7.7%,
-Lucky 6.7%, Cheater 2.3%. Cheater builds trail because Heat sends you to security and the bot can't read tells.
+Focusing the bot on one archetype shows the next thing to tune: Risky 20.1%, Steady 16.8%, Greedy 10.5%, Lucky 7.9%,
+Combo 6.5%, Cheater 4.1%. Cheater builds trail because Heat sends you to security and the bot can't read tells.
 A test (`TunedBalance_KeepsTheBotNearItsTargetWinRate`) runs 300 seeded runs and fails if the bot's win rate leaves
 7-25%, so CI catches balance regressions.
 

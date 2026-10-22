@@ -322,7 +322,8 @@ namespace HouseEdge.Tests
         {
             var t = new Table(Stack("K", "9", "Q", "9"), long.MaxValue, new[] { V("DirtyMoney") });
             Play(t, Deal, Stand);
-            Assert.That(t.LastScores.Single().Mult, Is.EqualTo(14));
+            // a win's x1 + 12
+            Assert.That(t.LastScores.Single().Mult, Is.EqualTo(1 + 12));
             Assert.That(t.Gambler.Heat, Is.EqualTo(5));
         }
 
@@ -332,7 +333,8 @@ namespace HouseEdge.Tests
             var t = new Table(Stack("K", "9", "Q", "9"), long.MaxValue, new[] { V("DevilsDeal") });
             Assert.That(t.HandsLeft, Is.EqualTo(Balance.StartingHands - 1));
             Play(t, Deal, Stand);
-            Assert.That(t.LastScores.Single().Mult, Is.EqualTo(6));
+            // a win's x1, tripled
+            Assert.That(t.LastScores.Single().Mult, Is.EqualTo(1 * 3));
         }
 
         [Test]

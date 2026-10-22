@@ -9,7 +9,7 @@ namespace HouseEdge.Game
     // how to play, one short page at a time
     public sealed class HowToView
     {
-        private static readonly string[] Pages = { "The goal", "Blackjack", "Scoring", "Your deck", "Vices & the shop", "Heat", "The bosses", "Controls" };
+        private static readonly string[] Pages = { "The goal", "Blackjack", "Scoring", "Combos", "Your deck", "Vices & the shop", "Heat", "The bosses", "Controls" };
 
         private readonly VisualElement _root, _tabs, _page;
         private int _current;
@@ -83,10 +83,11 @@ namespace HouseEdge.Game
                 case 0: Goal(); break;
                 case 1: Blackjack(); break;
                 case 2: Scoring(); break;
-                case 3: Deck(); break;
-                case 4: Vices(); break;
-                case 5: Heat(); break;
-                case 6: BossList(); break;
+                case 3: ComboList(); break;
+                case 4: Deck(); break;
+                case 5: Vices(); break;
+                case 6: Heat(); break;
+                case 7: BossList(); break;
                 default: Controls(); break;
             }
             // no theme stylesheet: keep the page's rows from squashing each other
@@ -139,17 +140,17 @@ namespace HouseEdge.Game
         {
             Heading("Score = Chips × Mult");
             var equation = Ui.Row(_page, 10);
-            Box(equation, "30", "CHIPS", Ui.Chips);
+            Box(equation, "35", "CHIPS", Ui.Chips);
             Ui.Title(equation, "×", 30, Ui.Cream, glow: false);
             Box(equation, "2", "MULT", Ui.Mult);
             Ui.Title(equation, "=", 30, Ui.Cream, glow: false);
-            Ui.Title(equation, "60", 40, Ui.Gold);
-            Para("Chips start as your card total plus a bonus for how you won. Mult starts at the outcome's Mult. Above: you win with 20, so 20 + 10 = 30 Chips, × 2 Mult = 60 points.");
+            Ui.Title(equation, "70", 40, Ui.Gold);
+            Para("Chips start as your card total plus a bonus for how you won, and Mult starts at the outcome's Mult. Combos add more. Above: you win with a King and Queen of hearts. 20 + 5 for the win + 10 for Suited = 35 Chips. 1 Mult for the win + 1 for Suited = 2 Mult. 35 × 2 = 70. A plain win with no combo would score only 25.");
             var table = Ui.Column(_page, 3);
             foreach (var (outcome, chips, mult) in new[]
             {
-                ("Win", "+10", "2"), ("21 (3+ cards)", "+20", "3"), ("Blackjack", "+30", "4"), ("Five-card Charlie", "+40", "4"),
-                ("Dealer busts", "+15 extra", "-"), ("Push (tie)", "cards only", "1"), ("Lose or bust", "0", "0"),
+                ("Win", "+5", "1"), ("21 (3+ cards)", "+15", "2"), ("Blackjack", "+25", "3"), ("Five-card Charlie", "+30", "3"),
+                ("Dealer busts", "+10 extra", "-"), ("Push (tie)", "cards only", "1"), ("Lose or bust", "0", "0"),
             })
             {
                 var row = Ui.Row(table, 10);
@@ -229,6 +230,24 @@ namespace HouseEdge.Game
                 Ui.Body(row, text, 14, Ui.Cream).style.flexShrink = 1;
             }
             Para("The Security Office room lets you pay Heat down. The Loan Shark lends gold, but if you don't repay in time, The Enforcer comes.");
+        }
+
+        // the patterns that make a winning hand big
+        private void ComboList()
+        {
+            Heading("Combos: beating the dealer isn't enough");
+            Para("A plain win scores little. The big numbers come from combos: poker patterns inside your blackjack hand. They only pay when the hand beats the dealer, and they stack, so a suited pair counts twice. Your hand shows its combos as you play, so you can decide whether to Hit and chase one.");
+            foreach (var combo in Combos.All)
+            {
+                var (chips, mult) = Combos.Base(combo);
+                var row = Ui.Row(_page, 10);
+                Ui.Pill(row, Combos.Name(combo).ToUpperInvariant(), Ui.Cocktail, filled: true, size: 12).style.width = 130;
+                Ui.Text(row, $"+{chips} Chips", 14, Ui.Chips, Weight.Bold).style.width = 90;
+                Ui.Text(row, $"+{mult} Mult", 14, Ui.Mult, Weight.Bold).style.width = 70;
+                Ui.Body(row, Combos.Describe(combo), 13, Ui.Cream).style.flexShrink = 1;
+            }
+            Para($"Win streak: every win in a row at a table adds +{Balance.StreakMultPerWin} Mult to the next winning hand (up to +{Balance.MaxStreakBonus}). A loss breaks it.");
+            Para("Build for them: Comps level a combo up for the rest of the run, Vices like Flush Royale and Combo King multiply them, and Cocktails and the Card Room let you stack your deck with suits and ranks.");
         }
 
         // every boss, with their face and their one rule

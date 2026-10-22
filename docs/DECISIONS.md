@@ -10,6 +10,9 @@ covered by a test in `Assets/Tests/EditMode`.
 | Starting Hands | 4 | **7** | Blackjack scoring is lumpy (about half of all hands score 0). With few Hands, any target that needs more than one win is a coin flip. 7 Hands lets a table ask for ~3 good hands. |
 | Table targets | 150 at floor 1, doubling every floor | **90 at floor 1, roughly doubling** (High 1.5x Low, boss ~2x, The House 26,000) | The draft curve: the bot won 0%. A gentler curve then made tables end on the first winning hand (2 deals, 2-9x the target). Now tables take ~3 deals and the bot wins ~14%. |
 | Boss targets | same for every boss | **0.6x (The Ceiling) to 1.4x (The Mime, The Pit Boss)** | Scaled to each rule so every boss is beaten 83-91% of the time. |
+| Plain wins | Win 10 Chips x2, 21 20x3, Blackjack 30x4, Charlie 40x4, Dealer Bust +15 | **Win 5x1, 21 15x2, Blackjack 25x3, Charlie 30x3, Dealer Bust +10** | Players said winning alone carried the game. Combos and streaks now make the big numbers. |
+| Combos | not in DESIGN.md | **Pair, Two Pair, Three of a Kind, Suited, Flush, Run, Royal Court, Low Ball; winning hands only; they stack; the bigger pattern replaces the smaller (Three of a Kind over Pair, Flush over Suited)** | Gives Hit/Stand a second question (chase the pattern?) and gives deck building a direction, like Balatro's poker hands. Comps level them up. |
+| Win streak | not in DESIGN.md | **+1 Mult per consecutive winning deal at a table, up to +6. A loss breaks it, a push doesn't** | Rewards beating the dealer again and again. |
 | The Cheat | the dealer wins pushes | **once a hand, the dealer palms the card that would bust him and draws again** | A push rule is invisible; a palmed card is a moment you see and remember. |
 
 See the README's Balance section for the results.

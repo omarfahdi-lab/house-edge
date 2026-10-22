@@ -17,26 +17,27 @@ namespace HouseEdge.Core
         // without bad luck deciding the run. see README "Balance"
         public const int StartingHands = 7;
         public const int StartingBurns = 3;
-        public const long FirstTableTarget = 90;
+        public const long FirstTableTarget = 85;
 
         // run
         public const int StartingGold = 4;
         public const int Floors = 8;
 
         // [floor - 1] = Low, High, Pit Boss. floor 8's boss is The House.
-        // tuned with Tools/BalanceSim so a table takes about 3 of your 7 Hands: Low roughly doubles every
-        // floor, High is 1.5x Low, the boss about 2x (The House 2.5x, it has 2 extra Hands). the bot wins
-        // about 15%, close to Slay the Spire's base difficulty. see README "Balance"
+        // tuned with Tools/BalanceSim so a table takes about 3 of your 7 Hands: Low grows ~1.7x a floor,
+        // High is 1.5x Low, the boss about 2x (The House 2.7x, it has 2 extra Hands). the bot plays plain
+        // blackjack and doesn't chase combos, and still wins about 10%; a player building combos does
+        // better. see README "Balance"
         private static readonly long[][] TableTargets =
         {
-            new long[] { 90, 135, 180 },
-            new long[] { 190, 290, 380 },
-            new long[] { 400, 600, 800 },
-            new long[] { 780, 1170, 1580 },
-            new long[] { 1500, 2250, 3100 },
-            new long[] { 2850, 4300, 6100 },
-            new long[] { 5400, 8100, 11500 },
-            new long[] { 9600, 14400, 26000 },
+            new long[] { 85, 125, 170 },
+            new long[] { 155, 230, 310 },
+            new long[] { 250, 370, 500 },
+            new long[] { 420, 630, 850 },
+            new long[] { 730, 1100, 1500 },
+            new long[] { 1250, 1880, 2650 },
+            new long[] { 2150, 3250, 4700 },
+            new long[] { 3700, 5600, 10000 },
         };
 
         // past floor 8 (Endless) targets double every floor
@@ -153,24 +154,28 @@ namespace HouseEdge.Core
         public const double DoubleDownMult = 2;
 
         // scoring: Chips = card total + base Chips, Mult = base Mult
-        public const int DealerBustBonusChips = 15;
+        // a plain win is small on purpose: combos, streaks, Comps and Vices make the big numbers
+        public const int DealerBustBonusChips = 10;
+        // each win in a row at a table adds this much Mult to the next winning hand
+        public const int StreakMultPerWin = 1;
+        public const int MaxStreakBonus = 6;
         public const int DealerBustBonusMult = 0;
 
         public static int BaseChips(Outcome outcome) => outcome switch
         {
-            Outcome.Win => 10,
-            Outcome.TwentyOne => 20,
-            Outcome.Blackjack => 30,
-            Outcome.Charlie => 40,
+            Outcome.Win => 5,
+            Outcome.TwentyOne => 15,
+            Outcome.Blackjack => 25,
+            Outcome.Charlie => 30,
             _ => 0,
         };
 
         public static double BaseMult(Outcome outcome) => outcome switch
         {
-            Outcome.Win => 2,
-            Outcome.TwentyOne => 3,
-            Outcome.Blackjack => 4,
-            Outcome.Charlie => 4,
+            Outcome.Win => 1,
+            Outcome.TwentyOne => 2,
+            Outcome.Blackjack => 3,
+            Outcome.Charlie => 3,
             Outcome.Push => 1,
             _ => 0,
         };
