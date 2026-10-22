@@ -287,6 +287,9 @@ namespace HouseEdge.Core
         // [floor-1][stage] runs that reached / won that table
         public readonly int[,] Reached = new int[Balance.Floors, 3];
         public readonly int[,] Beat = new int[Balance.Floors, 3];
+        // for the tables that were beaten: deals it took, and how far past the target the score went
+        public readonly int[,] HandsToClear = new int[Balance.Floors, 3];
+        public readonly double[,] Overshoot = new double[Balance.Floors, 3];
         public long GoldAtShops;
         public int ShopVisits;
         public int Busted;
@@ -322,7 +325,11 @@ namespace HouseEdge.Core
                     var table = run.Table;
                     run.Apply(bot.Choose(run));
                     if (phase == RunPhase.AtTable && table.Phase == TablePhase.Won && run.Table != table || phase == RunPhase.AtTable && run.Phase != RunPhase.AtTable && table.Phase == TablePhase.Won)
+                    {
                         report.Beat[lastFloor - 1, (int)lastStage]++;
+                        report.HandsToClear[lastFloor - 1, (int)lastStage] += table.DealsPlayed;
+                        report.Overshoot[lastFloor - 1, (int)lastStage] += (double)table.Score / table.Target;
+                    }
                     if (run.Phase == RunPhase.Shop && phase != RunPhase.Shop)
                     {
                         report.GoldAtShops += run.Gambler.Gold;
@@ -350,6 +357,15 @@ namespace HouseEdge.Core
             {
                 string Cell(int stage) => r.Reached[f, stage] == 0 ? "-" : $"{(double)r.Beat[f, stage] / r.Reached[f, stage]:P0}";
                 lines.Add($"| {f + 1} | {r.Reached[f, 0]} | {Cell(0)} | {r.Reached[f, 1]} | {Cell(1)} | {r.Reached[f, 2]} | {Cell(2)} |");
+            }
+            lines.Add("");
+            lines.Add("| Floor | Low: deals to clear | Low: score / target | High: deals | High: score / target | Boss: deals | Boss: score / target |");
+            lines.Add("| ----: | ------------------: | ------------------: | ----------: | -------------------: | ----------: | -------------------: |");
+            for (int f = 0; f < Balance.Floors; f++)
+            {
+                string Deals(int stage) => r.Beat[f, stage] == 0 ? "-" : $"{(double)r.HandsToClear[f, stage] / r.Beat[f, stage]:0.0}";
+                string Over(int stage) => r.Beat[f, stage] == 0 ? "-" : $"{r.Overshoot[f, stage] / r.Beat[f, stage]:0.0}x";
+                lines.Add($"| {f + 1} | {Deals(0)} | {Over(0)} | {Deals(1)} | {Over(1)} | {Deals(2)} | {Over(2)} |");
             }
             return string.Join("\n", lines);
         }

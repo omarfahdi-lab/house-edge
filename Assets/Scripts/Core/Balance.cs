@@ -12,30 +12,31 @@ namespace HouseEdge.Core
         public const int MaxSplitsPerHand = 1;
 
         // per table
-        // DESIGN.md starts at 4. the balance sim showed 4 Hands of blackjack lose ~10% of tables to
-        // plain bad luck (no winning hand at all), which compounds over 24 tables, so it's 5
-        public const int StartingHands = 5;
+        // DESIGN.md starts at 4. blackjack scoring is lumpy (about half of all hands score 0), so a table
+        // that needs several wins is a coin flip with few Hands. 7 Hands lets targets ask for ~3 deals
+        // without bad luck deciding the run. see README "Balance"
+        public const int StartingHands = 7;
         public const int StartingBurns = 3;
-        public const long FirstTableTarget = 50;
+        public const long FirstTableTarget = 90;
 
         // run
         public const int StartingGold = 4;
         public const int Floors = 8;
 
         // [floor - 1] = Low, High, Pit Boss. floor 8's boss is The House.
-        // tuned with Tools/BalanceSim: Low grows ~1.7x a floor, High is 1.5x Low, the boss 2x
-        // (The House 2.5x, it has 2 extra Hands). DESIGN.md's first draft started at 150 and doubled
-        // every floor, which the bot never beat. see README "Balance"
+        // tuned with Tools/BalanceSim so a table takes about 3 of your 7 Hands: Low roughly doubles every
+        // floor, High is 1.5x Low, the boss about 2x (The House 2.5x, it has 2 extra Hands). the bot wins
+        // about 15%, close to Slay the Spire's base difficulty. see README "Balance"
         private static readonly long[][] TableTargets =
         {
-            new long[] { 50, 75, 100 },
-            new long[] { 85, 130, 170 },
-            new long[] { 145, 220, 290 },
-            new long[] { 250, 375, 500 },
-            new long[] { 420, 630, 840 },
-            new long[] { 710, 1070, 1420 },
-            new long[] { 1200, 1800, 2400 },
-            new long[] { 2050, 3100, 5100 },
+            new long[] { 90, 135, 180 },
+            new long[] { 190, 290, 380 },
+            new long[] { 400, 600, 800 },
+            new long[] { 800, 1200, 1580 },
+            new long[] { 1600, 2400, 3100 },
+            new long[] { 3100, 4700, 6100 },
+            new long[] { 5900, 8900, 11500 },
+            new long[] { 10500, 15800, 26000 },
         };
 
         // past floor 8 (Endless) targets double every floor

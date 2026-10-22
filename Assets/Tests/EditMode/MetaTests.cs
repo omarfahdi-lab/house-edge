@@ -197,7 +197,7 @@ namespace HouseEdge.Tests
         public void TunedBalance_KeepsTheBotNearItsTargetWinRate()
         {
             var report = BalanceSimulation.Run(300, 1);
-            Assert.That(report.WinRate, Is.InRange(0.12, 0.32), $"bot won {report.WinRate:P1}");
+            Assert.That(report.WinRate, Is.InRange(0.07, 0.25), $"bot won {report.WinRate:P1}");
             Assert.That((double)report.Reached[1, 0] / report.Runs, Is.GreaterThan(0.8), "floor 1 should be forgiving");
         }
 
