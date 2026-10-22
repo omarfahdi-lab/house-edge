@@ -115,6 +115,47 @@ namespace HouseEdge.Tests
         }
 
         [Test]
+        public void Steps_PlayTheScoreBack_InOrder()
+        {
+            // win with 20 and double down: cards, the Win bonus, then the x2
+            var t = StackedTableNoTarget("6", "10", "5", "9", "9");
+            Play(t, Deal, DoubleDown);
+            var score = Only(t);
+            var steps = score.Steps;
+            Assert.That(steps.Select(s => s.Kind), Is.EqualTo(new[] { ScoreSource.Hand, ScoreSource.Bonus, ScoreSource.Double }));
+            Assert.That(steps[0].ChipsAdded, Is.EqualTo(20));
+            Assert.That(steps[1].ChipsAdded, Is.EqualTo(10));
+            Assert.That(steps[1].MultAdded, Is.EqualTo(2));
+            Assert.That(steps[2].Factor, Is.EqualTo(2));
+            Assert.That(steps.Last().Chips, Is.EqualTo(score.Chips));
+            Assert.That(steps.Last().Mult, Is.EqualTo(score.Mult));
+        }
+
+        [Test]
+        public void Steps_AddUpToTheScore_ForEveryHandInManyRuns()
+        {
+            for (int seed = 1; seed <= 40; seed++)
+            {
+                var run = new Run(seed);
+                var bot = new BalanceBot();
+                for (int i = 0; i < 400 && !run.IsOver; i++)
+                {
+                    run.Apply(bot.Choose(run));
+                    foreach (var score in run.ActiveTable.LastScores)
+                    {
+                        if (score.Steps.Count == 0)
+                        {
+                            Assert.That(score.Chips, Is.EqualTo(0));
+                            continue;
+                        }
+                        Assert.That(score.Steps.Sum(s => s.ChipsAdded), Is.EqualTo(score.Chips));
+                        Assert.That(score.Steps.Last().Mult, Is.EqualTo(score.Mult).Within(1e-9));
+                    }
+                }
+            }
+        }
+
+        [Test]
         public void DoubleDown_DoesntDoubleAPush()
         {
             var t = StackedTableNoTarget("6", "10", "5", "8", "7");

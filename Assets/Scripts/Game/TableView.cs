@@ -46,7 +46,12 @@ namespace HouseEdge.Game
         // cards already on screen this deal, so only new ones fly in
         private readonly HashSet<(Card, int, bool)> _shown = new HashSet<(Card, int, bool)>();
         private Table _shownTable;
-        private int _dealIndex, _stagger;
+        private int _dealIndex;
+        // ms into this refresh's dealing, so each new card waits for the one before it
+        private float _cursor;
+        // the result on screen hasn't been acted out yet: the scoring playback will call ActOut
+        private bool _resultPending;
+        private Table _resultTable;
         private string _lastMessage;
         // what's on screen, so the result can animate the cards
         private readonly List<(PlayerHand hand, VisualElement group, List<VisualElement> cards)> _handViews =
@@ -58,6 +63,14 @@ namespace HouseEdge.Game
         public Vector2 PlayerCenter => _playerHands.worldBound.center;
 
         public event Action<PlayerAction> ActionChosen;
+        // a card just landed on the felt, for the sound
+        public event Action CardLanded;
+
+        // 1, 2 or 4: how fast cards fly and results play out
+        public static float Speed = 1;
+
+        // when the cards dealt by the last refresh will have landed, in seconds from now
+        public float SettleSeconds => (_cursor + 380) / 1000f / Speed;
 
         public VisualElement Root => _root;
 
@@ -236,12 +249,13 @@ namespace HouseEdge.Game
                 _shownTable = table;
                 _dealIndex = table.DealsPlayed;
             }
-            _stagger = 0;
+            _cursor = 0;
             _shoeCount.text = $"{table.CardsInShoe} LEFT";
             RefreshPlate(run);
+            // your cards first, then the dealer plays
+            RefreshPlayer(table);
             RefreshDealer(table);
             RefreshTell(run, table);
-            RefreshPlayer(table);
             RefreshResult(table);
             RefreshHint(table);
             RefreshBets(table);
@@ -295,10 +309,14 @@ namespace HouseEdge.Game
         {
             _dealerCards.Clear();
             _dealerViews.Clear();
+            // once your turn is over the dealer reveals and draws one card at a time, with a beat between each
+            bool dealerPlaying = table.Phase != TablePhase.PlayerTurn && table.Phase != TablePhase.InsuranceOffer;
+            float startCursor = _cursor;
             for (int i = 0; i < table.DealerCards.Count; i++)
             {
                 bool hidden = i == 1 && table.HoleCardHidden;
-                var view = Animate(hidden ? CardView.CreateFaceDown() : CardView.Create(table.DealerCards[i]), table.DealerCards[i], hidden);
+                var view = Animate(hidden ? CardView.CreateFaceDown() : CardView.Create(table.DealerCards[i]), table.DealerCards[i], hidden,
+                    dealerPlaying && (i >= 2 || i == 1) ? 520 : 110);
                 if (i > 0) view.style.marginLeft = 10;
                 _dealerCards.Add(view);
                 _dealerViews.Add(view);
@@ -310,6 +328,8 @@ namespace HouseEdge.Game
                 var value = table.HoleCardHidden ? table.DealerVisibleValue : table.DealerValue;
                 string text = table.HoleCardHidden ? $"SHOWS {value.Total}" : value.IsBust ? $"BUST  {value.Total}" : $"DEALER  {value.Total}";
                 Badge(_dealerBadgeSlot, text, value.IsBust && !table.HoleCardHidden ? Ui.Good : Ui.Cream);
+                // the total only shows once the last card is down
+                if (_cursor > startCursor) Ui.Enter(_dealerBadgeSlot, 6, (long)(_cursor / Speed) + 250, 0.2f);
             }
             else Badge(_dealerBadgeSlot, "DEALER", Ui.Dim);
 
@@ -319,7 +339,7 @@ namespace HouseEdge.Game
             for (int i = 0; i < table.SecondDealerCards.Count; i++)
             {
                 var card = table.SecondDealerCards[i];
-                var view = Animate(CardView.Create(card), card, false);
+                var view = Animate(CardView.Create(card), card, false, 520);
                 if (i > 0) view.style.marginLeft = 10;
                 _secondDealerCards.Add(view);
             }
@@ -370,22 +390,24 @@ namespace HouseEdge.Game
         }
 
         // a card that wasn't on screen yet flies in from the shoe. a card that was face down flips over
-        private VisualElement Animate(VisualElement view, Card card, bool faceDown)
+        private VisualElement Animate(VisualElement view, Card card, bool faceDown, float gapMs = 110)
         {
             if (!_shown.Add((card, _dealIndex, faceDown))) return view;
+            _cursor += _cursor > 0 ? gapMs : 30;
+            long delay = (long)(_cursor / Speed);
             if (!faceDown && _shown.Contains((card, _dealIndex, true)))
             {
                 Ui.Transition(view, 0, "scale");
                 view.style.scale = new Scale(new Vector2(0.02f, 1));
                 view.schedule.Execute(() =>
                 {
-                    Ui.Transition(view, 0.24f, EasingMode.EaseOutBack, "scale");
+                    Ui.Transition(view, 0.24f / Speed, EasingMode.EaseOutBack, "scale");
                     view.style.scale = new Scale(Vector2.one);
-                }).StartingIn(40 + 110 * _stagger++);
+                    CardLanded?.Invoke();
+                }).StartingIn(delay);
                 return view;
             }
 
-            long delay = 30 + 110 * _stagger++;
             view.style.opacity = 0;
             EventCallback<GeometryChangedEvent> fly = null;
             fly = _ =>
@@ -398,11 +420,12 @@ namespace HouseEdge.Game
                 view.style.scale = new Scale(new Vector2(0.6f, 0.6f));
                 view.schedule.Execute(() =>
                 {
-                    Ui.Transition(view, 0.34f, "translate", "rotate", "scale");
+                    Ui.Transition(view, 0.34f / Speed, "translate", "rotate", "scale");
                     view.style.opacity = 1;
                     view.style.translate = new Translate(0, 0);
                     view.style.rotate = new Rotate(0);
                     view.style.scale = new Scale(Vector2.one);
+                    CardLanded?.Invoke();
                 }).StartingIn(delay);
             };
             view.RegisterCallback(fly);
@@ -506,23 +529,70 @@ namespace HouseEdge.Game
             _message.style.color = color;
             _breakdown.text = breakdown;
             string key = message + "|" + table.DealsPlayed;
-            if (key != _lastMessage && message.Length > 0)
-            {
-                // a scoring hand gets the big Chips x Mult popup first, so the text waits for it to clear
-                bool popup = table.LastScores.Sum(sc => sc.Total) > 0;
-                if (popup) Ui.Enter(_message.parent, 10, 1900, 0.3f);
-                else Ui.Pop(_message, 1.3f);
-            }
             bool fresh = key != _lastMessage;
             _lastMessage = key;
-            if (table.LastScores.Count > 0 && (table.Phase == TablePhase.ReadyToDeal || table.IsOver)) PlayOutcome(table, fresh);
+            bool result = table.LastScores.Count > 0 && (table.Phase == TablePhase.ReadyToDeal || table.IsOver);
+            if (result && fresh)
+            {
+                // the scoring playback runs first, then calls ActOut
+                _resultPending = true;
+                _resultTable = table;
+                _message.parent.style.opacity = 0;
+            }
+            else if (result && !_resultPending) PlayOutcome(table, false);
+            else if (!result)
+            {
+                _resultPending = false;
+                _message.parent.style.opacity = 1;
+            }
         }
+
+        // the playback finished: show the verdict and let the cards act it out
+        public void ActOut()
+        {
+            if (!_resultPending) return;
+            _resultPending = false;
+            Ui.Enter(_message.parent, 10, 0, 0.25f);
+            Ui.Pop(_message, 1.35f);
+            PlayOutcome(_resultTable, true);
+        }
+
+        // a card of yours scoring: it jumps and flashes gold
+        public void PopCard(int hand, int card)
+        {
+            if (hand < 0 || hand >= _handViews.Count) return;
+            var cards = _handViews[hand].cards;
+            if (card < 0 || card >= cards.Count) return;
+            var view = cards[card];
+            Ui.Transition(view, 0.08f, "translate", "scale");
+            view.style.translate = new Translate(0, -16);
+            view.style.scale = new Scale(new Vector2(1.08f, 1.08f));
+            CardView.SetSelected(view, true);
+            view.style.translate = new Translate(0, -16);
+            view.schedule.Execute(() =>
+            {
+                Ui.Transition(view, 0.25f, EasingMode.EaseOutBack, "translate", "scale");
+                view.style.translate = new Translate(0, 0);
+                view.style.scale = new Scale(Vector2.one);
+                CardView.SetSelected(view, false);
+            }).StartingIn((long)(160 / Speed));
+        }
+
+        // where a card of yours is, in world space
+        public Vector2? CardCenter(int hand, int card)
+        {
+            if (hand < 0 || hand >= _handViews.Count) return null;
+            var cards = _handViews[hand].cards;
+            if (card < 0 || card >= cards.Count) return null;
+            return cards[card].worldBound.center;
+        }
+
+        public int HandIndex(PlayerHand hand) => _handViews.FindIndex(h => h.hand == hand);
 
         // the cards act out the result: winners hop and glow, losers slump, busts tumble off the felt
         private void PlayOutcome(Table table, bool animate)
         {
-            // wait for the dealer's cards to finish flying in
-            long delay = animate ? 110 * _stagger + 420 : 0;
+            long delay = 0;
             bool anyWin = false, anyLoss = false;
             foreach (var (hand, group, cards) in _handViews)
             {

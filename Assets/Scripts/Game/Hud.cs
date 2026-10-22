@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using HouseEdge.Core;
 using UnityEngine;
@@ -28,9 +29,23 @@ namespace HouseEdge.Game
 
         public VisualElement GoldAnchor => _gold;
 
+        // while a hand's scoring plays back, the score shows what it was before the hand
+        public long? FrozenScore;
+        private readonly List<(Vice vice, VisualElement row)> _viceRows = new List<(Vice, VisualElement)>();
+
+        private readonly ScrollView _scroll;
+
+        // the row of a Vice that's about to trigger, scrolled into view
+        public VisualElement FocusVice(object vice)
+        {
+            var row = _viceRows.FirstOrDefault(r => r.vice == vice).row;
+            if (row != null) _scroll.ScrollTo(row);
+            return row;
+        }
+
         public event Action<RunInput> InputChosen;
         public event Action<int> CocktailClicked;
-        public event Action DeckClicked;
+        public event Action DeckClicked, MapClicked;
 
         public Hud(VisualElement root)
         {
@@ -52,7 +67,9 @@ namespace HouseEdge.Game
             _pips = Ui.Row(where, 5);
             _stages = Ui.Row(where, 4);
             _special = Ui.Text(where, "", 12, Ui.Bad, Weight.Bold);
-            Ui.Tip(where, "The climb", "8 floors. Each one is a Low Table, a room, a High Table, a room, then a Pit Boss with a twist. Beat The House on floor 8 to win.");
+            Ui.Tip(where, "The climb", "8 floors. Each one is a Low Table, a room, a High Table, a room, then a Pit Boss with a twist. Beat The House on floor 8 to win.\nClick (or press Tab) for the map.");
+            where.RegisterCallback<ClickEvent>(_ => MapClicked?.Invoke());
+            Ui.Lift(where, 1.02f);
 
             // the score race
             var scoreBox = Ui.Glass(panel, 5);
@@ -121,7 +138,7 @@ namespace HouseEdge.Game
             _vicesTitle = Ui.Caption(vicesHead, "");
             _vicesTitle.style.flexGrow = 1;
             _sets = Ui.Row(vicesHead, 4);
-            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            var scroll = _scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.style.flexGrow = 1;
             scroll.style.flexShrink = 1;
             scroll.verticalScrollerVisibility = ScrollerVisibility.Hidden;
@@ -184,13 +201,14 @@ namespace HouseEdge.Game
 
             bool newTable = table != _scoreTable;
             _scoreTable = table;
-            _scoreCounter.Set(table.Score, !newTable);
+            long score = FrozenScore ?? table.Score;
+            _scoreCounter.Set(score, !newTable);
             _target.text = "TARGET  " + table.Target.ToString("N0");
-            float progress = Mathf.Clamp01((float)table.Score / table.Target);
+            float progress = Mathf.Clamp01((float)score / table.Target);
             _progressFill.style.width = Length.Percent(progress * 100);
-            bool reached = table.Score >= table.Target;
+            bool reached = score >= table.Target;
             _progressFill.style.backgroundColor = reached ? Ui.Good : Ui.Gold;
-            long left = Math.Max(0, table.Target - table.Score);
+            long left = Math.Max(0, table.Target - score);
             _scoreState.text = reached ? "Target reached!" : $"{left:N0} to go  ·  {table.HandsLeft} Hand{(table.HandsLeft == 1 ? "" : "s")} left";
             _scoreState.style.color = reached ? Ui.Good : Ui.Dim;
 
@@ -257,8 +275,13 @@ namespace HouseEdge.Game
             }
 
             _vices.Clear();
+            _viceRows.Clear();
             bool between = run.Phase == RunPhase.Shop || run.Phase == RunPhase.BossReward || run.Phase == RunPhase.InRoom;
-            for (int i = 0; i < gambler.Vices.Count; i++) Ui.Add(_vices, ViceRow(run, i, between));
+            for (int i = 0; i < gambler.Vices.Count; i++)
+            {
+                var row = Ui.Add(_vices, ViceRow(run, i, between));
+                _viceRows.Add((gambler.Vices[i], row));
+            }
             if (gambler.Vices.Count == 0)
             {
                 var hint = Ui.Body(_vices, "No Vices yet. They're passive rule-breakers you buy in the shop after each table. Hold 3 of one type for a set bonus.", 12, Ui.Dim);

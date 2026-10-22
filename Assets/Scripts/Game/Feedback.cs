@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using HouseEdge.Core;
 using UnityEngine;
@@ -17,6 +18,7 @@ namespace HouseEdge.Game
         public readonly int Cards;
         public readonly RunPhase Phase;
         public readonly bool Eye;
+        public readonly long Score;
 
         private Snapshot(Run run)
         {
@@ -28,9 +30,17 @@ namespace HouseEdge.Game
             Cards = Table.PlayerHands.Sum(h => h.Cards.Count) + Table.DealerCards.Count + Table.SecondDealerCards.Count;
             Phase = run.Phase;
             Eye = run.AtEyeInTheSky;
+            Score = run.Table.Score;
         }
 
         public static Snapshot Of(Run run) => new Snapshot(run);
+
+        // a hand (or split hands) was just settled between this snapshot and now
+        public bool ScoredBy(Run run)
+        {
+            var table = run.ActiveTable;
+            return table.LastScores.Count > 0 && (table != Table || table.DealsPlayed != Deals || Scored == 0);
+        }
     }
 
     // sounds, the score popup, particles, screen shake and the security alarm. all made in code
@@ -44,9 +54,30 @@ namespace HouseEdge.Game
         private Sunburst _rays;
         private bool _raysOn;
         private float _clinkCooldown;
-        private float _popupTime = -1, _shake, _flashTime, _flashStrength;
+        private float _shake, _flashTime, _flashStrength;
         private Color _flashColor;
-        private long _popupTotal;
+        private VisualElement _callouts;
+        private AudioClip _tick;
+
+        // the scoring playback: actions at times in 1x seconds, run as the clock reaches them
+        private readonly List<(float at, Action act)> _timeline = new List<(float, Action)>();
+        private float _clock;
+        private bool _skipping;
+        // the big total counting up
+        private long _totalTo;
+        private float _totalT = 1;
+        private bool _popupShown;
+
+        public bool Playing => _timeline.Count > 0;
+        // real seconds until the playback ends
+        public float RemainingSeconds => Playing ? Mathf.Max(0, _timeline[_timeline.Count - 1].at - _clock) / TableView.Speed : 0;
+
+        // hooks into the table and sidebar, set by the bootstrap
+        public Action<int, int> PopCard;
+        public Func<int, int, Vector2?> CardAnchor;
+        public Func<PlayerHand, int> HandIndex;
+        public Func<object, VisualElement> ViceRow;
+        public Action CommitScore, ActOut;
 
         // where coins burst from when you're paid: the gold counter in the sidebar, in world space
         public Func<Vector2> GoldAnchor;
@@ -79,6 +110,7 @@ namespace HouseEdge.Game
             _trombone = Synth.Brass(new[] { 196f, 185f, 175f, 165f }, new[] { 0.42f, 0.42f, 0.42f, 1.3f }, 0.3f);
             _fanfare = Synth.Brass(new[] { 392f, 523f, 659f, 784f, 659f, 1047f }, new[] { 0.14f, 0.14f, 0.14f, 0.3f, 0.14f, 0.9f }, 0.26f);
             _boom = Synth.Boom(0.7f, 0.35f);
+            _tick = Synth.Tones(new[] { 880f }, 0.07f, 0.22f);
 
             _flash = new VisualElement();
             Ui.Fill(_flash);
@@ -109,6 +141,10 @@ namespace HouseEdge.Game
             foreach (var e in _popup.Query<VisualElement>().ToList()) e.pickingMode = PickingMode.Ignore;
             Ui.Show(_popup, false);
 
+            _callouts = new VisualElement { pickingMode = PickingMode.Ignore };
+            Ui.Fill(_callouts);
+            root.Add(_callouts);
+
             _particles = new Particles();
             root.Add(_particles);
         }
@@ -132,106 +168,280 @@ namespace HouseEdge.Game
 
         public void Reset(Run run)
         {
-            _popupTime = -1;
-            _raysOn = false;
-            Ui.Show(_popup, false);
+            Skip();
+            HidePopup(true);
         }
 
-        public void After(Snapshot before, Run run)
+        public void CardSound()
         {
+            if (!_skipping) Play(_card);
+        }
+
+        // reacts to whatever the last input did. a settled hand plays back its scoring step by step,
+        // starting once the cards have landed (settle seconds from now)
+        public void After(Snapshot before, Run run, float settle)
+        {
+            Skip();
+            _clock = 0;
             var table = run.ActiveTable;
-            // left the table: clear any popup still floating
-            if (run.Phase != RunPhase.AtTable && table == run.Table && before.Phase != RunPhase.AtTable) Reset(run);
-            int cards = table.PlayerHands.Sum(h => h.Cards.Count) + table.DealerCards.Count + table.SecondDealerCards.Count;
-            if (table == before.Table && cards > before.Cards || table != before.Table && cards > 0) Play(_card);
+            if (run.Phase != RunPhase.AtTable && table == run.Table && before.Phase != RunPhase.AtTable) HidePopup(true);
 
-            bool scored = table.LastScores.Count > 0 && (table != before.Table || table.DealsPlayed != before.Deals || before.Scored == 0);
-            if (scored && table.LastScores.Any(s => s.Outcome != Outcome.Surrender)) Celebrate(run, table);
+            bool scored = before.ScoredBy(run) && table.LastScores.Any(s => s.Outcome != Outcome.Surrender);
+            float end = scored ? Playback(run, table, settle * TableView.Speed) : 0;
 
-            // the table was just beaten: the shop opens with a shower of coins
+            // everything below happens once the playback is over
             bool cleared = before.Phase == RunPhase.AtTable && (run.Phase == RunPhase.Shop || run.Phase == RunPhase.BossReward) && before.Table == run.Table;
-            if (cleared)
+            int goldGained = run.Gambler.Gold - before.Gold;
+            Schedule(end, () =>
             {
-                Play(_cleared);
-                _particles.Burst(new Vector2(TableCenterX, 120), 70, 640);
-                Flash(new Color(0.98f, 0.79f, 0.32f), 0.5f, 0.14f);
-            }
-            if (run.Phase == RunPhase.Won && before.Phase != RunPhase.Won) Fireworks();
-            if (run.Phase == RunPhase.Lost && before.Phase != RunPhase.Lost)
-            {
-                // the house wins: cards rain down and a sad trombone plays
-                _particles.CardRain(_root.layout.width, 12);
-                StartCoroutine(After(0.5f, () => Play(_trombone, steady: true)));
-                Flash(new Color(0.5f, 0, 0), 1.2f, 0.14f);
-            }
-
-            if (run.Gambler.Gold > before.Gold)
-            {
-                if (!scored && !cleared) Play(_coin);
-                if (GoldAnchor != null) _particles.Coins(_root.WorldToLocal(GoldAnchor()), Mathf.Clamp(run.Gambler.Gold - before.Gold, 3, 18), 260);
-            }
-            if (run.Gambler.Gold < before.Gold && before.Phase != RunPhase.AtTable) Play(_chip);
-
-            // security
-            if (run.AtEyeInTheSky && !before.Eye || run.Gambler.Heat >= Balance.MaxHeat && before.Heat < Balance.MaxHeat)
-            {
-                Play(_alarm);
-                Flash(new Color(0.9f, 0.05f, 0.05f), 1.2f, 0.3f, pulse: true);
-            }
+                if (cleared)
+                {
+                    Play(_cleared);
+                    _particles.Burst(new Vector2(TableCenterX, 120), 70, 640);
+                    Flash(new Color(0.98f, 0.79f, 0.32f), 0.5f, 0.14f);
+                }
+                if (run.Phase == RunPhase.Won && before.Phase != RunPhase.Won) Fireworks();
+                if (run.Phase == RunPhase.Lost && before.Phase != RunPhase.Lost)
+                {
+                    // the house wins: cards rain down and a sad trombone plays
+                    _particles.CardRain(_root.layout.width, 12);
+                    StartCoroutine(After(0.5f, () => Play(_trombone, steady: true)));
+                    Flash(new Color(0.5f, 0, 0), 1.2f, 0.14f);
+                }
+                if (goldGained > 0)
+                {
+                    if (!scored && !cleared) Play(_coin);
+                    if (GoldAnchor != null) _particles.Coins(_root.WorldToLocal(GoldAnchor()), Mathf.Clamp(goldGained, 3, 18), 260);
+                }
+                if (goldGained < 0 && before.Phase != RunPhase.AtTable) Play(_chip);
+                if (run.AtEyeInTheSky && !before.Eye || run.Gambler.Heat >= Balance.MaxHeat && before.Heat < Balance.MaxHeat)
+                {
+                    Play(_alarm);
+                    Flash(new Color(0.9f, 0.05f, 0.05f), 1.2f, 0.3f, pulse: true);
+                }
+            });
         }
 
-        private void Celebrate(Run run, Table table)
+        // Balatro-style: each card and each effect adds its part, the numbers tick up, then the total lands
+        private float Playback(Run run, Table table, float t)
         {
-            long total = table.LastScores.Sum(s => s.Total);
-            var best = table.LastScores.OrderByDescending(s => s.Total).First();
-            bool big = best.Outcome == Outcome.Blackjack || best.Outcome == Outcome.Charlie;
-            if (big) Play(_blackjack);
-            else if (total > 0) Play(_win);
-            else if (best.Outcome == Outcome.Bust) Play(_bust);
-            else Play(_lose);
-
-            if (best.Outcome == Outcome.Bust || total <= 0 && best.Outcome != Outcome.Push)
+            t += 0.15f;
+            int beat = 0;
+            long grand = table.LastScores.Sum(sc => sc.Total);
+            float share = grand / (float)Math.Max(1, table.Target);
+            foreach (var score in table.LastScores)
             {
-                _shake = 0.12f;
-                Flash(new Color(0.9f, 0.1f, 0.1f), 0.3f, 0.07f);
+                if (score.Steps.Count == 0 || score.Total <= 0) continue;
+                int hand = HandIndex?.Invoke(score.Hand) ?? 0;
+                bool big = score.Outcome == Outcome.Blackjack || score.Outcome == Outcome.Charlie;
+                var shown = score;
+                Schedule(t, () => ShowPopup(big || share >= 0.5f));
+                t += 0.25f;
+                foreach (var step in score.Steps)
+                {
+                    var s = step;
+                    if (s.Kind == ScoreSource.Hand)
+                    {
+                        // your cards count in one at a time
+                        int n = shown.Hand.Cards.Count;
+                        for (int i = 0; i < n; i++)
+                        {
+                            int card = i, b = beat++;
+                            Schedule(t + i * 0.16f, () =>
+                            {
+                                PopCard?.Invoke(hand, card);
+                                SetChips((int)Math.Round(s.Chips * (card + 1) / (double)n));
+                                Tick(b);
+                            });
+                        }
+                        t += n * 0.16f + 0.14f;
+                        continue;
+                    }
+                    int beatNow = beat++;
+                    Schedule(t, () =>
+                    {
+                        if (s.ChipsAdded != 0) SetChips(s.Chips);
+                        if (s.MultAdded != 0 || s.Multiplied) SetMult(s.Mult);
+                        Callout(s, hand);
+                        Tick(beatNow);
+                    });
+                    t += 0.45f;
+                }
+                // the total counts up, then slams into the score
+                Schedule(t, () =>
+                {
+                    _totalTo = shown.Total;
+                    _totalT = 0;
+                    Play(big ? _blackjack : _win);
+                });
+                t += 0.75f;
+                Schedule(t, () =>
+                {
+                    CommitScore?.Invoke();
+                    Ui.Pop(_total, 1.35f);
+                    var center = new Vector2(TableCenterX, 330);
+                    _particles.Coins(center, Mathf.Clamp((int)(share * 40), 6, 40));
+                    if (big || share >= 0.5f) _particles.Burst(center, big ? 60 : 36);
+                    if (big) Flash(new Color(0.98f, 0.79f, 0.32f), 0.4f, 0.12f);
+                    if (share >= 0.5f) _shake = Mathf.Min(0.5f, 0.15f + share * 0.1f);
+                });
+                t += 0.55f;
+                Schedule(t, () => HidePopup(false));
+                t += 0.2f;
             }
 
-            // the pot slides across the felt: to you when you win, to the dealer when you don't
-            if (DealerAnchor != null && PlayerAnchor != null && run.ActiveTable == table)
+            // then the cards act out the result and the pot slides across
+            Schedule(t, () =>
             {
+                CommitScore?.Invoke();
+                ActOut?.Invoke();
+                var best = table.LastScores.OrderByDescending(sc => sc.Total).First();
+                if (grand <= 0)
+                {
+                    Play(best.Outcome == Outcome.Bust ? _bust : best.Outcome == Outcome.Push ? _win : _lose);
+                    if (best.Outcome != Outcome.Push)
+                    {
+                        _shake = 0.12f;
+                        Flash(new Color(0.9f, 0.1f, 0.1f), 0.3f, 0.07f);
+                    }
+                }
+                if (DealerAnchor == null || PlayerAnchor == null || run.ActiveTable != table) return;
                 var dealer = _root.WorldToLocal(DealerAnchor());
                 var player = _root.WorldToLocal(PlayerAnchor());
                 var chipColor = new[] { new Color(0.8f, 0.14f, 0.16f), new Color(0.13f, 0.5f, 0.3f), new Color(0.13f, 0.13f, 0.15f) };
                 var color = chipColor[table.DealsPlayed % chipColor.Length];
-                bool won = table.LastScores.Any(s => s.Outcome.IsWin());
-                bool lost = table.LastScores.All(s => s.Outcome == Outcome.Lose || s.Outcome == Outcome.Bust);
-                float pot = total / (float)Math.Max(1, table.Target);
-                if (won) _particles.Chips(dealer, player, Mathf.Clamp(4 + (int)(pot * 12), 4, 14), color, Clink, 0.75f);
-                else if (lost) _particles.Chips(player, dealer, 4, color, Clink, 0.75f);
-            }
+                bool won = table.LastScores.Any(sc => sc.Outcome.IsWin());
+                bool lost = table.LastScores.All(sc => sc.Outcome == Outcome.Lose || sc.Outcome == Outcome.Bust);
+                if (won) _particles.Chips(dealer, player, Mathf.Clamp(4 + (int)(share * 12), 4, 14), color, Clink, 0.1f);
+                else if (lost) _particles.Chips(player, dealer, 4, color, Clink, 0.1f);
+            });
+            return t + 0.8f;
+        }
 
-            if (total <= 0 || run.ActiveTable != table) return;
-            _popupTotal = total;
-            _popupTime = 0;
-            bool split = table.LastScores.Count > 1;
-            _chips.text = split ? table.LastScores.Sum(s => s.Chips).ToString() : best.Chips.ToString();
-            _mult.text = split ? "split" : best.Mult.ToString("0.##");
+        private void Schedule(float at, Action act)
+        {
+            int i = _timeline.Count;
+            while (i > 0 && _timeline[i - 1].at > at) i--;
+            _timeline.Insert(i, (at, act));
+        }
+
+        // finish the playback at once: click or Space while it runs
+        public void Skip()
+        {
+            if (_timeline.Count == 0) return;
+            _skipping = true;
+            while (_timeline.Count > 0)
+            {
+                var (_, act) = _timeline[0];
+                _timeline.RemoveAt(0);
+                act();
+            }
+            _skipping = false;
+            _totalT = 1;
+            HidePopup(true);
+        }
+
+        private void ShowPopup(bool rays)
+        {
+            if (_skipping) return;
+            _chips.text = "0";
+            _mult.text = "0";
             _total.text = "";
+            _totalT = 1;
             Ui.Show(_popup, true);
+            Ui.Transition(_popup, 0, "opacity", "translate");
             _popup.style.opacity = 1;
             _popup.style.translate = new Translate(0, 0);
-            Ui.Pop(_chipsBox, 1.5f, 0);
-            Ui.Pop(_times, 1.6f, 120);
-            Ui.Pop(_multBox, 1.5f, 220);
-            _raysOn = big || total / (float)Math.Max(1, table.Target) >= 0.5f;
+            _popupShown = true;
+            _raysOn = rays;
+            Ui.Pop(_chipsBox, 1.4f);
+            Ui.Pop(_multBox, 1.4f, 80);
+        }
 
-            var center = new Vector2(TableCenterX, 300);
-            float share = total / (float)Math.Max(1, table.Target);
-            _particles.Coins(center, Mathf.Clamp((int)(share * 40), 6, 40));
-            if (big || share >= 0.5f) _particles.Burst(center, big ? 60 : 36);
-            if (big) Flash(new Color(0.98f, 0.79f, 0.32f), 0.4f, 0.12f);
-            // a huge hand shakes the table
-            if (share >= 0.5f) _shake = Mathf.Min(0.5f, 0.15f + share * 0.1f);
+        private void HidePopup(bool now)
+        {
+            _popupShown = false;
+            _raysOn = false;
+            if (now)
+            {
+                Ui.Show(_popup, false);
+                return;
+            }
+            Ui.Transition(_popup, 0.3f, "opacity", "translate");
+            _popup.style.opacity = 0;
+            _popup.style.translate = new Translate(0, -30);
+        }
+
+        private void SetChips(int chips)
+        {
+            if (_skipping) return;
+            _chips.text = chips.ToString("N0");
+            Ui.Pop(_chipsBox, 1.18f);
+        }
+
+        private void SetMult(double mult)
+        {
+            if (_skipping) return;
+            _mult.text = mult.ToString("0.##");
+            Ui.Pop(_multBox, 1.25f);
+        }
+
+        // each beat of scoring rings a little higher than the last
+        private void Tick(int beat)
+        {
+            if (_skipping || Muted) return;
+            _audio.pitch = Mathf.Min(2.2f, 1 + beat * 0.08f);
+            _audio.PlayOneShot(_tick);
+        }
+
+        // a little "+4 Mult" that rises from whatever caused it
+        private void Callout(ScoreStep step, int hand)
+        {
+            if (_skipping) return;
+            var parts = new List<string>();
+            if (step.ChipsAdded != 0) parts.Add(Ui.Colored($"{(step.ChipsAdded > 0 ? "+" : "")}{step.ChipsAdded} Chips", Ui.Chips));
+            if (step.Multiplied) parts.Add(Ui.Colored($"×{step.Factor:0.##} Mult", Ui.Mult));
+            else if (step.MultAdded != 0) parts.Add(Ui.Colored($"{(step.MultAdded > 0 ? "+" : "")}{step.MultAdded:0.##} Mult", Ui.Mult));
+            if (parts.Count == 0) return;
+
+            Vector2 at;
+            string name = step.Name;
+            if (step.Kind == ScoreSource.Card && CardAnchor?.Invoke(hand, step.Card) is Vector2 card)
+            {
+                at = _root.WorldToLocal(card) + new Vector2(0, -78);
+                name = null;
+            }
+            else if (step.Kind == ScoreSource.Vice && ViceRow?.Invoke(step.Source) is VisualElement row && row.panel != null)
+            {
+                var bounds = _root.WorldToLocal(row.worldBound);
+                at = new Vector2(bounds.xMax + 110, Mathf.Clamp(bounds.center.y, 40, _root.layout.height - 40));
+                Ui.Pop(row, 1.07f);
+                var before = row.style.backgroundColor;
+                row.style.backgroundColor = new Color(0.98f, 0.79f, 0.32f, 0.3f);
+                row.schedule.Execute(() => row.style.backgroundColor = before).StartingIn(450);
+            }
+            else at = new Vector2(TableCenterX, 452);
+
+            var label = Ui.Text(_callouts, (name != null ? name + "  " : "") + string.Join("  ", parts), 18, Ui.Cream, Weight.Heavy);
+            label.style.position = Position.Absolute;
+            label.style.backgroundColor = new Color(0.03f, 0.04f, 0.05f, 0.9f);
+            Ui.Rounded(label, 10);
+            Ui.Padding(label, 4, 10);
+            Ui.Border(label, 1, new Color(1, 1, 1, 0.15f));
+            label.pickingMode = PickingMode.Ignore;
+            label.style.left = at.x;
+            label.style.top = at.y;
+            // centered on the point once it has a size
+            label.style.translate = new Translate(Length.Percent(-50), Length.Percent(-50));
+            Ui.Pop(label, 1.3f);
+            float life = 0.9f / TableView.Speed;
+            label.schedule.Execute(() =>
+            {
+                Ui.Transition(label, 0.35f, "opacity", "top");
+                label.style.opacity = 0;
+                label.style.top = at.y - 26;
+            }).StartingIn((long)(life * 1000));
+            label.schedule.Execute(label.RemoveFromHierarchy).StartingIn((long)(life * 1000) + 400);
         }
 
         private void Clink()
@@ -298,30 +508,29 @@ namespace HouseEdge.Game
         private void Update()
         {
             _clinkCooldown -= Time.deltaTime;
-            float raysTarget = _raysOn && _popupTime >= 0 ? 1 : 0;
-            float raysAlpha = Mathf.MoveTowards(_rays.resolvedStyle.opacity, raysTarget * (_popupTime > 1.7f ? 0 : 1), Time.deltaTime * 3);
+            if (_timeline.Count > 0)
+            {
+                _clock += Time.deltaTime * TableView.Speed;
+                while (_timeline.Count > 0 && _timeline[0].at <= _clock)
+                {
+                    var (_, act) = _timeline[0];
+                    _timeline.RemoveAt(0);
+                    act();
+                }
+            }
+            if (_totalT < 1)
+            {
+                _totalT = Mathf.Min(1, _totalT + Time.deltaTime * TableView.Speed / 0.55f);
+                _total.text = "+" + ((long)(_totalTo * (1 - Mathf.Pow(1 - _totalT, 3)))).ToString("N0");
+            }
+
+            float raysTarget = _raysOn && _popupShown ? 1 : 0;
+            float raysAlpha = Mathf.MoveTowards(_rays.resolvedStyle.opacity, raysTarget, Time.deltaTime * 3);
             _rays.style.opacity = raysAlpha;
             if (raysAlpha > 0)
             {
                 _rays.style.left = TableCenterX - 310;
                 _rays.style.rotate = new Rotate(Time.time * 25);
-            }
-
-            if (_popupTime >= 0)
-            {
-                _popupTime += Time.deltaTime;
-                // the boxes pop in, the total counts up, holds, then floats away
-                float ramp = Mathf.Clamp01((_popupTime - 0.3f) / 0.6f);
-                if (_popupTime >= 0.3f)
-                    _total.text = "+" + ((long)(_popupTotal * (1 - Mathf.Pow(1 - ramp, 3)))).ToString("N0");
-                float fade = Mathf.Clamp01((_popupTime - 1.7f) / 0.4f);
-                _popup.style.opacity = 1 - fade;
-                _popup.style.translate = new Translate(0, -40 * fade);
-                if (_popupTime > 2.1f)
-                {
-                    _popupTime = -1;
-                    Ui.Show(_popup, false);
-                }
             }
 
             if (_shake > 0)

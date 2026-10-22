@@ -189,10 +189,17 @@ namespace HouseEdge.Core
         public override void OnHandScored(Table table, HandScore score)
         {
             // left to right through the hand
-            foreach (var card in score.Hand.Cards)
+            var cards = score.Hand.Cards;
+            for (int i = 0; i < cards.Count; i++)
             {
+                var card = cards[i];
                 ScoreCard(table, score, card);
-                if (card.Stamp == Stamp.Red) ScoreCardAgain(table, score, card);
+                score.Mark(ScoreSource.Card, card.IsCursed ? card.CurseName : card.Enhancement.ToString(), card, i);
+                if (card.Stamp == Stamp.Red)
+                {
+                    ScoreCardAgain(table, score, card);
+                    score.Mark(ScoreSource.Card, "Red Stamp", card, i);
+                }
             }
         }
 

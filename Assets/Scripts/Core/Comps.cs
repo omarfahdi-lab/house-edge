@@ -72,6 +72,7 @@ namespace HouseEdge.Core
                 var (chips, mult) = Comps.PerLevel(comp);
                 score.AddChips(chips * level);
                 score.AddMult(mult * level);
+                score.Mark(ScoreSource.Comp, $"{Comps.Name(comp)} Comp", comp);
             }
         }
     }

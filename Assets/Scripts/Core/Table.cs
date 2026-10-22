@@ -620,15 +620,20 @@ namespace HouseEdge.Core
             var score = new HandScore(hand, outcome, DealerBusted && win);
             if (Balance.ScoresCards(outcome))
             {
-                score.AddChips(Math.Min(hand.Value.Total, Rules.PlayerBustLimit) + Balance.BaseChips(outcome));
+                score.AddChips(Math.Min(hand.Value.Total, Rules.PlayerBustLimit));
+                score.Mark(ScoreSource.Hand, "Your cards");
+                score.AddChips(Balance.BaseChips(outcome));
                 score.AddMult(Balance.BaseMult(outcome));
+                score.Mark(ScoreSource.Bonus, outcome.Label());
             }
             if (score.DealerBusted)
             {
                 score.AddChips(Balance.DealerBustBonusChips);
                 score.AddMult(Balance.DealerBustBonusMult);
+                score.Mark(ScoreSource.Bonus, "Dealer bust");
             }
             if (SideBet == SideBet.HotHand && win) score.AddMult(Balance.HotHandMult);
+            score.Mark(ScoreSource.Bonus, "Hot Hand");
 
             foreach (var effect in ActiveEffects())
             {
@@ -636,13 +641,31 @@ namespace HouseEdge.Core
                 double mult = score.Mult;
                 effect.OnHandScored(this, score);
                 if (effect is Vice && (score.Chips != chips || score.Mult != mult)) score.ViceTriggers++;
+                MarkEffect(score, effect);
             }
-            foreach (var effect in ActiveEffects()) effect.OnAfterScoring(this, score);
+            foreach (var effect in ActiveEffects())
+            {
+                effect.OnAfterScoring(this, score);
+                MarkEffect(score, effect);
+            }
 
             // applied after the effects so they double the whole hand
             if (hand.IsDoubled && win) score.MultiplyMult(Balance.DoubleDownMult);
+            score.Mark(ScoreSource.Double, "Double Down");
             if (AntedUp && score.ScoresCards) score.MultiplyMult(Balance.AnteUpMult);
+            score.Mark(ScoreSource.Ante, "Ante Up");
             return score;
+        }
+
+        private static void MarkEffect(HandScore score, TableEffect effect)
+        {
+            switch (effect)
+            {
+                case Vice vice: score.Mark(ScoreSource.Vice, vice.Name, vice); break;
+                case Boss boss: score.Mark(ScoreSource.Boss, boss.Name, boss); break;
+                case Dealer dealer: score.Mark(ScoreSource.Dealer, dealer.Name, dealer); break;
+                default: score.Mark(ScoreSource.Rule, "House rules", effect); break;
+            }
         }
 
         private void EndTable(bool won)

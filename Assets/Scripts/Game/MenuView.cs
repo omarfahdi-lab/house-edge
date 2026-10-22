@@ -23,6 +23,9 @@ namespace HouseEdge.Game
         // the audio settings live elsewhere; the menu just shows and flips them
         public Func<bool> MusicOn, SoundOn;
         public Action ToggleMusic, ToggleSound;
+        public Func<float> SpeedOf;
+        public Action<float> SetSpeed;
+        private readonly VisualElement _speeds;
         private readonly Switch _musicSwitch, _soundSwitch;
 
         public event Action<int, RunOptions> StartClicked;
@@ -88,6 +91,13 @@ namespace HouseEdge.Game
             _musicSwitch = AudioSwitch(audio, "Music", () => { ToggleMusic?.Invoke(); Rebuild(); });
             _soundSwitch = AudioSwitch(audio, "Sounds", () => { ToggleSound?.Invoke(); Rebuild(); });
             Ui.Text(audio, "M mutes both", 11, Ui.Dim);
+
+            var speedRow = Ui.Row(left, 8);
+            speedRow.style.marginTop = 8;
+            var speedLabel = Ui.Text(speedRow, "Scoring speed", 13, Ui.Cream, Weight.Bold);
+            speedLabel.style.marginRight = 4;
+            Ui.Tip(speedLabel, "Scoring speed", "How fast the dealer draws and each hand's scoring plays out. Click or press Space during scoring to skip it.");
+            _speeds = Ui.Row(speedRow, 6);
 
             // right: what kind of run to start
             var setup = Ui.Glass(_root, 9, radius: 18);
@@ -261,6 +271,18 @@ namespace HouseEdge.Game
 
             _endless.Set(_endlessOn);
             _musicSwitch.Set(MusicOn?.Invoke() ?? true);
+            _speeds.Clear();
+            float speed = SpeedOf?.Invoke() ?? 1;
+            foreach (float option in new[] { 1f, 2f, 4f })
+            {
+                float chosen = option;
+                bool on = Mathf.Approximately(option, speed);
+                var button = Ui.Button(_speeds, $"{option:0}×", () => { SetSpeed?.Invoke(chosen); Rebuild(); }, on ? ButtonKind.Gold : ButtonKind.Ghost);
+                button.style.height = 26;
+                button.style.minWidth = 42;
+                Ui.Padding(button, 0, 8);
+                button.Q<Label>().style.fontSize = 13;
+            }
             _soundSwitch.Set(SoundOn?.Invoke() ?? true);
             _summary.text = $"You'll play:  {Decks.Name(_deck)} deck  ·  {Stakes.Name(_stake)}  ·  Endless {(_endlessOn ? "on" : "off")}";
         }

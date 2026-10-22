@@ -12,7 +12,7 @@ namespace HouseEdge.Game
     {
         private const float ReplayStepSeconds = 0.35f;
         // after the hand that ends a table, the table stays up this long so the result can play out
-        private const float ResultHoldSeconds = 2.3f;
+        private const float ResultHoldSeconds = 1.1f;
         private float _holdUntil;
 
         private Hud _hud;
@@ -22,6 +22,11 @@ namespace HouseEdge.Game
         private DeckView _deck;
         private RoomView _room;
         private MenuView _menu;
+        private MapView _map;
+        // what the map remembers: the room picked at each fork, and each floor's boss
+        private readonly Dictionary<(int floor, int slot), RoomKind> _rooms = new Dictionary<(int, int), RoomKind>();
+        private readonly Dictionary<int, string> _bosses = new Dictionary<int, string>();
+        private int _mapShownFloor;
         private Feedback _feedback;
         private Music _music;
         private Profile _profile;
@@ -60,12 +65,33 @@ namespace HouseEdge.Game
             _room = new RoomView(root);
             _hud = new Hud(root);
             _deck = new DeckView(root);
+            _map = new MapView(root);
             _runOver = new RunOverView(root);
             _menu = new MenuView(root);
             _feedback = Feedback.Create(transform, root);
             _feedback.GoldAnchor = () => _hud.GoldAnchor.worldBound.center;
             _feedback.DealerAnchor = () => _table.DealerCenter;
             _feedback.PlayerAnchor = () => _table.PlayerCenter;
+            _feedback.PopCard = _table.PopCard;
+            _feedback.CardAnchor = _table.CardCenter;
+            _feedback.HandIndex = _table.HandIndex;
+            _feedback.ViceRow = _hud.FocusVice;
+            _feedback.ActOut = _table.ActOut;
+            _feedback.CommitScore = () =>
+            {
+                if (_hud.FrozenScore == null) return;
+                _hud.FrozenScore = null;
+                _hud.Refresh(Run);
+            };
+            _table.CardLanded += _feedback.CardSound;
+            TableView.Speed = PlayerPrefs.GetFloat("speed", 1);
+            _menu.SpeedOf = () => TableView.Speed;
+            _menu.SetSpeed = speed =>
+            {
+                TableView.Speed = speed;
+                PlayerPrefs.SetFloat("speed", speed);
+                PlayerPrefs.Save();
+            };
             _music = Music.Create(transform);
             _menu.MusicOn = () => _music.Enabled;
             _menu.SoundOn = () => !_feedback.Muted;
@@ -78,6 +104,7 @@ namespace HouseEdge.Game
             _hud.InputChosen += TryApply;
             _hud.CocktailClicked += UseCocktail;
             _hud.DeckClicked += ShowDeck;
+            _hud.MapClicked += ShowMap;
             _deck.InputChosen += TryApply;
             _room.InputChosen += TryApply;
             _room.CardOptionClicked += (option, label) => _deck.Pick(Run, label, "Pick a card from your deck.", 1,
@@ -106,6 +133,20 @@ namespace HouseEdge.Game
 
         public void ShowDeck() => _deck.ShowDeck(Run);
 
+        public void ShowMap()
+        {
+            SkipPlayback();
+            Remember();
+            _map.Open(Run, _rooms, _bosses);
+        }
+
+        private void Remember()
+        {
+            if (Run.FloorBoss != null) _bosses[Run.Floor] = Run.FloorBoss.Name;
+            if (Run.Phase == RunPhase.InRoom && Run.Room != null && Run.ActiveTable == Run.Table)
+                _rooms[(Run.Floor, Run.Stage == TableKind.Low ? 0 : 1)] = Run.Room.Kind;
+        }
+
         public void ShowHowTo(int page)
         {
             OpenMenu();
@@ -117,6 +158,9 @@ namespace HouseEdge.Game
             _replay = null;
             _playing = true;
             _unlocks = new List<string>();
+            _rooms.Clear();
+            _bosses.Clear();
+            _mapShownFloor = 0;
             Run = new Run(seed, options);
             _menu.Close();
             _deck.Close();
@@ -140,20 +184,37 @@ namespace HouseEdge.Game
 
         public void TryApply(RunInput input)
         {
+            // an input during the scoring playback skips to the end of it
+            if (_feedback.Playing)
+            {
+                SkipPlayback();
+                if (!DevCapture.Requested) return;
+            }
             if (Replaying || Holding || !Run.IsLegal(input)) return;
             Apply(input);
         }
 
+        private void SkipPlayback()
+        {
+            _feedback.Skip();
+            _holdUntil = Mathf.Min(_holdUntil, Time.time + 0.9f);
+        }
+
         private void Apply(RunInput input)
         {
+            // anything still playing back from the last hand finishes first
+            _feedback.Skip();
             var before = Snapshot.Of(Run);
             Run.Apply(input);
-            // the hand that clears (or loses) a table gets a moment on screen before the shop or the end screen
-            if (before.Phase == RunPhase.AtTable && Run.Phase != RunPhase.AtTable && !Replaying && !DevCapture.Requested)
-                _holdUntil = Time.time + ResultHoldSeconds;
-            _feedback.After(before, Run);
             if (Run.IsOver && !Replaying) RecordRun();
+            // the score waits for the playback to count it in
+            _hud.FrozenScore = before.ScoredBy(Run) && Run.Table == before.Table ? before.Score : (long?)null;
+            bool leftTable = before.Phase == RunPhase.AtTable && Run.Phase != RunPhase.AtTable;
+            // the hand that clears (or loses) a table stays on screen before the shop or the end screen
+            if (leftTable && !Replaying && !DevCapture.Requested) _holdUntil = float.MaxValue;
             Refresh();
+            _feedback.After(before, Run, _table.SettleSeconds);
+            if (_holdUntil == float.MaxValue) _holdUntil = Time.time + _feedback.RemainingSeconds + ResultHoldSeconds;
         }
 
         private void RecordRun()
@@ -166,6 +227,8 @@ namespace HouseEdge.Game
         private void StartReplay()
         {
             var inputs = new Queue<RunInput>(Run.Inputs);
+            _rooms.Clear();
+            _bosses.Clear();
             var options = Run.Options;
             int seed = Run.Seed;
             Run = new Run(seed, options);
@@ -185,6 +248,13 @@ namespace HouseEdge.Game
 
         private void Refresh()
         {
+            Remember();
+            // each new floor opens with the map
+            if (_playing && !Replaying && !DevCapture.Requested && !Holding && !_menu.IsOpen && Run.Phase == RunPhase.AtTable && Run.Floor != _mapShownFloor)
+            {
+                _mapShownFloor = Run.Floor;
+                ShowMap();
+            }
             _hud.Refresh(Run);
             _table.Refresh(Run);
             _table.SetReplay(Replaying);
@@ -214,14 +284,23 @@ namespace HouseEdge.Game
             }
         }
 
-        // lounge jazz in the casino, something tense when a boss or security is at the table, quiet when it's over
+        // lounge jazz between tables, a livelier swing at the tables, something tense for bosses and security
         private Track ChooseTrack()
         {
             if (_menu.IsOpen && !_playing) return Track.Lounge;
             if (Run.IsOver) return Track.None;
-            bool tense = Run.Phase == RunPhase.AtTable &&
-                         (Run.Stage == TableKind.Boss || Run.AtEyeInTheSky || Run.AtEnforcer || Run.ActiveTable != Run.Table);
-            return tense ? Track.Boss : Track.Lounge;
+            if (Run.Phase != RunPhase.AtTable || Holding) return Track.Lounge;
+            bool tense = Run.Stage == TableKind.Boss || Run.AtEyeInTheSky || Run.AtEnforcer || Run.ActiveTable != Run.Table;
+            return tense ? Track.Boss : Track.Table;
+        }
+
+        // the band leans in as the Hands run out
+        private float Tension()
+        {
+            if (!_playing || Run.IsOver || Run.Phase != RunPhase.AtTable || _menu.IsOpen) return 0;
+            var table = Run.ActiveTable;
+            if (table.Score >= table.Target) return 0;
+            return table.HandsLeft <= 1 ? 1 : table.HandsLeft == 2 ? 0.5f : 0;
         }
 
         private bool _wasHolding;
@@ -229,6 +308,7 @@ namespace HouseEdge.Game
         private void Update()
         {
             _music.Play(ChooseTrack());
+            _music.SetTension(Tension());
             // the hold just ran out: show the shop or the end screen
             if (_wasHolding && !Holding) Refresh();
             _wasHolding = Holding;
@@ -251,7 +331,8 @@ namespace HouseEdge.Game
 
             if (keyboard.escapeKey.wasPressedThisFrame)
             {
-                if (_deck.IsOpen) _deck.Close();
+                if (_map.IsOpen) _map.Close();
+                else if (_deck.IsOpen) _deck.Close();
                 else if (_menu.HowToOpen) _menu.CloseHowTo();
                 else if (_menu.IsOpen) { if (_playing && !Run.IsOver) _menu.Close(); }
                 else OpenMenu();
@@ -264,6 +345,22 @@ namespace HouseEdge.Game
                 _music.Enabled = !anyOn;
                 _feedback.Muted = anyOn;
                 if (_menu.IsOpen) OpenMenu();
+            }
+            // Space or a click during the scoring playback skips it
+            if (_feedback.Playing && !_menu.IsOpen && (keyboard.spaceKey.wasPressedThisFrame || Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame))
+            {
+                SkipPlayback();
+                return;
+            }
+            if (_map.IsOpen)
+            {
+                if (keyboard.spaceKey.wasPressedThisFrame || keyboard.escapeKey.wasPressedThisFrame || keyboard.tabKey.wasPressedThisFrame) _map.Close();
+                return;
+            }
+            if (keyboard.tabKey.wasPressedThisFrame && _playing && !_menu.IsOpen && !Run.IsOver)
+            {
+                ShowMap();
+                return;
             }
             if (_deck.IsOpen || Holding) return;
             if (_menu.IsOpen)

@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace HouseEdge.Game
 {
-    public enum Track { None, Lounge, Boss }
+    public enum Track { None, Lounge, Table, Boss }
 
     // background music: two loops synthesized at startup and crossfaded, so the game ships without audio files
     public sealed class Music : MonoBehaviour
@@ -12,8 +12,9 @@ namespace HouseEdge.Game
         private const float Volume = 0.42f;
         private const float FadeSeconds = 1.2f;
 
-        private AudioSource _a, _b;
-        private AudioClip _lounge, _boss;
+        private AudioSource _a, _b, _heart;
+        private AudioClip _lounge, _table, _boss;
+        private float _pitch = 1, _heartTarget;
         private Track _track = Track.None;
         private bool _enabled = true;
 
@@ -23,6 +24,7 @@ namespace HouseEdge.Game
             music.transform.SetParent(parent, false);
             music._a = music.Source();
             music._b = music.Source();
+            music._heart = music.Source();
             music._enabled = PlayerPrefs.GetInt("music", 1) == 1;
             return music;
         }
@@ -55,7 +57,12 @@ namespace HouseEdge.Game
             if (track == _track) return;
             _track = track;
             if (track == Track.None) return;
-            var clip = track == Track.Boss ? _boss ??= MusicSynth.Boss() : _lounge ??= MusicSynth.Lounge();
+            var clip = track switch
+            {
+                Track.Boss => _boss ??= MusicSynth.Boss(),
+                Track.Table => _table ??= MusicSynth.Table(),
+                _ => _lounge ??= MusicSynth.Lounge(),
+            };
             // the quiet source takes the new track and fades up while the other fades out
             var (incoming, outgoing) = _a.volume <= _b.volume ? (_a, _b) : (_b, _a);
             incoming.clip = clip;
@@ -67,11 +74,30 @@ namespace HouseEdge.Game
 
         private AudioSource _incoming, _outgoing;
 
+        // tension: 0 is relaxed, 1 is your last Hand. the band speeds up and a heartbeat comes in
+        public void SetTension(float tension)
+        {
+            _pitch = 1 + 0.06f * tension;
+            _heartTarget = tension >= 1 ? 0.55f : 0;
+            if (_heartTarget > 0 && !_heart.isPlaying)
+            {
+                _heart.clip = MusicSynth.Heartbeat();
+                _heart.Play();
+            }
+        }
+
         private void Update()
         {
             float target = _enabled && !Muted && _track != Track.None ? Volume : 0;
             float step = Time.unscaledDeltaTime / FadeSeconds * Volume;
-            if (_incoming != null) _incoming.volume = Mathf.MoveTowards(_incoming.volume, target, step);
+            if (_incoming != null)
+            {
+                _incoming.volume = Mathf.MoveTowards(_incoming.volume, target, step);
+                _incoming.pitch = Mathf.MoveTowards(_incoming.pitch, _pitch, Time.unscaledDeltaTime * 0.05f);
+            }
+            float heart = _enabled && !Muted && _track != Track.None ? _heartTarget : 0;
+            _heart.volume = Mathf.MoveTowards(_heart.volume, heart, Time.unscaledDeltaTime * 0.6f);
+            if (_heart.volume <= 0 && _heart.isPlaying && heart <= 0) _heart.Stop();
             if (_outgoing != null)
             {
                 _outgoing.volume = Mathf.MoveTowards(_outgoing.volume, 0, step);
@@ -93,6 +119,8 @@ namespace HouseEdge.Game
             public (int root, int[] tones)[] Bars;
             public int Seed;
             public bool Driving;
+            // busier comping and a brushed snare on 2 and 4
+            public bool Busy;
         }
 
         private static readonly int[] Min7 = { 0, 3, 7, 10, 14 };
@@ -116,13 +144,30 @@ namespace HouseEdge.Game
             },
         });
 
+        // a minor blues at a brisk swing: chips on the table
+        public static AudioClip Table() => Render("table", new Song
+        {
+            Tempo = 118,
+            Swing = true,
+            Seed = 21,
+            Busy = true,
+            Bars = new[]
+            {
+                (36, Min7), (36, Min7), (41, Min7), (41, Min7),
+                (36, Min7), (44, Dom7), (43, Alt7), (43, Alt7),
+                (36, Min7), (36, Min7), (41, Min7), (41, Min7),
+                (44, Dom7), (43, Alt7), (36, Min7), (43, Alt7),
+            },
+        });
+
         // C minor, faster and straight: the Pit Boss is watching
         public static AudioClip Boss() => Render("boss", new Song
         {
-            Tempo = 126,
+            Tempo = 132,
             Swing = false,
             Seed = 9,
             Driving = true,
+            Busy = true,
             Bars = new[]
             {
                 (36, MinAdd9), (36, MinAdd9), (44, Dom7), (43, Alt7),
@@ -177,7 +222,9 @@ namespace HouseEdge.Game
                     while (note > 72) note -= 12;
                     voicing.Add(note);
                 }
-                float[][] comps = song.Driving
+                float[][] comps = song.Busy && !song.Driving
+                    ? new[] { new[] { 0f, 0.6f }, new[] { 1.5f, 0.4f }, new[] { 2.5f, 0.6f }, new[] { 3.5f, 0.4f } }
+                    : song.Driving
                     ? new[] { new[] { 0.5f, 0.4f }, new[] { 1.5f, 0.4f }, new[] { 2.5f, 0.4f }, new[] { 3.5f, 0.4f } }
                     : bar % 2 == 0
                         ? new[] { new[] { 0f, 1.4f }, new[] { 2.5f, 1.2f } }
@@ -208,6 +255,14 @@ namespace HouseEdge.Game
                 foreach (float r in ride) Ride(mix, At(bar, r), song.Driving ? 0.03f : 0.035f, random);
                 Hat(mix, At(bar, 1), random);
                 Hat(mix, At(bar, 3), random);
+                if (song.Busy)
+                {
+                    Snare(mix, At(bar, 1), song.Driving ? 0.09f : 0.05f, random);
+                    Snare(mix, At(bar, 3), song.Driving ? 0.09f : 0.05f, random);
+                }
+                // a tom fill into every fourth bar of the boss track
+                if (song.Driving && bar % 4 == 3)
+                    for (int f = 0; f < 4; f++) Tom(mix, At(bar, 3 + f * 0.25f), 150 - f * 22);
                 for (int b = 0; b < 4; b++)
                     if (song.Driving || b % 2 == 0) Kick(mix, At(bar, b), song.Driving ? 0.12f : 0.06f);
             }
@@ -304,6 +359,31 @@ namespace HouseEdge.Game
                 last = n;
                 return hiss * Mathf.Exp(-t / 0.025f) * 0.05f;
             });
+        }
+
+        private static void Snare(float[] mix, float start, float amp, System.Random random) =>
+            Note(mix, start, 0.18f, t =>
+            {
+                float n = (float)(random.NextDouble() * 2 - 1);
+                return (n * 0.8f + Mathf.Sin(2 * Mathf.PI * 190 * t) * 0.4f) * Mathf.Exp(-t / 0.06f) * amp;
+            });
+
+        private static void Tom(float[] mix, float start, float pitch) =>
+            Note(mix, start, 0.3f, t => Mathf.Sin(2 * Mathf.PI * pitch * (1 + 0.5f * Mathf.Exp(-t / 0.04f)) * t) * Mathf.Exp(-t / 0.14f) * 0.16f);
+
+        // lub-dub, about 64 beats a minute
+        private static AudioClip _heartbeat;
+
+        public static AudioClip Heartbeat()
+        {
+            if (_heartbeat != null) return _heartbeat;
+            int length = (int)(0.94f * Rate);
+            var data = new float[length];
+            Note(data, 0, 0.25f, t => Mathf.Sin(2 * Mathf.PI * 52 * t) * Mathf.Exp(-t / 0.07f) * 0.9f);
+            Note(data, 0.27f, 0.25f, t => Mathf.Sin(2 * Mathf.PI * 46 * t) * Mathf.Exp(-t / 0.06f) * 0.6f);
+            _heartbeat = AudioClip.Create("heartbeat", length, 1, Rate, false);
+            _heartbeat.SetData(data, 0);
+            return _heartbeat;
         }
 
         private static void Kick(float[] mix, float start, float amp) =>
