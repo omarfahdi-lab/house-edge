@@ -18,9 +18,13 @@ The twist: **the dealer draws from your deck too.** Stack it with 10s and you hi
 
 ## Highlights
 
+- **A guided first run.** A new player's first run (or the menu's Tutorial button) stacks the first table's opening
+  hands in Core (`Tutorial.Script`), so every lesson is guaranteed: a plain win, a bust saved by a Burn, then a Flush
+  that clears the table on its own. A coach panel points at the one button to press and lets only that through, then
+  gives one-time tips on the map and in the shop. Tests play the script and check each lesson lands.
 - **Engine-free, deterministic rules.** Every rule lives in `HouseEdge.Core`, a plain C# assembly with no UnityEngine
   reference. One seeded RNG drives a whole run, so a run is just a seed plus a list of inputs: run codes, the Daily Run
-  and full replays all come from that. **400 NUnit tests** run on plain `dotnet test` in CI, no Unity license needed.
+  and full replays all come from that. **406 NUnit tests** run on plain `dotnet test` in CI, no Unity license needed.
 - **Combos, so winning isn't enough.** A plain win scores little. The big numbers come from poker patterns inside a
   blackjack hand (Pair, Two Pair, Three of a Kind, Suited, Flush, Run, Royal Court, Low Ball) that pay only when the hand
   beats the dealer, plus a win streak. Comps level combos up like Balatro's Planet cards, combo Vices multiply them,

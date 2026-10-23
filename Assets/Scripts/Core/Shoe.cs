@@ -44,6 +44,16 @@ namespace HouseEdge.Core
             return new Shoe(cards, random);
         }
 
+        // the given cards first, then the rest in a random order
+        public static Shoe StackedOnShuffled(IEnumerable<Card> topFirst, IEnumerable<Card> rest, GameRandom random)
+        {
+            var shoe = Shuffled(rest, random);
+            var top = new List<Card>(topFirst);
+            top.Reverse();
+            shoe._drawPile.AddRange(top);
+            return shoe;
+        }
+
         public Card Draw()
         {
             if (_drawPile.Count == 0)

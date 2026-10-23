@@ -27,6 +27,7 @@ namespace HouseEdge.Game
         private PackView _pack;
         private CollectionView _collection;
         private BossIntro _bossIntro;
+        private Coach _coach;
         private Table _introShownFor, _heardTable;
         private int _heardDeal, _heard;
         // each floor's boss, for the climb strip on the map
@@ -73,6 +74,12 @@ namespace HouseEdge.Game
             _deck = new DeckView(root);
             _map = new MapView(root);
             _map.InputChosen += TryApply;
+            _coach = new Coach(root, _table);
+            _coach.Finished += () =>
+            {
+                PlayerPrefs.SetInt("tutorialDone", 1);
+                PlayerPrefs.Save();
+            };
             _runOver = new RunOverView(root);
             _menu = new MenuView(root);
             _bossIntro = new BossIntro(root);
@@ -222,6 +229,14 @@ namespace HouseEdge.Game
             _unlocks = new List<string>();
             // Vices you haven't unlocked stay out of this run (the Daily Run is the same for everyone)
             options = options.Clone();
+            // the guided first run is always the plain game
+            if (options.Tutorial)
+            {
+                options.Deck = StartingDeck.Standard;
+                options.Stake = Stake.White;
+                options.Endless = false;
+                _coach.Reset();
+            }
             options.LockedVices = options.Daily ? new List<string>() : _profile.LockedVices;
             _bosses.Clear();
             _mapShownFloor = 0;
@@ -254,7 +269,7 @@ namespace HouseEdge.Game
                 SkipPlayback();
                 if (!DevCapture.Requested) return;
             }
-            if (Replaying || Holding || !Run.IsLegal(input)) return;
+            if (Replaying || Holding || !Run.IsLegal(input) || !_coach.Allows(Run, input)) return;
             Apply(input);
         }
 
@@ -379,6 +394,7 @@ namespace HouseEdge.Game
         {
             _music.Play(ChooseTrack());
             _music.SetTension(Tension());
+            _coach.Refresh(Run, !_playing || Replaying || Holding || _feedback.Playing || _menu.IsOpen || _bossIntro.IsOpen || _deck.IsOpen || _collection.IsOpen || _map.Viewing);
             // the hold just ran out: show the shop or the end screen
             if (_wasHolding && !Holding) Refresh();
             _wasHolding = Holding;
@@ -441,6 +457,7 @@ namespace HouseEdge.Game
                 return;
             }
             if (_deck.IsOpen || Holding) return;
+            if (keyboard.enterKey.wasPressedThisFrame && !_menu.IsOpen && _coach.DismissKey()) return;
             if (_menu.IsOpen)
             {
                 if (keyboard.spaceKey.wasPressedThisFrame && !_menu.HowToOpen && !_menu.Typing) _menu.NewRun();

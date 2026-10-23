@@ -255,6 +255,39 @@ namespace HouseEdge.Game
 
         public void SetReplay(bool replaying) => Ui.Show(_replay, replaying);
 
+        private VisualElement _spotRing;
+        private PlayerAction? _spotted;
+
+        // a pulsing gold ring around the one button the tutorial wants pressed
+        public void Spotlight(PlayerAction? action)
+        {
+            if (action == _spotted) return;
+            _spotted = action;
+            _spotRing?.RemoveFromHierarchy();
+            _spotRing = null;
+            if (action == null || !_buttons.TryGetValue(action.Value, out var button)) return;
+            // buttons clip their children, so the ring sits beside the button and follows its layout
+            _spotRing = new VisualElement { pickingMode = PickingMode.Ignore };
+            _spotRing.style.position = Position.Absolute;
+            Ui.Border(_spotRing, 3, Ui.Gold);
+            Ui.Rounded(_spotRing, 14);
+            button.parent.Add(_spotRing);
+            var ring = _spotRing;
+            float t = 0;
+            ring.schedule.Execute(() =>
+            {
+                var at = button.layout;
+                ring.style.left = at.x - 6;
+                ring.style.top = at.y - 6;
+                ring.style.width = at.width + 12;
+                ring.style.height = at.height + 12;
+                t += 0.05f;
+                float pulse = (Mathf.Sin(t * 5) + 1) / 2;
+                ring.style.opacity = 0.45f + 0.55f * pulse;
+                if (!Settings.ReducedMotion) ring.style.scale = new Scale(Vector2.one * (1 + 0.04f * pulse));
+            }).Every(50);
+        }
+
         // three card backs, redone when the starting deck (and so the back) changes
         private void FillShoe()
         {

@@ -397,7 +397,9 @@ namespace HouseEdge.Core
                 : Stage == TableKind.Boss ? FloorBoss.Create()
                 : null;
             if (Boss != null) BossesFaced.Add(Boss.Name);
-            Dealer = Boss == null ? Dealers.Random(Random) : null;
+            // the tutorial table gets a dealer with no rule changes
+            bool tutorial = IsTutorialTable;
+            Dealer = Boss == null ? tutorial ? new ChattyChen() : Dealers.Random(Random) : null;
             if (Boss != null) effects.Add(Boss);
             if (Dealer != null) effects.Add(Dealer);
             effects.Add(new RunRules(Options));
@@ -409,10 +411,16 @@ namespace HouseEdge.Core
             double bossFactor = Boss != null && (AtElite || Stage == TableKind.Boss) ? Stakes.BossFactor(Options.Stake) : 1;
             long target = (long)Math.Round(TargetFor(stage) * (Boss?.TargetFactor ?? 1) * bossFactor * (AtElite ? Balance.EliteTargetFactor : _nextTargetFactor));
             if (!AtElite) _nextTargetFactor = 1;
-            Table = new Table(Gambler, Random, target, effects);
+            Table = tutorial
+                ? new Table(Gambler, Core.Tutorial.Shoe(Gambler.Deck, Random), Random, target, effects)
+                : new Table(Gambler, Random, target, effects);
             if (AtElite) Table.AddHands(-Balance.EliteHandsLess);
             Phase = RunPhase.AtTable;
         }
+
+        // the first table of a tutorial run, before it has been beaten
+        public bool IsTutorialTable => Options.Tutorial && Floor == 1 && Stage == TableKind.Low && TablesBeaten == 0
+                                       && !AtElite && !AtEyeInTheSky && !AtEnforcer;
 
         private void FinishTable()
         {

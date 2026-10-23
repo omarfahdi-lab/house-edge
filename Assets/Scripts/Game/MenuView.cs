@@ -81,12 +81,15 @@ namespace HouseEdge.Game
             // two smaller buttons side by side
             var pair = Ui.Row(left, 10);
             var howTo = MenuButton(pair, "How to play", () => _howTo.Open(), ButtonKind.Normal);
+            var tutorial = MenuButton(pair, "Tutorial", () => StartClicked?.Invoke(System.Environment.TickCount, new RunOptions { Tutorial = true }), ButtonKind.Normal);
             var collection = MenuButton(pair, "Collection", () => CollectionClicked?.Invoke(), ButtonKind.Normal);
-            foreach (var half in new[] { howTo, collection })
+            Ui.Tip(tutorial, "Tutorial", "A guided first table: three hands that teach Hit, Stand, Burn and combos, then tips for the map and the shop.");
+            foreach (var half in new[] { howTo, tutorial, collection })
             {
-                half.style.width = 145;
+                half.style.width = 93;
+                Ui.Padding(half, 0, 6);
                 half.style.justifyContent = Justify.Center;
-                half.Q<Label>().style.fontSize = 16;
+                half.Q<Label>().style.fontSize = 14;
             }
             Ui.Tip(collection, "Collection", "Every Vice, boss and combo you've found, and what unlocks the rest.");
             _abandon = MenuButton(left, "Abandon run", () => AbandonClicked?.Invoke(), ButtonKind.Ghost);
@@ -403,7 +406,9 @@ namespace HouseEdge.Game
 
         public void NewRun()
         {
-            var options = new RunOptions { Deck = _deck, Stake = _stake, Endless = _endlessOn };
+            // a brand-new player's first run is the guided one
+            bool first = _profile.Runs == 0 && PlayerPrefs.GetInt("tutorialDone", 0) == 0;
+            var options = new RunOptions { Deck = _deck, Stake = _stake, Endless = _endlessOn, Tutorial = first };
             StartClicked?.Invoke(System.Environment.TickCount, options);
         }
 

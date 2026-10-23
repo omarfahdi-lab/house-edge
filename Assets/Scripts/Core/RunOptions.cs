@@ -18,6 +18,8 @@ namespace HouseEdge.Core
         public bool Endless;
         // the same seed for everyone today; only the label changes
         public bool Daily;
+        // the guided first run: the first table's opening hands are stacked to teach the game
+        public bool Tutorial;
         // Vices this player hasn't unlocked yet: they never show up in this run
         public List<string> LockedVices = new List<string>();
 
@@ -151,7 +153,7 @@ namespace HouseEdge.Core
                 value /= (uint)Digits.Length;
             } while (value > 0);
             chars.Reverse();
-            return $"{new string(chars.ToArray())}-{(int)options.Deck}{(int)options.Stake}{(options.Endless ? "E" : "")}";
+            return $"{new string(chars.ToArray())}-{(int)options.Deck}{(int)options.Stake}{(options.Endless ? "E" : "")}{(options.Tutorial ? "T" : "")}";
         }
 
         public static bool TryDecode(string code, out int seed, out RunOptions options)
@@ -175,7 +177,7 @@ namespace HouseEdge.Core
             if (deck < 0 || deck >= Decks.All.Count || stake < 0 || stake >= Stakes.All.Count) return false;
 
             seed = unchecked((int)(uint)value);
-            options = new RunOptions { Deck = (StartingDeck)deck, Stake = (Stake)stake, Endless = parts[1].EndsWith("E") };
+            options = new RunOptions { Deck = (StartingDeck)deck, Stake = (Stake)stake, Endless = parts[1].Contains("E"), Tutorial = parts[1].Contains("T") };
             return true;
         }
 

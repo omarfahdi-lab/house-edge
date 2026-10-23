@@ -172,3 +172,14 @@ Sofia never has one.
   Blackjacks and big hands always get a line; other hands get one 40% of the time, so it stays fun and not noisy.
 - **Run history** (`Run.History`) records each finished table's score and target for the end-of-run graph. A test
   checks that it adds up to `TotalScore`.
+
+## Tutorial
+
+- **Stacked, not simulated.** The first table of a tutorial run draws a scripted top of the shoe (`Tutorial.Script`),
+  pulled out of the player's own deck, with the rest shuffled underneath. The run is still a pure function of its seed
+  and options (`RunOptions.Tutorial`, a `T` in the run code), so replays work.
+- **Order: plain win, Burn, Flush.** The Flush hand scores 330 against an 85 target, so it has to come last or it would
+  end the table before the Burn lesson. Ending on it also makes the point: one combo outscores everything before it.
+- **The coach only lets the pointed-at button through** on the scripted table. That's enforced in the Game layer
+  (`Coach.Allows`), not Core, so Core has no notion of a tutorial beyond the stacked shoe. It can be skipped at any time.
+- **It starts on its own** only for a brand-new profile (no runs, tutorial never finished). Everyone else can start it from the menu.
