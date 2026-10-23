@@ -368,9 +368,10 @@ namespace HouseEdge.Game
             Ui.Rounded(disc, 24);
             disc.style.backgroundColor = open ? new Color(1f, 0.93f, 0.7f) : new Color(0.97f, 0.92f, 0.8f, 0.85f);
             Ui.Border(disc, open || here ? 3 : 2, open ? Ui.Gold : here ? RedInk : ink);
-            if (stop.Kind == RoomKind.Mystery)
+            if (stop.Kind == RoomKind.Mystery || stop.Kind == RoomKind.Slots)
             {
-                var mark = Ui.Title(disc, "?", 28, ink, glow: false);
+                bool slots = stop.Kind == RoomKind.Slots;
+                var mark = Ui.Title(disc, slots ? "7" : "?", 28, slots ? RedInk : ink, glow: false);
                 mark.pickingMode = PickingMode.Ignore;
             }
             else disc.Add(new SuitIcon(StopIcon(stop.Kind), ink, 24));

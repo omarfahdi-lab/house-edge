@@ -48,6 +48,17 @@ namespace HouseEdge.Core
         public ViceDefinition Definition { get; internal set; }
         public string Name => Definition.Name;
 
+        // times it changed a hand's score this run. Vices level up as they trigger
+        public int Triggers { get; internal set; }
+        public int Level => Triggers >= Balance.ViceLevel3At ? 3 : Triggers >= Balance.ViceLevel2At ? 2 : 1;
+        // triggers needed for the next level, or 0 at the top
+        public int NextLevelAt => Level == 1 ? Balance.ViceLevel2At : Level == 2 ? Balance.ViceLevel3At : 0;
+        // what the level adds on top of the Vice's own effect
+        public double LevelBoost => (Level - 1) * Balance.ViceLevelBoost;
+
+        // Bet Spreader: a lost raise costs this many fewer Hands
+        public virtual int RaiseRefund => 0;
+
         // switched off by bosses, Jinx or Heat for a while
         public bool Disabled { get; set; }
         public override bool IsActive => !Disabled;

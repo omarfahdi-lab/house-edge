@@ -71,7 +71,7 @@ namespace HouseEdge.Core
         }
 
         // the longest stretch of ranks in a row, with Aces either low (A-2-3) or high (Q-K-A)
-        private static int LongestRun(List<Card> cards)
+        internal static int LongestRun(List<Card> cards)
         {
             var ranks = new HashSet<int>(cards.Select(c => (int)c.Rank));
             if (ranks.Contains((int)Rank.Ace)) ranks.Add(1);

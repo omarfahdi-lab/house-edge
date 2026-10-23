@@ -62,6 +62,41 @@ namespace HouseEdge.Core
         // deals started at this table, including the current one
         public int DealsPlayed { get; private set; }
 
+        // the bet on the next (or current) deal: x1, x2 or x3. a raised win multiplies Mult,
+        // a lost raise costs extra Hands
+        public int BetLevel { get; private set; } = 1;
+        // extra Hands the last deal's lost raise cost
+        public int RaiseHandsLost { get; private set; }
+
+        // the boss's second phase: once the score is past half the target
+        public bool Raged { get; private set; }
+        public bool RagedThisDeal { get; private set; }
+
+        // how rich the cards still in the shoe are in 10s and Aces, next to your whole deck:
+        // -5 (cold, mostly small cards left) to +5 (hot, lots of 10s and Aces left)
+        public int Count
+        {
+            get
+            {
+                int left = 0, highLeft = 0;
+                foreach (var card in _shoe.DrawPile)
+                {
+                    left++;
+                    if (IsHigh(card)) highLeft++;
+                }
+                int all = Gambler.Deck.Count;
+                if (left == 0 || all == 0) return 0;
+                double expected = Gambler.Deck.Count(IsHigh) / (double)all;
+                double edge = highLeft / (double)left - expected;
+                return Math.Max(-Balance.CountRange, Math.Min(Balance.CountRange, (int)Math.Round(edge * Balance.CountScale)));
+            }
+        }
+
+        private static bool IsHigh(Card card) => !card.IsCursed && (card.IsAce || card.LowValue >= 10);
+
+        // the raise the Raise button would set next: up a step while you have the Hands to cover a loss, then back to x1
+        public int NextBetLevel => BetLevel < Balance.MaxRaise && HandsLeft > BetLevel ? BetLevel + 1 : 1;
+
         // a standalone table with a fresh standard deck, for tests and quick play
         public Table(int seed, long target, IEnumerable<TableEffect> effects = null, int gold = Balance.StartingGold)
             : this(new Gambler(gold), new GameRandom(seed), target, effects)
@@ -174,6 +209,7 @@ namespace HouseEdge.Core
             {
                 case TablePhase.ReadyToDeal:
                     actions.Add(PlayerAction.Deal);
+                    if (NextBetLevel != BetLevel) actions.Add(PlayerAction.Raise);
                     if (!AntedUp) actions.Add(PlayerAction.AnteUp);
                     if (SideBet == SideBet.None)
                         foreach (var bet in SideBets.All)
@@ -221,6 +257,7 @@ namespace HouseEdge.Core
             {
                 case PlayerAction.Deal: Deal(); break;
                 case PlayerAction.AnteUp: AntedUp = true; break;
+                case PlayerAction.Raise: BetLevel = NextBetLevel; break;
                 case PlayerAction.BetPerfectPair:
                 case PlayerAction.Bet21Plus3:
                 case PlayerAction.BetBustIt:
@@ -260,7 +297,7 @@ namespace HouseEdge.Core
             hand.Cards.Count == 2 && !hand.HasActed && _hands.Count <= Balance.MaxSplitsPerHand
             && (Rules.SplitAnyTwo || !hand.Cards[0].IsCursed && hand.Cards[0].Rank == hand.Cards[1].Rank && !hand.Cards[1].IsCursed);
 
-        private bool CanBurn(PlayerHand hand) => hand.LastCardWasHit && BurnsLeft > 0 && !Rules.BurnsDisabled;
+        private bool CanBurn(PlayerHand hand) => hand.LastCardWasHit && (BurnsLeft > 0 || Rules.UnlimitedBurns) && !Rules.BurnsDisabled;
 
         private bool CanSurrender(PlayerHand hand) =>
             _hands.Count == 1 && hand.Cards.Count == 2 && !hand.HasActed && Gambler.CanAfford(Balance.SurrenderCost);
@@ -278,6 +315,8 @@ namespace HouseEdge.Core
 
         private void Deal()
         {
+            // a big raise into a hot shoe is exactly what security watches for
+            if (BetLevel > 1 && Count >= Balance.HotCount) AddHeat(Balance.RaiseHeatWhenHot * (BetLevel - 1));
             ClearTable();
             _announcements.Clear();
             _dealerRedrawUsed = false;
@@ -372,7 +411,7 @@ namespace HouseEdge.Core
         private void Burn(PlayerHand hand)
         {
             Discard(new[] { hand.RemoveLast() });
-            BurnsLeft--;
+            if (!Rules.UnlimitedBurns) BurnsLeft--;
             hand.BurnsUsed++;
             DrawFor(hand);
             foreach (var effect in ActiveEffects()) effect.OnBurn(this, hand);
@@ -382,8 +421,8 @@ namespace HouseEdge.Core
         private void AfterCardTaken(PlayerHand hand)
         {
             var value = hand.Value;
-            // a bust waits for the player while a Burn could still save it
-            bool canStillBurn = value.IsBust && CanBurn(hand);
+            // a bust waits for the player while a Burn (or a Take Back trick) could still save it
+            bool canStillBurn = value.IsBust && (CanBurn(hand) || Gambler.Tricks.Contains(TrickKind.TakeBack));
             bool snakeEyes = _endTurnAfterCard;
             _endTurnAfterCard = false;
             if ((value.IsBust && !canStillBurn) || value.IsCharlie || (snakeEyes && !value.IsBust)) EndHand(hand);
@@ -573,6 +612,29 @@ namespace HouseEdge.Core
                 SideBetResult = new SideBetResult(SideBet.HotHand, anyWin ? 2 : 0, anyWin ? "Hot hand!" : "Cold hand");
                 if (anyWin) Gambler.GainGold(2);
             }
+            // a lost raise costs the extra Hands it put up (Bet Spreader refunds some)
+            RaiseHandsLost = 0;
+            if (BetLevel > 1 && !anyWin && _lastScores.Any(s => s.Outcome == Outcome.Lose || s.Outcome == Outcome.Bust))
+            {
+                int refund = _effects.OfType<Vice>().Where(v => v.IsActive).Sum(v => v.RaiseRefund);
+                RaiseHandsLost = Math.Max(0, BetLevel - 1 - refund);
+                HandsLeft = Math.Max(0, HandsLeft - RaiseHandsLost);
+            }
+
+            // past half the target, the boss shows a second side
+            RagedThisDeal = false;
+            if (!Raged && Score < Target && Score * 2 >= Target)
+            {
+                var boss = _effects.OfType<Boss>().FirstOrDefault(b => b.IsActive && b.RageText != null);
+                if (boss != null)
+                {
+                    Raged = true;
+                    RagedThisDeal = true;
+                    boss.OnRage(this);
+                    Announce(boss.RageText);
+                }
+            }
+
             if (AntedUp && !anyNotLost)
             {
                 AnteLost = true;
@@ -588,7 +650,8 @@ namespace HouseEdge.Core
 
             SideBet = SideBet.None;
             AntedUp = false;
-            HandsLeft--;
+            BetLevel = 1;
+            HandsLeft = Math.Max(0, HandsLeft - 1);
             if (Score >= Target) EndTable(true);
             else if (HandsLeft <= 0) EndTable(false);
             else Phase = TablePhase.ReadyToDeal;
@@ -676,6 +739,7 @@ namespace HouseEdge.Core
                 int streak = System.Math.Min(WinStreak * Balance.StreakMultPerWin, Balance.MaxStreakBonus);
                 score.AddMult(streak);
                 score.Mark(ScoreSource.Streak, $"{WinStreak + 1} wins in a row");
+                score.Feats = Feats.Find(hand);
             }
 
             foreach (var effect in ActiveEffects())
@@ -683,12 +747,15 @@ namespace HouseEdge.Core
                 int chips = score.Chips;
                 double mult = score.Mult;
                 effect.OnHandScored(this, score);
-                if (effect is Vice && (score.Chips != chips || score.Mult != mult)) score.ViceTriggers++;
+                if (effect is Vice vice) Credit(vice, score, chips, mult);
                 MarkEffect(score, effect);
             }
             foreach (var effect in ActiveEffects())
             {
+                int chips = score.Chips;
+                double mult = score.Mult;
                 effect.OnAfterScoring(this, score);
+                if (effect is Vice vice) Credit(vice, score, chips, mult);
                 MarkEffect(score, effect);
             }
 
@@ -697,7 +764,81 @@ namespace HouseEdge.Core
             score.Mark(ScoreSource.Double, "Double Down");
             if (AntedUp && score.ScoresCards) score.MultiplyMult(Balance.AnteUpMult);
             score.Mark(ScoreSource.Ante, "Ante Up");
+            if (BetLevel > 1 && win) score.MultiplyMult(BetLevel);
+            score.Mark(ScoreSource.Raise, $"Raise x{BetLevel}");
+            foreach (var feat in score.Feats)
+            {
+                score.MultiplyMult(Feats.Factor(feat));
+                score.Mark(ScoreSource.Feat, Feats.Name(feat), feat);
+            }
             return score;
+        }
+
+        // a Vice that added to the hand counts a trigger, and a levelled-up Vice adds a share more
+        private static void Credit(Vice vice, HandScore score, int chips, double mult)
+        {
+            int addedChips = score.Chips - chips;
+            double addedMult = score.Mult - mult;
+            if (addedChips <= 0 && addedMult <= 0) return;
+            score.ViceTriggers++;
+            double boost = vice.LevelBoost;
+            if (boost > 0)
+            {
+                if (addedChips > 0) score.AddChips((int)Math.Round(addedChips * boost));
+                if (addedMult > 0) score.AddMult(addedMult * boost);
+            }
+            int level = vice.Level;
+            vice.Triggers++;
+            if (vice.Level > level) score.LevelUps.Add(vice.Name);
+        }
+
+        // trick cards
+
+        public bool CanUseTrick(TrickKind kind)
+        {
+            if (Phase != TablePhase.PlayerTurn) return false;
+            var hand = ActiveHand;
+            return kind switch
+            {
+                TrickKind.Peek => HoleCardHidden,
+                TrickKind.TakeBack => hand.LastCardWasHit && hand.Cards.Count > 2,
+                TrickKind.Steal => !hand.Value.IsBust && DealerUpCard != null,
+                TrickKind.SecondThoughts => !hand.IsDoubled && hand.HasActed && !hand.Value.IsBust,
+                _ => !hand.Value.IsBust,
+            };
+        }
+
+        // the run takes the card out of your hand; this plays it
+        internal void UseTrick(TrickKind kind)
+        {
+            var hand = ActiveHand;
+            switch (kind)
+            {
+                case TrickKind.Peek:
+                    HoleCardHidden = false;
+                    break;
+                case TrickKind.TakeBack:
+                    _shoe.PutBottom(hand.RemoveLast());
+                    hand.LastCardWasHit = false;
+                    break;
+                case TrickKind.Steal:
+                    SwapWithDealerUpCard(hand, hand.Cards.Count - 1);
+                    hand.LastCardWasHit = false;
+                    AfterCardTaken(hand);
+                    break;
+                case TrickKind.SecondThoughts:
+                    hand.IsDoubled = true;
+                    Stand(hand);
+                    break;
+                default:
+                    // it never goes back in the shoe
+                    var ace = new Card(Rank.Ace, Suit.Spades) { Destroyed = true };
+                    hand.Add(ace);
+                    hand.LastCardWasHit = false;
+                    AddHeat(Balance.AceUpSleeveHeat);
+                    AfterCardTaken(hand);
+                    break;
+            }
         }
 
         private static void MarkEffect(HandScore score, TableEffect effect)

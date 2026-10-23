@@ -30,7 +30,7 @@ namespace HouseEdge.Core
             switch (run.Phase)
             {
                 case RunPhase.AtTable:
-                    return CocktailToDrink(run) ?? RunInput.Table(ChooseAction(run.Table, run.Gambler));
+                    return CocktailToDrink(run) ?? TrickToPlay(run) ?? RunInput.Table(ChooseAction(run.Table, run.Gambler));
                 case RunPhase.BossReward:
                     return ChooseReward(run);
                 case RunPhase.Shop:
@@ -50,6 +50,9 @@ namespace HouseEdge.Core
         public static PlayerAction ChooseAction(Table table, Gambler gambler)
         {
             var legal = table.LegalActions();
+            // raise once into a hot shoe, while there are Hands to spare
+            if (legal.Contains(PlayerAction.Raise) && table.BetLevel == 1 && table.Count >= Balance.HotCount && table.HandsLeft >= 4)
+                return PlayerAction.Raise;
             if (legal.Contains(PlayerAction.Deal)) return PlayerAction.Deal;
             if (legal.Contains(PlayerAction.DeclineInsurance)) return PlayerAction.DeclineInsurance;
             if (table.Phase == TablePhase.DealerDecision)
@@ -263,8 +266,23 @@ namespace HouseEdge.Core
                 // an Elite only with a build to back it up
                 RoomKind.Elite => g.Vices.Count >= 4 && g.Gold >= 8 ? 4.5 : 0,
                 RoomKind.Mystery => 2.5,
+                RoomKind.Slots => g.Gold >= 10 ? 1.5 : 0,
                 _ => 0,
             };
+        }
+
+        // only the obvious trick plays: take back a bust, peek at a hidden hole card on a stiff hand
+        private static RunInput? TrickToPlay(Run run)
+        {
+            var hand = run.Table.ActiveHand;
+            if (hand == null) return null;
+            var tricks = run.Gambler.Tricks;
+            int takeBack = tricks.IndexOf(TrickKind.TakeBack);
+            if (hand.Value.IsBust && takeBack >= 0 && run.IsLegal(RunInput.PlayTrick(takeBack))) return RunInput.PlayTrick(takeBack);
+            int peek = tricks.IndexOf(TrickKind.Peek);
+            int total = hand.Value.Total;
+            if (total >= 12 && total <= 16 && peek >= 0 && run.IsLegal(RunInput.PlayTrick(peek))) return RunInput.PlayTrick(peek);
+            return null;
         }
 
         // the best upgraded or stamped high card, or nothing
@@ -295,6 +313,9 @@ namespace HouseEdge.Core
                     return Try(Find(RoomActionKind.TakeLostVice)) ?? RunInput.LeaveRoom();
                 case RoomKind.Bar:
                     return Try(Find(RoomActionKind.FreeCocktail)) ?? RunInput.LeaveRoom();
+                case RoomKind.Slots:
+                    // one pull, if it can spare the gold
+                    return run.Room.Pulls == 0 && run.Gambler.Gold >= 10 ? Try(Find(RoomActionKind.PullSlots)) ?? RunInput.LeaveRoom() : RunInput.LeaveRoom();
                 case RoomKind.SecurityOffice:
                     return run.Gambler.Heat >= 30 ? Try(Find(RoomActionKind.PayOffHeat)) ?? RunInput.LeaveRoom() : RunInput.LeaveRoom();
                 case RoomKind.CardRoom:

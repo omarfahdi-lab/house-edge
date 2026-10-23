@@ -109,6 +109,7 @@ namespace HouseEdge.Core
         public HashSet<string> SeenVices { get; } = new HashSet<string>();
         public HashSet<string> BossesFaced { get; } = new HashSet<string>();
         public int[] CombosWon { get; } = new int[Combos.All.Count];
+        public int[] FeatsHit { get; } = new int[Feats.All.Count];
         public RunPhase Phase { get; private set; }
         public int TablesBeaten { get; private set; }
         public Shop Shop { get; } = new Shop();
@@ -136,12 +137,32 @@ namespace HouseEdge.Core
             Options = options?.Clone() ?? new RunOptions();
             Random = new GameRandom(seed);
             Gambler = new Gambler(Balance.StartingGold, Decks.Build(Options.Deck));
+            ApplyModifier();
+            // everyone starts with one trick card, picked from the seed so the RNG stream is untouched
+            Gambler.Tricks.Add(Tricks.All[(int)((uint)seed % (uint)Tricks.All.Count)]);
             if (Options.Deck == StartingDeck.MarkedDeck) Gambler.AddHeat(Balance.MarkedDeckHeat);
             if (Options.Stake >= Stake.Black)
                 for (int i = 0; i < 2; i++) Gambler.Deck.Add(Card.Cursed(Curse.DeadCard));
             PickFloorBoss();
             BuildMap();
             StartTable();
+        }
+
+        private void ApplyModifier()
+        {
+            switch (Options.Modifier)
+            {
+                case Modifier.WildRoyals:
+                    foreach (var card in Gambler.Deck)
+                        if (card.IsFace) card.Enhancement = Enhancement.Wild;
+                    break;
+                case Modifier.ShortShoe:
+                    Gambler.Deck.RemoveAll(c => !c.IsCursed && c.Rank >= Rank.Two && c.Rank <= Rank.Five);
+                    break;
+                case Modifier.HotNight:
+                    Gambler.HeatMultiplier = 2;
+                    break;
+            }
         }
 
         private void BuildMap() => Map = new FloorMap(Floor, Random, loungeBeforeBoss: !(Floor == Balance.Floors && !BeatTheHouse));
@@ -153,7 +174,8 @@ namespace HouseEdge.Core
             return run;
         }
 
-        public long TargetFor(TableKind stage) => (long)Math.Round(Balance.Target(Floor, stage) * Stakes.TargetFactor(Options.Stake));
+        public long TargetFor(TableKind stage) =>
+            (long)Math.Round(Balance.Target(Floor, stage) * Stakes.TargetFactor(Options.Stake) * Modifiers.TargetFactor(Options.Modifier));
         public long CurrentTarget => Table?.Target ?? TargetFor(Stage);
 
         public int PriceOf(ShopOffer offer) => Priced(offer.BasePrice);
@@ -199,6 +221,9 @@ namespace HouseEdge.Core
                     return Phase == RunPhase.InRoom && CanTakeRoomOption(input);
                 case RunInputKind.LeaveRoom:
                     return Phase == RunPhase.InRoom && !InBackRoomHand;
+                case RunInputKind.PlayTrick:
+                    return Phase == RunPhase.AtTable && !Table.IsOver && InRange(input.Index, Gambler.Tricks.Count)
+                        && Table.CanUseTrick(Gambler.Tricks[input.Index]);
                 case RunInputKind.RepayDebt:
                     return Gambler.Debt > 0 && Gambler.Gold > 0 && (betweenTables || Phase == RunPhase.RoomChoice) && !InBackRoomHand;
                 default:
@@ -217,6 +242,7 @@ namespace HouseEdge.Core
             {
                 OfferKind.Vice => Gambler.HasFreeViceSlot,
                 OfferKind.Cocktail => Gambler.HasFreeCocktailSlot,
+                OfferKind.Trick => Gambler.HasFreeTrickSlot,
                 _ => true,
             };
         }
@@ -304,6 +330,12 @@ namespace HouseEdge.Core
                 case RunInputKind.RepayDebt:
                     Gambler.RepayDebt();
                     break;
+                case RunInputKind.PlayTrick:
+                    var trick = Gambler.Tricks[input.Index];
+                    Gambler.Tricks.RemoveAt(input.Index);
+                    Table.UseTrick(trick);
+                    if (Table.IsOver) FinishTable();
+                    break;
                 case RunInputKind.PickPackCard:
                     Gambler.Deck.Add(_packCards[input.Index]);
                     _packCards.Clear();
@@ -325,6 +357,7 @@ namespace HouseEdge.Core
                 case OfferKind.Vice: Gambler.Vices.Add(offer.Vice.Create()); break;
                 case OfferKind.Cocktail: Gambler.Cocktails.Add(new Cocktail(offer.Cocktail)); break;
                 case OfferKind.Comp: Gambler.LevelUp(offer.Comp); break;
+                case OfferKind.Trick: Gambler.Tricks.Add(offer.Trick); break;
                 case OfferKind.Pack:
                     _packCards.Clear();
                     _packCards.AddRange(Packs.Open(offer.Pack, Random));
@@ -403,6 +436,7 @@ namespace HouseEdge.Core
             if (Boss != null) effects.Add(Boss);
             if (Dealer != null) effects.Add(Dealer);
             effects.Add(new RunRules(Options));
+            if (Options.Modifier != Modifier.None) effects.Add(new ModifierRules(Options.Modifier));
             effects.AddRange(Gambler.Vices);
             effects.Add(new RunStats(this));
 
@@ -483,7 +517,7 @@ namespace HouseEdge.Core
             int perHand = Gambler.Vices.Select(v => v.GoldPerUnusedHand).DefaultIfEmpty(Balance.GoldPerUnusedHand).Max();
             bool redStake = Options.Stake >= Stake.Red && kind == TableKind.Low;
             LastPayout = new TablePayout(
-                redStake ? 0 : Balance.TablePayout(kind),
+                redStake ? 0 : Balance.TablePayout(kind) * Modifiers.PayoutFactor(Options.Modifier),
                 Table.HandsLeft * Math.Max(perHand, Balance.GoldPerUnusedHand),
                 noInterest ? 0 : Balance.Interest(Gambler.Gold, Options.Stake >= Stake.Platinum
                     ? Math.Min(Stakes.PlatinumInterestCap, ArchetypeBonuses.InterestCap(Gambler))
@@ -565,6 +599,8 @@ namespace HouseEdge.Core
             TablesBeaten++;
             EliteResult = null;
             PayOut(TableKind.High);
+            // a win also teaches you a trick
+            if (Gambler.HasFreeTrickSlot) Gambler.Tricks.Add(Tricks.All[Random.Next(Tricks.All.Count)]);
             // a table like any other: the loan grows and Heat cools (half as fast on Purple stake)
             Gambler.GrowDebt();
             Gambler.CoolDown(Options.Stake >= Stake.Purple ? Balance.HeatCooldownPerTable / 2 : Balance.HeatCooldownPerTable);
@@ -640,7 +676,7 @@ namespace HouseEdge.Core
 
         // rooms
 
-        private void EnterRoom(RoomKind kind)
+        internal void EnterRoom(RoomKind kind)
         {
             Room = new Room(kind);
             switch (kind)
@@ -743,6 +779,9 @@ namespace HouseEdge.Core
                         options.Add(new RoomOption(RoomActionKind.EventChoice, choices[i].label,
                             choices[i].cost > 0 ? Priced(choices[i].cost) : choices[i].cost, i));
                     break;
+                case RoomKind.Slots:
+                    options.Add(new RoomOption(RoomActionKind.PullSlots, "Pull the lever", Priced(Balance.SlotPullCost)));
+                    break;
                 case RoomKind.HighLimitLounge:
                     var (floor, stage) = NextStage;
                     options.Add(new RoomOption(RoomActionKind.SkipNextTable, $"Skip the {StageLabel(stage, floor)}"));
@@ -798,6 +837,8 @@ namespace HouseEdge.Core
                     return !Room.Used;
                 case RoomActionKind.EventChoice:
                     return !Room.Used && EventChoiceOpen(Room.Event, option.Arg);
+                case RoomActionKind.PullSlots:
+                    return Room.Pulls < Balance.SlotPulls;
                 default:
                     return false;
             }
@@ -880,6 +921,9 @@ namespace HouseEdge.Core
                     if (option.Cost < 0) Gambler.GainGold(-option.Cost);
                     Room.Result = PlayEvent(Room.Event, option.Arg);
                     break;
+                case RoomActionKind.PullSlots:
+                    Room.Result = PullSlots();
+                    break;
                 case RoomActionKind.SkipNextTable:
                     Room.Used = true;
                     _skipNextTable = true;
@@ -888,12 +932,75 @@ namespace HouseEdge.Core
             }
         }
 
+        // one pull of the slot machine: sets the reels and pays out. returns what to tell the player
+        private string PullSlots()
+        {
+            Room.Pulls++;
+            int roll = Random.Next(1000);
+            if (roll < 5)
+            {
+                Room.Reels = Three(SlotSymbol.Seven);
+                Gambler.GainGold(Balance.SlotJackpot);
+                return $"JACKPOT! 7-7-7 pays {Balance.SlotJackpot} gold!";
+            }
+            if (roll < 40)
+            {
+                Room.Reels = Three(SlotSymbol.Bar);
+                var vice = Gambler.HasFreeViceSlot ? Shop.RollVice(Random, OwnedViceIds(), Rarity.Rare) : null;
+                if (vice == null)
+                {
+                    Gambler.GainGold(15);
+                    return "Bar-Bar-Bar! No room for a Vice, so it pays 15 gold.";
+                }
+                Gambler.Vices.Add(vice.Create());
+                SeenVices.Add(vice.Id);
+                return $"Bar-Bar-Bar! Out drops {vice.Name}.";
+            }
+            if (roll < 120)
+            {
+                Room.Reels = Three(SlotSymbol.Cherry);
+                Gambler.GainGold(12);
+                return "Three cherries: 12 gold.";
+            }
+            if (roll < 260)
+            {
+                Room.Reels = Three(SlotSymbol.Bell);
+                if (!Gambler.HasFreeTrickSlot)
+                {
+                    Gambler.GainGold(6);
+                    return "Three bells! Your hands are full of tricks, so it pays 6 gold.";
+                }
+                var trick = Tricks.All[Random.Next(Tricks.All.Count)];
+                Gambler.Tricks.Add(trick);
+                return $"Three bells! You learn a trick: {Tricks.Name(trick)}.";
+            }
+            if (roll < 450)
+            {
+                var odd = (SlotSymbol)(1 + Random.Next(4));
+                Room.Reels = new[] { SlotSymbol.Cherry, SlotSymbol.Cherry, SlotSymbol.Cherry };
+                Room.Reels[Random.Next(3)] = odd;
+                Gambler.GainGold(5);
+                return "Two cherries: 5 gold.";
+            }
+            // a miss: no three of a kind and at most one cherry
+            var reels = new SlotSymbol[3];
+            do
+            {
+                for (int i = 0; i < 3; i++) reels[i] = (SlotSymbol)Random.Next(5);
+            } while (reels[0] == reels[1] && reels[1] == reels[2] || reels.Count(r => r == SlotSymbol.Cherry) >= 2);
+            Room.Reels = reels;
+            return "Nothing. The machine hums smugly.";
+        }
+
+        private static SlotSymbol[] Three(SlotSymbol symbol) => new[] { symbol, symbol, symbol };
+
         // some choices need room for what they give
         private bool EventChoiceOpen(EventKind kind, int choice) => (kind, choice) switch
         {
             (EventKind.LuckyChip, 0) => Gambler.HasFreeViceSlot,
             (EventKind.BackAlley, 0) => Gambler.HasFreeViceSlot,
             (EventKind.SpilledTray, 0) => Gambler.HasFreeCocktailSlot,
+            (EventKind.Magician, 0) => Gambler.HasFreeTrickSlot,
             (EventKind.Shredder, 0) => Gambler.Deck.Count - 3 >= Balance.MinDeckSize,
             _ => true,
         };
@@ -955,6 +1062,12 @@ namespace HouseEdge.Core
                     }
                     Gambler.AddHeat(25);
                     return "They take a long look at you. Heat +25.";
+                case (EventKind.Magician, 0):
+                    var learned = Tricks.All[Random.Next(Tricks.All.Count)];
+                    Gambler.Tricks.Add(learned);
+                    return $"\"Watch closely.\" You learn {Tricks.Name(learned)}.";
+                case (EventKind.Magician, _):
+                    return "You tip him 2 gold. He pulls a coin from your ear and keeps it.";
                 case (EventKind.CompTicket, 0):
                     var combo = Combos.All[Random.Next(Combos.All.Count)];
                     Gambler.LevelUp(Comps.For(combo));
@@ -978,6 +1091,7 @@ namespace HouseEdge.Core
                     _run.BestHand = Math.Max(_run.BestHand, score.Total);
                     if (score.Outcome == Outcome.Blackjack) _run.BestBlackjackMult = Math.Max(_run.BestBlackjackMult, score.Mult);
                     foreach (var combo in score.Combos) _run.CombosWon[(int)combo]++;
+                    foreach (var feat in score.Feats) _run.FeatsHit[(int)feat]++;
                 }
             }
         }

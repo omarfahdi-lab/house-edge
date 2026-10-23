@@ -28,6 +28,8 @@ namespace HouseEdge.Core
         // keep card Index from the pack you just opened, or none
         PickPackCard,
         SkipPack,
+        // play the trick card in slot Index at the current hand
+        PlayTrick,
     }
 
     // one player input in a run. a run is its seed plus a list of these
@@ -64,6 +66,7 @@ namespace HouseEdge.Core
         public static RunInput RepayDebt() => new RunInput(RunInputKind.RepayDebt);
         public static RunInput PickPackCard(int index) => new RunInput(RunInputKind.PickPackCard, index: index);
         public static RunInput SkipPack() => new RunInput(RunInputKind.SkipPack);
+        public static RunInput PlayTrick(int slot) => new RunInput(RunInputKind.PlayTrick, index: slot);
 
         // deck cards picked for a Cocktail, in order
         public IEnumerable<int> CardTargets()

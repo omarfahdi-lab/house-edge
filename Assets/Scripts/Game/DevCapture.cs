@@ -128,7 +128,7 @@ namespace HouseEdge.Game
         private static void Step(GameBootstrap game, string step)
         {
             var parts = step.Split(':');
-            int index = parts.Length > 1 ? int.Parse(parts[1]) : 0;
+            int index = parts.Length > 1 && int.TryParse(parts[1], out int n) ? n : 0;
             switch (parts[0])
             {
                 case "Buy": game.TryApply(RunInput.Buy(index)); break;
@@ -158,6 +158,16 @@ namespace HouseEdge.Game
                         game.TryApply(bossBot.Choose(game.Run));
                     break;
                 case "Door": game.TryApply(RunInput.ChooseRoom(index)); break;
+                case "Stop":
+                    // walk to the first stop of a kind, e.g. Stop:Slots
+                    var stops = game.Run.NextStops;
+                    for (int i = 0; i < stops.Count; i++)
+                        if (stops[i].Kind.ToString() == parts[1])
+                        {
+                            game.TryApply(RunInput.ChooseRoom(i));
+                            break;
+                        }
+                    break;
                 case "Room": game.TryApply(RunInput.RoomOption(index)); break;
                 case "Out": game.TryApply(RunInput.LeaveRoom()); break;
                 case "Drink": game.TryApply(RunInput.UseCocktail(index)); break;

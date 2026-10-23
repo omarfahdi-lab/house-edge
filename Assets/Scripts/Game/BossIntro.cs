@@ -10,7 +10,7 @@ namespace HouseEdge.Game
     {
         private readonly VisualElement _root, _frame, _card, _tipBox, _portraitSlot;
         private readonly Sunburst _rays;
-        private readonly Label _kind, _name, _title, _quote, _ability, _rule, _tip;
+        private readonly Label _kind, _name, _title, _quote, _ability, _rule, _tip, _rage;
         private string _quoteText = "";
         private int _typed;
 
@@ -67,6 +67,7 @@ namespace HouseEdge.Game
             Ui.Caption(abilityHead, "ABILITY", new Color(1f, 0.75f, 0.7f));
             _ability = Ui.Text(abilityHead, "", 22, Ui.Cream, Weight.Heavy);
             _rule = Ui.Body(_card, "", 18, Ui.Cream);
+            _rage = Ui.Body(_card, "", 14, new Color(1f, 0.75f, 0.7f));
 
             _tipBox = Ui.Glass(right, 4, radius: 12);
             Ui.Padding(_tipBox, 10, 16);
@@ -107,6 +108,9 @@ namespace HouseEdge.Game
             _quote.text = "";
             _ability.text = boss.Ability;
             _rule.text = Ui.Rich(boss.Twist);
+            string rage = boss.Rage;
+            _rage.text = rage != null ? Ui.Rich("PHASE TWO, past half the target: " + rage) : "";
+            Ui.Show(_rage, rage != null);
             _tip.text = Ui.Rich(boss.Tip);
 
             Ui.Show(_root, true);

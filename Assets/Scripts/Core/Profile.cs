@@ -23,6 +23,8 @@ namespace HouseEdge.Core
         private readonly HashSet<string> _seenVices = new HashSet<string>();
         private readonly HashSet<string> _bossesFaced = new HashSet<string>();
         private readonly long[] _combos = new long[Combos.All.Count];
+        private readonly long[] _feats = new long[Feats.All.Count];
+        public long FeatsHit(Feat feat) => _feats[(int)feat];
         private readonly HashSet<string> _unlockedVices = new HashSet<string>();
 
         public bool HasSeen(ViceDefinition vice) => _seenVices.Contains(vice.Id);
@@ -60,6 +62,7 @@ namespace HouseEdge.Core
             _seenVices.UnionWith(run.Gambler.Vices.Select(v => v.Definition.Id));
             _bossesFaced.UnionWith(run.BossesFaced);
             for (int i = 0; i < _combos.Length; i++) _combos[i] += run.CombosWon[i];
+            for (int i = 0; i < _feats.Length; i++) _feats[i] += run.FeatsHit[i];
             foreach (var (id, _, earned) in ViceUnlocks)
             {
                 if (_unlockedVices.Contains(id) || !earned(this)) continue;
@@ -106,6 +109,7 @@ namespace HouseEdge.Core
             text.Append("seen=").Append(string.Join(",", _seenVices.OrderBy(v => v, StringComparer.Ordinal))).Append('\n');
             text.Append("bosses=").Append(string.Join(",", _bossesFaced.OrderBy(b => b, StringComparer.Ordinal))).Append('\n');
             text.Append("combos=").Append(string.Join(",", _combos.Select(c => c.ToString(CultureInfo.InvariantCulture)))).Append('\n');
+            text.Append("feats=").Append(string.Join(",", _feats.Select(c => c.ToString(CultureInfo.InvariantCulture)))).Append('\n');
             text.Append("vices=").Append(string.Join(",", _unlockedVices.OrderBy(v => v, StringComparer.Ordinal))).Append('\n');
             return text.ToString();
         }
@@ -142,6 +146,11 @@ namespace HouseEdge.Core
                         var counts = value.Split(',');
                         for (int i = 0; i < Math.Min(counts.Length, profile._combos.Length); i++)
                             if (long.TryParse(counts[i], NumberStyles.Integer, CultureInfo.InvariantCulture, out long c)) profile._combos[i] = c;
+                        break;
+                    case "feats":
+                        var feats = value.Split(',');
+                        for (int i = 0; i < Math.Min(feats.Length, profile._feats.Length); i++)
+                            if (long.TryParse(feats[i], NumberStyles.Integer, CultureInfo.InvariantCulture, out long made)) profile._feats[i] = made;
                         break;
                 }
             }

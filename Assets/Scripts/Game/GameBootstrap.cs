@@ -94,6 +94,7 @@ namespace HouseEdge.Game
             _feedback.PopCard = _table.PopCard;
             _feedback.CardAnchor = _table.CardCenter;
             _feedback.HandIndex = _table.HandIndex;
+            _feedback.Raged = _table.Enrage;
             _feedback.ViceRow = _hud.FocusVice;
             _feedback.ActOut = () =>
             {
@@ -125,6 +126,7 @@ namespace HouseEdge.Game
             Tooltip.Create(root);
 
             _table.ActionChosen += action => TryApply(RunInput.Table(action));
+            _table.TrickChosen += slot => TryApply(RunInput.PlayTrick(slot));
             _shop.InputChosen += TryApply;
             _hud.InputChosen += TryApply;
             _hud.CocktailClicked += UseCocktail;
@@ -139,7 +141,8 @@ namespace HouseEdge.Game
             _runOver.MenuClicked += OpenMenu;
             _runOver.ReplayClicked += StartReplay;
             _menu.StartClicked += StartRun;
-            _menu.DailyClicked += () => StartRun(Saves.DailySeed(), new RunOptions { Daily = true });
+            // the Daily Run's twist comes from the date's seed, so everyone gets the same one
+            _menu.DailyClicked += () => StartRun(Saves.DailySeed(), new RunOptions { Daily = true, Modifier = Modifiers.ForSeed(Saves.DailySeed()) });
             _menu.ResumeClicked += () => _menu.Close();
             _menu.AbandonClicked += OpenMenuAfterAbandon;
 
@@ -480,6 +483,12 @@ namespace HouseEdge.Game
                 if (keyboard.digit1Key.wasPressedThisFrame) TryApply(RunInput.ChooseRoom(0));
                 if (keyboard.digit2Key.wasPressedThisFrame) TryApply(RunInput.ChooseRoom(1));
                 if (keyboard.digit3Key.wasPressedThisFrame) TryApply(RunInput.ChooseRoom(2));
+            }
+            if (keyboard.xKey.wasPressedThisFrame) TryTable(PlayerAction.Raise);
+            if (Run.Phase == RunPhase.AtTable && Run.Table.Phase == TablePhase.PlayerTurn)
+            {
+                if (keyboard.digit1Key.wasPressedThisFrame) TryApply(RunInput.PlayTrick(0));
+                if (keyboard.digit2Key.wasPressedThisFrame) TryApply(RunInput.PlayTrick(1));
             }
             if (keyboard.dKey.wasPressedThisFrame) TryTable(PlayerAction.DoubleDown);
             if (keyboard.pKey.wasPressedThisFrame) TryTable(PlayerAction.Split);

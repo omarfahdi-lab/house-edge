@@ -538,4 +538,51 @@ namespace HouseEdge.Game
             p.Fill();
         }
     }
+    // the count by the shoe: a row of segments from cold blue to hot red, and the number
+    public sealed class CountMeter : VisualElement
+    {
+        private readonly Label _label;
+        private readonly VisualElement[] _segments = new VisualElement[2 * Balance.CountRange + 1];
+        private int _shown = int.MinValue;
+
+        public CountMeter()
+        {
+            style.alignItems = Align.Center;
+            style.marginTop = 6;
+            _label = Ui.Text(this, "", 11, Ui.Cream, Weight.Heavy);
+            var row = Ui.Row(this, 2);
+            for (int i = 0; i < _segments.Length; i++)
+            {
+                var segment = new VisualElement();
+                segment.style.width = 5;
+                segment.style.height = i == Balance.CountRange ? 12 : 9;
+                Ui.Rounded(segment, 1.5f);
+                Ui.Add(row, segment);
+                _segments[i] = segment;
+            }
+        }
+
+        public static Color ColorOf(int count) => count >= Balance.HotCount ? new Color(1f, 0.42f, 0.25f)
+            : count > 0 ? new Color(1f, 0.75f, 0.35f)
+            : count < 0 ? new Color(0.45f, 0.7f, 1f)
+            : Ui.Cream;
+
+        public static string WordFor(int count) => count >= Balance.HotCount ? "HOT" : count > 0 ? "WARM" : count <= -Balance.HotCount ? "ICE" : count < 0 ? "COLD" : "EVEN";
+
+        public void Set(int count)
+        {
+            if (count == _shown) return;
+            bool changed = _shown != int.MinValue;
+            _shown = count;
+            _label.text = $"COUNT {(count > 0 ? "+" : "")}{count}  {WordFor(count)}";
+            _label.style.color = ColorOf(count);
+            for (int i = 0; i < _segments.Length; i++)
+            {
+                int value = i - Balance.CountRange;
+                bool lit = count > 0 ? value > 0 && value <= count : count < 0 ? value < 0 && value >= count : value == 0;
+                _segments[i].style.backgroundColor = lit ? ColorOf(value == 0 ? 0 : value) : new Color(1, 1, 1, 0.12f);
+            }
+            if (changed && !Settings.ReducedMotion) Ui.Pop(_label, 1.25f);
+        }
+    }
 }

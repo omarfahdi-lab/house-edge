@@ -86,6 +86,29 @@ namespace HouseEdge.Core
             return roll < 95 ? Rarity.Uncommon : Rarity.Rare;
         }
 
+        // the count and raising: a raise multiplies a win's Mult, and a lost raise costs extra Hands.
+        // raising while the count is hot (3 or more) draws security's eye
+        public const int MaxRaise = 3;
+        public const int CountRange = 5;
+        public const int CountScale = 30;
+        public const int HotCount = 3;
+        public const int RaiseHeatWhenHot = 4;
+
+        // Vices level up as they trigger: +25% of what they add at level 2, +50% at level 3
+        public const int ViceLevel2At = 12;
+        public const int ViceLevel3At = 30;
+        public const double ViceLevelBoost = 0.25;
+
+        // trick cards: one-use plays in the middle of a hand
+        public const int TrickSlots = 2;
+        public const int TrickPrice = 3;
+        public const int AceUpSleeveHeat = 8;
+
+        // the slot machine room
+        public const int SlotPullCost = 4;
+        public const int SlotPulls = 3;
+        public const int SlotJackpot = 50;
+
         // consumables and Comps
         public const int CocktailSlots = 2;
         public const int CocktailPrice = 3;

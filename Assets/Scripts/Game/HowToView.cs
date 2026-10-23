@@ -9,7 +9,7 @@ namespace HouseEdge.Game
     // how to play, one short page at a time
     public sealed class HowToView
     {
-        private static readonly string[] Pages = { "The goal", "Blackjack", "Scoring", "Combos", "Your deck", "Vices & the shop", "Heat", "The bosses", "Controls" };
+        private static readonly string[] Pages = { "The goal", "Blackjack", "Scoring", "Combos", "Count, raises & tricks", "Your deck", "Vices & the shop", "Heat", "The bosses", "Controls" };
 
         private readonly VisualElement _root, _tabs, _page;
         private int _current;
@@ -84,10 +84,11 @@ namespace HouseEdge.Game
                 case 1: Blackjack(); break;
                 case 2: Scoring(); break;
                 case 3: ComboList(); break;
-                case 4: Deck(); break;
-                case 5: Vices(); break;
-                case 6: Heat(); break;
-                case 7: BossList(); break;
+                case 4: Edge(); break;
+                case 5: Deck(); break;
+                case 6: Vices(); break;
+                case 7: Heat(); break;
+                case 8: BossList(); break;
                 default: Controls(); break;
             }
             // no theme stylesheet: keep the page's rows from squashing each other
@@ -173,6 +174,22 @@ namespace HouseEdge.Game
             Ui.Text(box, name, 9, new Color(1, 1, 1, 0.8f), Weight.Heavy).style.letterSpacing = 2;
         }
 
+        private void Edge()
+        {
+            Heading("Read the shoe, raise the bet");
+            Para("THE COUNT, under the shoe, tells you how rich the cards still to come are in 10s and Aces, compared with your whole deck. HOT (+3 and up) means blackjacks and dealer busts are coming. COLD means small cards.");
+            Para($"RAISE (X) before a deal to bet x2 or x3. A winning hand's Mult is multiplied by the bet. Lose and the raise costs extra Hands: 1 at x2, 2 at x3. Raise when the count is hot, but security notices: raising into a +{Balance.HotCount} count adds Heat.");
+            Para($"TRICKS are one-use cards you play mid-hand from the panel on the left of the table (or keys 1 and 2). You hold {Balance.TrickSlots}, and start each run with one. Find more in shops, by winning Elite tables, at slot machines and from the Magician.");
+            var tricks = Ui.Column(_page, 3);
+            foreach (var kind in Tricks.All)
+            {
+                var row = Ui.Row(tricks, 10);
+                Ui.Text(row, Tricks.Name(kind), 14, new Color(0.55f, 0.85f, 1f), Weight.Bold).style.width = 150;
+                Ui.Body(row, Tricks.Describe(kind), 13, Ui.Cream).style.flexShrink = 1;
+            }
+            Para("FEATS are rare named hands, like The Black Jack (Ace of Spades and a black Jack) or a Six-Card Charlie. A winning Feat multiplies the whole hand's Mult and goes in your collection.");
+        }
+
         private void Deck()
         {
             Heading("You play with your own deck");
@@ -197,6 +214,7 @@ namespace HouseEdge.Game
         {
             Heading("Vices break the rules");
             Para("Vices are passive items you buy in the shop. You hold 5. They trigger top to bottom, so put +Mult before x Mult. Sell or reorder them in the sidebar between tables.");
+            Para($"Vices LEVEL UP as they trigger: level 2 after {Balance.ViceLevel2At} triggers adds {Balance.ViceLevelBoost:P0} to what they give, level 3 after {Balance.ViceLevel3At} adds {2 * Balance.ViceLevelBoost:P0}. The stars on each Vice show its level, so the Vices you keep get stronger.");
             Para("Each Vice has a type. Hold 3 of one type for its set bonus:");
             foreach (Archetype archetype in Enum.GetValues(typeof(Archetype)))
             {
@@ -280,6 +298,8 @@ namespace HouseEdge.Game
                 ("B / R", "Burn / Surrender"),
                 ("I / N", "Take / decline insurance"),
                 ("W", "Swap with the dealer (Card Mechanic Vice)"),
+                ("X", "Raise the bet before a deal"),
+                ("1 / 2", "Play a trick card during your turn"),
                 ("1 / 2 / 3", "Pick the next stop on the map"),
                 ("Tab", "Look at the map"),
                 ("M", "Mute"),

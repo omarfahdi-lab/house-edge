@@ -5,7 +5,7 @@ namespace HouseEdge.Core
 {
     // Shop is a stop on the map like the rooms, but it opens the shop instead of a room
     // Elite is an optional hard table, Mystery a random event
-    public enum RoomKind { Bar, BackRoom, PawnShop, LoanShark, CardRoom, LostAndFound, SecurityOffice, HighLimitLounge, Shop, Elite, Mystery }
+    public enum RoomKind { Bar, BackRoom, PawnShop, LoanShark, CardRoom, LostAndFound, SecurityOffice, HighLimitLounge, Shop, Elite, Mystery, Slots }
 
     public enum RoomActionKind
     {
@@ -19,7 +19,10 @@ namespace HouseEdge.Core
         SkipNextTable,
         // a "?" event: Arg is which choice
         EventChoice,
+        PullSlots,
     }
+
+    public enum SlotSymbol { Cherry, Bell, Bar, Seven, Lemon }
 
     // one thing you can do in a room. Arg is the cocktail, loan amount or Vice slot it's about
     public readonly struct RoomOption
@@ -46,7 +49,7 @@ namespace HouseEdge.Core
         public static readonly IReadOnlyList<RoomKind> All = new[]
         {
             RoomKind.Bar, RoomKind.BackRoom, RoomKind.PawnShop, RoomKind.LoanShark, RoomKind.CardRoom,
-            RoomKind.LostAndFound, RoomKind.SecurityOffice, RoomKind.HighLimitLounge, RoomKind.Elite, RoomKind.Mystery,
+            RoomKind.LostAndFound, RoomKind.SecurityOffice, RoomKind.HighLimitLounge, RoomKind.Elite, RoomKind.Mystery, RoomKind.Slots,
         };
 
         public static string Name(RoomKind room) => room switch
@@ -61,6 +64,7 @@ namespace HouseEdge.Core
             RoomKind.Shop => "Shop",
             RoomKind.Elite => "Elite Table",
             RoomKind.Mystery => "?",
+            RoomKind.Slots => "Slot Machine",
             _ => "High Limit Lounge",
         };
 
@@ -76,6 +80,7 @@ namespace HouseEdge.Core
             RoomKind.Shop => "Buy Vices, Cocktails, Comps and card packs.",
             RoomKind.Elite => "An optional table under a Pit Boss's rule, with fewer Hands. Win: pick a Rare Vice. Lose: you keep going, but lose half your gold.",
             RoomKind.Mystery => "Something happens. A stranger, a chance, a choice.",
+            RoomKind.Slots => $"Pull the lever for {Balance.SlotPullCost} gold, up to {Balance.SlotPulls} times. Cherries pay gold, Bells give a Trick, Bars a Rare Vice, and 7-7-7 is the {Balance.SlotJackpot} gold jackpot.",
             _ => "Skip the next table entirely, but the table after it has a 1.5x target.",
         };
     }
@@ -96,6 +101,9 @@ namespace HouseEdge.Core
         public Table BackRoomTable { get; internal set; }
         // a "?" stop: what happened
         public EventKind Event { get; internal set; }
+        // the slot machine: pulls so far and the last reels
+        public int Pulls { get; internal set; }
+        public SlotSymbol[] Reels { get; internal set; }
 
         // a one-time choice (free drink, loan, card service, free Vice, bribe, back room hand, skip) was made
         public bool Used { get; internal set; }

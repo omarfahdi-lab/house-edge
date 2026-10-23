@@ -27,6 +27,9 @@ namespace HouseEdge.Core
             _create = create;
         }
 
+        // what the boss does once you're past half the target (null if nothing)
+        public string Rage => _create().RageText;
+
         public Boss Create()
         {
             var boss = _create();
@@ -43,6 +46,10 @@ namespace HouseEdge.Core
         public BossDefinition Definition { get; internal set; }
         public string Name => Definition.Name;
         public virtual double TargetFactor => 1;
+
+        // the second phase: what the boss says and does once you're past half the target
+        public virtual string RageText => null;
+        public virtual void OnRage(Table table) { }
     }
 
     public static class Bosses
@@ -126,12 +133,16 @@ namespace HouseEdge.Core
     {
         public override double TargetFactor => 0.75;
         public override void OnTableStart(Table table) => table.Rules.DealerPlaysTwoHands = true;
+        public override string RageText => "Getting serious now. Both of us draw to 18.";
+        public override void OnRage(Table table) => table.Rules.DealerStandsOn = 18;
     }
 
     public sealed class TheIceman : Boss
     {
         public override double TargetFactor => 1.15;
         public override void OnTableStart(Table table) => table.Rules.DealerStandsOn = 15;
+        public override string RageText => "Deep freeze. Your Burns are frozen solid.";
+        public override void OnRage(Table table) => table.Rules.BurnsDisabled = true;
 
         public override void OnDealEnd(Table table)
         {
@@ -143,18 +154,24 @@ namespace HouseEdge.Core
     public sealed class TheCheat : Boss
     {
         public override void OnTableStart(Table table) => table.Rules.DealerRedrawsFirstBust = true;
+        public override string RageText => "Fine, no more Mr. Nice Cheat. Ties go to me.";
+        public override void OnRage(Table table) => table.Rules.Pushes = PushRule.DealerWins;
     }
 
     public sealed class TheMime : Boss
     {
         public override double TargetFactor => 1.4;
         public override void OnTableStart(Table table) => table.Rules.SecondCardFaceDown = true;
+        public override string RageText => "(mimes pulling a rope) The dealer now hits soft 17.";
+        public override void OnRage(Table table) => table.Rules.DealerHitsSoft17 = true;
     }
 
     public sealed class TheTaxman : Boss
     {
         public override double TargetFactor => 1.15;
         public override void OnTableStart(Table table) => table.Rules.HitCost = Balance.TaxmanHitCost;
+        public override string RageText => "Audit time. The toll doubles.";
+        public override void OnRage(Table table) => table.Rules.HitCost = Balance.TaxmanHitCost * 2;
         public override void OnHit(Table table, PlayerHand hand) => table.Announce($"Takes {Balance.TaxmanHitCost} gold for that card.");
     }
 
@@ -162,6 +179,8 @@ namespace HouseEdge.Core
     {
         public override double TargetFactor => 1.35;
         public override void OnTableStart(Table table) => table.Rules.AcesAlwaysOne = true;
+        public override string RageText => "Enough vulgarity. Ties go to the house.";
+        public override void OnRage(Table table) => table.Rules.Pushes = PushRule.DealerWins;
 
         public override void OnDeal(Table table)
         {
@@ -173,12 +192,16 @@ namespace HouseEdge.Core
     {
         public override double TargetFactor => 0.6;
         public override void OnTableStart(Table table) => table.Rules.PlayerBustLimit = 19;
+        public override string RageText => "The roof is low and so is my patience. Ties go to the house.";
+        public override void OnRage(Table table) => table.Rules.Pushes = PushRule.DealerWins;
     }
 
     public sealed class TheSweeper : Boss
     {
         public override double TargetFactor => 1.15;
         public override void OnTableStart(Table table) => table.Rules.BurnsDisabled = true;
+        public override string RageText => "Sweeps a Hand right off the felt.";
+        public override void OnRage(Table table) => table.AddHands(-1);
     }
 
     public sealed class TheSilencer : Boss
@@ -191,11 +214,21 @@ namespace HouseEdge.Core
             leftmost.Disabled = true;
             table.Announce($"Silences your {leftmost.Name}.");
         }
+
+        public override string RageText => "Shh. Your next Vice goes quiet too.";
+
+        public override void OnRage(Table table)
+        {
+            var next = table.Gambler.Vices.FirstOrDefault(v => !v.Disabled);
+            if (next != null) next.Disabled = true;
+        }
     }
 
     public sealed class TheCardMechanic : Boss
     {
         public override double TargetFactor => 0.8;
+        public override string RageText => "Gloves off. The dealer draws to 18.";
+        public override void OnRage(Table table) => table.Rules.DealerStandsOn = 18;
         public override void OnStand(Table table, PlayerHand hand)
         {
             int highest = 0;
@@ -216,16 +249,28 @@ namespace HouseEdge.Core
             for (int i = 0; i < 3; i++) table.ShuffleIntoShoe(Card.Cursed(Curse.DeadCard), addToDeck: true);
             table.Announce("Slips 3 Dead Cards into your deck.");
         }
+
+        public override string RageText => "Found more junk. 3 more Dead Cards go in the shoe.";
+
+        public override void OnRage(Table table)
+        {
+            for (int i = 0; i < 3; i++) table.ShuffleIntoShoe(Card.Cursed(Curse.DeadCard), addToDeck: false);
+        }
     }
 
     public sealed class ThePitBoss : Boss
     {
         public override double TargetFactor => 1.4;
+        private int _heat = Balance.PitBossHeatPerHand;
+
         public override void OnDeal(Table table)
         {
-            table.AddHeat(Balance.PitBossHeatPerHand);
-            table.Announce($"+{Balance.PitBossHeatPerHand} Heat. He's watching.");
+            table.AddHeat(_heat);
+            table.Announce($"+{_heat} Heat. He's watching.");
         }
+
+        public override string RageText => "Calls in more cameras. Heat per hand doubles.";
+        public override void OnRage(Table table) => _heat *= 2;
     }
 
     public sealed class TheEyeInTheSky : Boss
@@ -237,10 +282,17 @@ namespace HouseEdge.Core
             foreach (var vice in table.Gambler.Vices)
                 if (vice.Definition.IsCheater) vice.Disabled = true;
         }
+
+        public override string RageText => "Another camera turns your way. You lose a Hand.";
+        public override void OnRage(Table table) => table.AddHands(-1);
     }
 
     public sealed class TheEnforcer : Boss
     {
+        private int _take = Balance.EnforcerTake;
+        public override string RageText => "Cracks his knuckles. He takes more now.";
+        public override void OnRage(Table table) => _take += 2;
+
         public override void OnDealEnd(Table table)
         {
             foreach (var score in table.LastScores)
@@ -248,8 +300,8 @@ namespace HouseEdge.Core
                 if (score.Outcome.IsWin()) continue;
                 if (table.Gambler.Gold > 0)
                 {
-                    table.Gambler.LoseGold(Balance.EnforcerTake);
-                    table.Announce($"Takes {Balance.EnforcerTake} gold.");
+                    table.Gambler.LoseGold(_take);
+                    table.Announce($"Takes {_take} gold.");
                 }
                 else
                 {

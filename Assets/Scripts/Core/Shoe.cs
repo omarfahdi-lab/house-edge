@@ -18,6 +18,8 @@ namespace HouseEdge.Core
         }
 
         public int Count => _drawPile.Count;
+        // the cards still to come, for the count. the order isn't exposed
+        internal IEnumerable<Card> DrawPile => _drawPile;
         public int DiscardCount => _discards.Count;
 
         public static List<Card> StandardDeck()

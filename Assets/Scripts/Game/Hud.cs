@@ -214,7 +214,7 @@ namespace HouseEdge.Game
 
             _hands.text = table.HandsLeft.ToString();
             _hands.style.color = table.HandsLeft <= 1 ? Ui.Bad : Ui.Cream;
-            _burns.text = table.Rules.BurnsDisabled ? "-" : table.BurnsLeft.ToString();
+            _burns.text = table.Rules.BurnsDisabled ? "-" : table.Rules.UnlimitedBurns ? "∞" : table.BurnsLeft.ToString();
             _goldCounter.Set(gambler.Gold);
 
             var level = gambler.HeatLevel;
@@ -326,8 +326,13 @@ namespace HouseEdge.Game
                 : run.ActiveTable != run.Table ? "IN THE BACK ROOM"
                 : run.Stage == TableKind.Boss && run.Boss != null && run.Phase == RunPhase.AtTable && run.Boss.Name != null ? $"vs {run.Boss.Name}"
                 : null;
+            // the Daily Run's twist, when nothing more urgent needs the line
+            bool twist = special == null && run.Options.Modifier != Modifier.None;
+            if (twist) special = (run.Options.Daily ? "DAILY: " : "TWIST: ") + Modifiers.Name(run.Options.Modifier).ToUpperInvariant();
             _special.text = special ?? "";
+            _special.style.color = twist ? Ui.Gold : Ui.Bad;
             Ui.Show(_special, special != null);
+            Ui.Tip(_special, twist ? Modifiers.Name(run.Options.Modifier) : "", twist ? Modifiers.Describe(run.Options.Modifier) : "");
         }
 
         private VisualElement CocktailChip(Run run, int index)
@@ -405,6 +410,14 @@ namespace HouseEdge.Game
             else if (vice.Status != null) Ui.Pill(top, vice.Status, Ui.Gold, size: 9);
             Ui.Body(row, definition.Description, 11, Ui.Dim);
 
+            // its level: a star per level, and how close the next one is
+            var levelRow = Ui.Row(row, 3);
+            for (int i = 0; i < 3; i++)
+                Ui.Add(levelRow, new SuitIcon(SuitIcon.Shape.Star, i < vice.Level ? Ui.Gold : new Color(1, 1, 1, 0.15f), 10));
+            var progress = Ui.Text(levelRow, vice.NextLevelAt > 0 ? $"LV{vice.Level}  ·  {vice.Triggers}/{vice.NextLevelAt}" : "LV3  ·  MAX", 9,
+                vice.Level > 1 ? Ui.Gold : Ui.Dim, Weight.Bold);
+            progress.style.marginLeft = 3;
+
             if (between)
             {
                 var buttons = Ui.Row(row, 4);
@@ -417,6 +430,8 @@ namespace HouseEdge.Game
             Ui.Tip(row, vice.Name,
                 $"{definition.Rarity} · {definition.Archetype}\n{definition.Description}" +
                 (vice.Disabled ? "\nSwitched off right now." : "") +
+                $"\nLevel {vice.Level}: " + (vice.Level > 1 ? $"its effect is {vice.LevelBoost:P0} stronger. " : "") +
+                (vice.NextLevelAt > 0 ? $"Triggered {vice.Triggers} times; levels up at {vice.NextLevelAt}." : "Max level.") +
                 $"\nTriggers {Ordinal(index + 1)}. Hold 3 {definition.Archetype} Vices for: {ArchetypeBonuses.Describe(definition.Archetype)}");
             return row;
         }

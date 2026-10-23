@@ -64,6 +64,12 @@ namespace HouseEdge.Game
         public Vector2 PlayerCenter => _playerHands.worldBound.center;
 
         public event Action<PlayerAction> ActionChosen;
+        // a trick card's slot was clicked
+        public event Action<int> TrickChosen;
+
+        private readonly CountMeter _count;
+        private readonly VisualElement _tricks, _trickCards;
+        private readonly Button _raise;
         // a card just landed on the felt, for the sound
         public event Action CardLanded;
 
@@ -107,7 +113,23 @@ namespace HouseEdge.Game
             _shoe.Add(stack);
             FillShoe();
             _shoeCount = Ui.Caption(_shoe, "");
-            Ui.Tip(_shoe, "The shoe", "Your deck, shuffled at the start of each table. You AND the dealer draw from it, so the cards you add change what the dealer gets too.");
+            Ui.Tip(stack, "The shoe", "Your deck, shuffled at the start of each table. You AND the dealer draw from it, so the cards you add change what the dealer gets too.");
+            _count = new CountMeter();
+            _shoe.Add(_count);
+            Ui.Tip(_count, "The count",
+                "How rich the cards left in the shoe are in 10s and Aces, compared with your whole deck.\n" +
+                "HOT (right): more blackjacks and dealer busts coming, a good time to Raise.\n" +
+                $"COLD (left): small cards coming. Raising into a count of +{Balance.HotCount} or more draws Heat.");
+
+            // trick cards, played in the middle of a hand
+            _tricks = Ui.Column(_root, 6);
+            _tricks.style.position = Position.Absolute;
+            _tricks.style.left = 22;
+            _tricks.style.bottom = 150;
+            _tricks.style.width = 150;
+            var tricksHead = Ui.Caption(_tricks, "TRICKS", new Color(0.55f, 0.85f, 1f));
+            Ui.Tip(tricksHead, "Trick cards", $"One-use plays for the middle of a hand: peek, steal, take a card back. You hold up to {Balance.TrickSlots}. Find them in shops, Elite wins, slot machines and the Magician.");
+            _trickCards = Ui.Column(_tricks, 6);
 
             // who you're playing: the dealer or the Pit Boss
             // a boss's portrait sits on the left of the plate
@@ -220,6 +242,13 @@ namespace HouseEdge.Game
             var ante = SmallButton(_bets, "Ante Up  x2", () => ActionChosen?.Invoke(PlayerAction.AnteUp));
             Ui.Tip(ante, "Ante Up", "This hand scores x2. If you don't at least push, you also lose 3 gold.");
             _betButtons[PlayerAction.AnteUp] = ante;
+            _raise = Ui.Button(_bets, "Raise", () => ActionChosen?.Invoke(PlayerAction.Raise), ButtonKind.Gold, "X");
+            _raise.style.height = 30;
+            Ui.Padding(_raise, 0, 10);
+            _raise.Q<Label>().style.fontSize = 13;
+            Ui.Tip(_raise, "Raise your bet",
+                "x2 or x3: a winning hand's Mult is multiplied by the bet. Lose the hand and the raise costs that many extra Hands (1 at x2, 2 at x3).\n" +
+                "Watch the count by the shoe: raise when it's hot.");
 
             // actions
             var actions = Ui.Row(_root, 8);
@@ -349,6 +378,8 @@ namespace HouseEdge.Game
             }
             _cursor = 0;
             _shoeCount.text = $"{table.CardsInShoe} LEFT";
+            _count.Set(table.Count);
+            RefreshTricks(run, table);
             RefreshPlate(run);
             if (run.Boss == null || table != run.Table) Ui.Show(_bubble, false);
             // your cards first, then the dealer plays
@@ -410,6 +441,12 @@ namespace HouseEdge.Game
                 string twist = definition.Twist;
                 if (run.Boss is TheHouse house && house.CurrentTwist != null)
                     twist = $"Now playing as {house.CurrentTwist.Name} ({house.CurrentTwist.Definition.Ability}): {house.CurrentTwist.Definition.Twist}";
+                // past half the target the boss's second phase is on too
+                if (run.Table.Raged && run.Boss.RageText != null)
+                {
+                    _plateTag.text = "PHASE TWO  ·  " + _plateTag.text;
+                    twist += "\n" + Ui.Colored("Phase two: " + run.Boss.RageText, Ui.Bad);
+                }
                 _plateText.text = Ui.Rich(twist);
                 Ui.Tip(_plate, $"{run.Boss.Name}: {definition.Ability}", $"{twist}\nHow to beat them: {definition.Tip}");
                 return;
@@ -655,6 +692,8 @@ namespace HouseEdge.Game
                 if (table.SideBetResult is SideBetResult bet)
                     lines.Add($"{SideBets.Name(bet.Bet)}: {bet.Label}" + (bet.Won ? "  " + Ui.Colored($"+{bet.Payout}g", Ui.Gold) : ""));
                 if (table.AnteLost) lines.Add(Ui.Colored($"Ante lost: -{Balance.AnteUpLoss}g", Ui.Bad));
+                if (table.RaiseHandsLost > 0) lines.Add(Ui.Colored($"Lost the raise: -{table.RaiseHandsLost} Hand{(table.RaiseHandsLost == 1 ? "" : "s")}", Ui.Bad));
+                foreach (var feat in table.LastScores.SelectMany(s => s.Feats)) lines.Add(Ui.Colored($"{Feats.Name(feat)}! x{Feats.Factor(feat):0.#} Mult", Ui.Cocktail));
                 breakdown = string.Join("\n", lines);
             }
             _message.text = message;
@@ -679,6 +718,13 @@ namespace HouseEdge.Game
                 _resultPending = false;
                 _message.parent.style.opacity = 1;
             }
+        }
+
+        // the boss's second phase: the nameplate shakes and stays red-hot
+        public void Enrage()
+        {
+            Shake(_plate, 0);
+            Ui.Pop(_plateFace, 1.35f);
         }
 
         // a speech bubble from the boss, with their portrait giving a little jolt
@@ -920,12 +966,46 @@ namespace HouseEdge.Game
             var ante = _betButtons[PlayerAction.AnteUp];
             Ui.Show(ante, !table.AntedUp);
             Ui.SetEnabled(ante, legal.Contains(PlayerAction.AnteUp));
+
+            if (table.BetLevel > 1) placed += (placed.Length > 0 ? "  +  " : "") + $"RAISED x{table.BetLevel}";
+            _betPlaced.text = placed;
+            Ui.Show(_betPlaced, placed.Length > 0);
+            int next = table.NextBetLevel;
+            Ui.SetText(_raise, next > table.BetLevel ? $"Raise to x{next}" : "Back to x1");
+            Ui.Show(_raise, legal.Contains(PlayerAction.Raise));
+            Ui.Paint(_raise, next > table.BetLevel ? ButtonKind.Gold : ButtonKind.Ghost);
+        }
+
+        // the trick cards you hold, lit up when they can be played right now
+        private void RefreshTricks(Run run, Table table)
+        {
+            var tricks = run.Gambler.Tricks;
+            bool show = tricks.Count > 0 && table == run.Table && run.Phase == RunPhase.AtTable && !table.IsOver;
+            Ui.Show(_tricks, show);
+            if (!show) return;
+            _trickCards.Clear();
+            for (int i = 0; i < tricks.Count; i++)
+            {
+                int slot = i;
+                var kind = tricks[i];
+                bool usable = run.IsLegal(RunInput.PlayTrick(i));
+                var card = Ui.Button(_trickCards, Tricks.Name(kind), () => TrickChosen?.Invoke(slot), ButtonKind.Normal, (i + 1).ToString());
+                card.style.height = 40;
+                card.style.width = 150;
+                Ui.Padding(card, 0, 8);
+                card.style.backgroundImage = Ui.Gradient(new Color(0.14f, 0.36f, 0.56f), new Color(0.05f, 0.14f, 0.26f));
+                Ui.BorderColor(card, usable ? new Color(0.55f, 0.85f, 1f) : new Color(1, 1, 1, 0.15f));
+                card.Q<Label>().style.fontSize = 13;
+                card.Q<Label>().style.whiteSpace = WhiteSpace.Normal;
+                Ui.SetEnabled(card, usable);
+                Ui.Tip(card, Tricks.Name(kind), Tricks.Describe(kind) + (usable ? "\nClick (or press " + (i + 1) + ") to play it now." : "\nNot usable right now: play it during your turn."));
+            }
         }
 
         private static string Headline(HandScore score) => score.Outcome switch
         {
             Outcome.Blackjack => "BLACKJACK!",
-            Outcome.Charlie => "FIVE-CARD CHARLIE!",
+            Outcome.Charlie => score.Hand.Cards.Count switch { 4 => "FOUR-CARD CHARLIE!", 5 => "FIVE-CARD CHARLIE!", 6 => "SIX-CARD CHARLIE!", _ => "CHARLIE!" },
             Outcome.TwentyOne => "TWENTY-ONE!",
             Outcome.Win => score.DealerBusted ? "DEALER BUSTS!" : "YOU WIN",
             Outcome.Push => "PUSH",

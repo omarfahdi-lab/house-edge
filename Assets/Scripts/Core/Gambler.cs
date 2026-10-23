@@ -21,6 +21,12 @@ namespace HouseEdge.Core
         public int CocktailSlots { get; set; } = Balance.CocktailSlots;
         public bool HasFreeCocktailSlot => Cocktails.Count < CocktailSlots;
 
+        public List<TrickKind> Tricks { get; } = new List<TrickKind>();
+        public bool HasFreeTrickSlot => Tricks.Count < Balance.TrickSlots;
+
+        // a Daily modifier can make all Heat count double
+        public double HeatMultiplier { get; set; } = 1;
+
         // how suspicious the casino is, 0 to 100
         public int Heat { get; private set; }
 
@@ -60,6 +66,7 @@ namespace HouseEdge.Core
             foreach (var vice in Vices)
                 if (!vice.Disabled) factor *= vice.HeatFactor;
             factor *= ArchetypeBonuses.HeatFactor(this);
+            factor *= HeatMultiplier;
             int gained = (int)Math.Round(amount * factor, MidpointRounding.AwayFromZero);
             int before = Heat;
             Heat = Math.Min(Balance.MaxHeat, Heat + gained);

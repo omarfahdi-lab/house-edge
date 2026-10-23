@@ -13,6 +13,9 @@ namespace HouseEdge.Core
         public PushRule Pushes = PushRule.Push;
 
         public bool BurnsDisabled;
+        // Bottomless Burns: Burns never run out
+        public bool UnlimitedBurns;
+        public int CharlieCards = Balance.CharlieCards;
         public int HitCost;
         public bool SplitAnyTwo;
         public bool DoubleAfterHit;
@@ -44,6 +47,8 @@ namespace HouseEdge.Core
             AcesAlwaysOne = other.AcesAlwaysOne;
             Pushes = other.Pushes;
             BurnsDisabled = other.BurnsDisabled;
+            UnlimitedBurns = other.UnlimitedBurns;
+            CharlieCards = other.CharlieCards;
             HitCost = other.HitCost;
             SplitAnyTwo = other.SplitAnyTwo;
             DoubleAfterHit = other.DoubleAfterHit;

@@ -12,7 +12,7 @@ namespace HouseEdge.Core
 
         public HandValue Value => _rescuedAs21
             ? HandValue.Forced(Balance.BustLimit, _cards.Count)
-            : HandValue.Of(_cards, _rules.PlayerBustLimit, _rules.AcesAlwaysOne);
+            : HandValue.Of(_cards, _rules.PlayerBustLimit, _rules.AcesAlwaysOne, _rules.CharlieCards);
 
         public bool IsFromSplit { get; internal set; }
         public bool IsDoubled { get; internal set; }

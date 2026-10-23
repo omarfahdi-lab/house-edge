@@ -88,6 +88,8 @@ namespace HouseEdge.Game
         public Func<PlayerHand, int> HandIndex;
         public Func<object, VisualElement> ViceRow;
         public Action CommitScore, ActOut;
+        // the boss just went into their second phase
+        public Action Raged;
 
         // where coins burst from when you're paid: the gold counter in the sidebar, in world space
         public Func<Vector2> GoldAnchor;
@@ -226,6 +228,15 @@ namespace HouseEdge.Game
                     if (GoldAnchor != null) _particles.Coins(_root.WorldToLocal(GoldAnchor()), Mathf.Clamp(goldGained, 3, 18), 260);
                 }
                 if (goldGained < 0 && before.Phase != RunPhase.AtTable) Play(_chip);
+                // past half the target, the boss gets angry
+                if (scored && table.RagedThisDeal && run.Boss != null)
+                {
+                    Banner("PHASE TWO", run.Boss.RageText, Ui.Bad);
+                    BossSting();
+                    _shake = 0.35f;
+                    Flash(new Color(0.7f, 0.05f, 0.05f), 0.8f, 0.18f);
+                    Raged?.Invoke();
+                }
                 if (run.AtEyeInTheSky && !before.Eye || run.Gambler.Heat >= Balance.MaxHeat && before.Heat < Balance.MaxHeat)
                 {
                     Play(_alarm);
@@ -300,6 +311,20 @@ namespace HouseEdge.Game
                 t += 0.55f;
                 Schedule(t, () => HidePopup(false));
                 t += 0.2f;
+                // a Vice that just levelled up gets its moment
+                foreach (var name in shown.LevelUps)
+                {
+                    var vice = run.Gambler.Vices.FirstOrDefault(v => v.Name == name);
+                    int level = vice?.Level ?? 2;
+                    Schedule(t, () =>
+                    {
+                        Banner($"{name.ToUpperInvariant()}  LEVEL {level}", $"Its effect is now {(level - 1) * Balance.ViceLevelBoost:P0} stronger", Ui.Gold);
+                        Play(_cleared);
+                        if (vice != null && ViceRow?.Invoke(vice) is VisualElement row && row.panel != null)
+                            _particles.Burst(_root.WorldToLocal(row.worldBound).center, 30, 300);
+                    });
+                    t += 1.1f;
+                }
             }
 
             // then the cards act out the result and the pot slides across
@@ -445,6 +470,21 @@ namespace HouseEdge.Game
             if (step.Multiplied) parts.Add(Ui.Colored($"×{step.Factor:0.##} Mult", Ui.Mult));
             else if (step.MultAdded != 0) parts.Add(Ui.Colored($"{(step.MultAdded > 0 ? "+" : "")}{step.MultAdded:0.##} Mult", Ui.Mult));
             if (parts.Count == 0) return;
+
+            // rare hands get the fanfare
+            if (step.Kind == ScoreSource.Feat)
+            {
+                Banner(step.Name.ToUpperInvariant() + "!", string.Join("  ", parts), Ui.Gold);
+                Play(_fanfare, steady: true);
+                _particles.Burst(new Vector2(TableCenterX, 250), 80, 700);
+                Flash(new Color(0.98f, 0.79f, 0.32f), 0.5f, 0.16f);
+                return;
+            }
+            if (step.Kind == ScoreSource.Raise)
+            {
+                Banner("THE RAISE PAYS!", string.Join("  ", parts), Ui.Gold);
+                return;
+            }
 
             // combos and streaks get a big banner in the middle of the table
             if (step.Kind == ScoreSource.Combo || step.Kind == ScoreSource.Streak)

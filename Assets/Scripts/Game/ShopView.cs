@@ -49,8 +49,8 @@ namespace HouseEdge.Game
             _extrasSection = Ui.Column(_root, 8);
             _extrasSection.style.alignItems = Align.Center;
             var extrasHead = Ui.Row(_extrasSection, 10);
-            Ui.Caption(extrasHead, "DRINKS & COMPS", Ui.Gold);
-            Ui.Text(extrasHead, "Cocktails are one-use. Comps permanently boost one kind of win.", 12, Ui.Dim);
+            Ui.Caption(extrasHead, "DRINKS, COMPS & TRICKS", Ui.Gold);
+            Ui.Text(extrasHead, "Cocktails and Tricks are one-use. Comps permanently boost one kind of win.", 12, Ui.Dim);
             _extras = Ui.Row(_extrasSection, 12);
             _extras.style.alignItems = Align.FlexStart;
 
@@ -206,13 +206,16 @@ namespace HouseEdge.Game
             }
             else
             {
-                width = 176;
+                width = 168;
                 bool cocktail = offer.Kind == OfferKind.Cocktail;
                 bool pack = offer.Kind == OfferKind.Pack;
-                card = SmallCard(pack ? "CARD PACK" : cocktail ? "COCKTAIL" : "COMP", offer.Name, offer.Description,
-                    pack ? Ui.Gold : cocktail ? Ui.Cocktail : Ui.Chips, width,
-                    pack ? SuitIcon.Shape.Cards : cocktail ? SuitIcon.Shape.Glass : SuitIcon.Shape.Star);
-                if (pack) Ui.Tip(card, offer.Name, offer.Description + "\nOpen it and keep one of its 3 cards for your deck. Great for building Flushes and Pairs.");
+                bool trick = offer.Kind == OfferKind.Trick;
+                var trickColor = new Color(0.55f, 0.85f, 1f);
+                card = SmallCard(trick ? "TRICK" : pack ? "CARD PACK" : cocktail ? "COCKTAIL" : "COMP", offer.Name, offer.Description,
+                    trick ? trickColor : pack ? Ui.Gold : cocktail ? Ui.Cocktail : Ui.Chips, width,
+                    trick ? SuitIcon.Shape.Spade : pack ? SuitIcon.Shape.Cards : cocktail ? SuitIcon.Shape.Glass : SuitIcon.Shape.Star);
+                if (trick) Ui.Tip(card, offer.Name, offer.Description + $"\nPlay it in the middle of a hand from the table's Tricks panel. You hold up to {Balance.TrickSlots}.");
+                else if (pack) Ui.Tip(card, offer.Name, offer.Description + "\nOpen it and keep one of its 3 cards for your deck. Great for building Flushes and Pairs.");
                 else if (cocktail) Ui.Tip(card, offer.Name, offer.Description + "\nDrink it from the sidebar when you want.");
                 else
                 {
@@ -243,6 +246,7 @@ namespace HouseEdge.Game
             string label = offer.Sold ? "Sold"
                 : offer.Kind == OfferKind.Vice && !_run.Gambler.HasFreeViceSlot ? "Slots full"
                 : offer.Kind == OfferKind.Cocktail && !_run.Gambler.HasFreeCocktailSlot ? "Slots full"
+                : offer.Kind == OfferKind.Trick && !_run.Gambler.HasFreeTrickSlot ? "Hands full"
                 : !legal && _run.Gambler.Gold < price ? $"Need {price}g"
                 : $"Buy  ·  {price}g";
             var buy = Ui.Button(column, label, () => InputChosen?.Invoke(input), legal ? ButtonKind.Gold : ButtonKind.Normal);

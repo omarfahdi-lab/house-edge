@@ -31,6 +31,9 @@ namespace HouseEdge.Core
 
         // how many Vices changed this score
         public int ViceTriggers { get; internal set; }
+        // Vices that reached a new level on this hand, and rare hands it made
+        public List<string> LevelUps { get; } = new List<string>();
+        public IReadOnlyList<Feat> Feats { get; internal set; } = new List<Feat>();
 
         public void AddChips(int chips) => Chips += chips;
         public void AddMult(double mult) => Mult += mult;
@@ -62,7 +65,7 @@ namespace HouseEdge.Core
         public override string ToString() => $"{Outcome.Label()}: {Chips} Chips x {Mult:0.##} Mult = {Total}";
     }
 
-    public enum ScoreSource { Hand, Bonus, Combo, Streak, Card, Comp, Boss, Dealer, Rule, Vice, Double, Ante }
+    public enum ScoreSource { Hand, Bonus, Combo, Streak, Card, Comp, Boss, Dealer, Rule, Vice, Double, Ante, Raise, Feat }
 
     // one beat of scoring: who changed the hand and how
     public readonly struct ScoreStep

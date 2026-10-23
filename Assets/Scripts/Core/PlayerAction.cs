@@ -26,6 +26,9 @@ namespace HouseEdge.Core
         // Cold Read and The Dealer Vices: you decide the dealer's next card
         LetDealerDraw,
         StopDealer,
+
+        // before the deal: raise the bet one step (x2, x3), and back to x1 after the top
+        Raise,
     }
 
     public enum TablePhase

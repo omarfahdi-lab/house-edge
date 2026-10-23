@@ -25,14 +25,15 @@ namespace HouseEdge.Tests
         [Test]
         public void TheCatalog_HasEveryViceFromTheDesign()
         {
-            // 22 common, 26 uncommon, 19 rare, 7 legendary, 4 cursed (the 8 suit and combo Vices brought it from 70 to 78)
-            Assert.That(ViceCatalog.All.Count, Is.EqualTo(78));
-            Assert.That(ViceCatalog.OfRarity(Rarity.Common).Count(), Is.EqualTo(22));
-            Assert.That(ViceCatalog.OfRarity(Rarity.Uncommon).Count(), Is.EqualTo(26));
-            Assert.That(ViceCatalog.OfRarity(Rarity.Rare).Count(), Is.EqualTo(19));
-            Assert.That(ViceCatalog.OfRarity(Rarity.Legendary).Count(), Is.EqualTo(7));
+            // 23 common, 27 uncommon, 20 rare, 10 legendary, 4 cursed (the suit and combo Vices brought it from 70 to 78,
+            // the count Vices and the rule-breaking Legendaries to 84)
+            Assert.That(ViceCatalog.All.Count, Is.EqualTo(84));
+            Assert.That(ViceCatalog.OfRarity(Rarity.Common).Count(), Is.EqualTo(23));
+            Assert.That(ViceCatalog.OfRarity(Rarity.Uncommon).Count(), Is.EqualTo(27));
+            Assert.That(ViceCatalog.OfRarity(Rarity.Rare).Count(), Is.EqualTo(20));
+            Assert.That(ViceCatalog.OfRarity(Rarity.Legendary).Count(), Is.EqualTo(10));
             Assert.That(ViceCatalog.OfRarity(Rarity.Cursed).Count(), Is.EqualTo(4));
-            Assert.That(ViceCatalog.All.Select(v => v.Id).Distinct().Count(), Is.EqualTo(78));
+            Assert.That(ViceCatalog.All.Select(v => v.Id).Distinct().Count(), Is.EqualTo(84));
         }
 
         [Test]
@@ -218,8 +219,8 @@ namespace HouseEdge.Tests
 
             var three = With(V("Lucky Sevens"), "7", "9", "7", "8", "7");
             Play(three, Deal, Hit, Stand);
-            // a 21's x2 + Three of a Kind's +3, then x7
-            Assert.That(Score(three).Mult, Is.EqualTo((2 + 3) * 7));
+            // a 21's x2 + Three of a Kind's +3, then x7, then the Triple Sevens Feat's x3
+            Assert.That(Score(three).Mult, Is.EqualTo((2 + 3) * 7 * 3));
         }
 
         [Test]

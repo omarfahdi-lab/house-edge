@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace HouseEdge.Core
 {
-    public enum OfferKind { Vice, Cocktail, Comp, Pack }
+    public enum OfferKind { Vice, Cocktail, Comp, Pack, Trick }
 
     public sealed class ShopOffer
     {
@@ -13,12 +13,14 @@ namespace HouseEdge.Core
         public CocktailKind Cocktail { get; }
         public Comp Comp { get; }
         public PackKind Pack { get; }
+        public TrickKind Trick { get; }
         // before Heat. see Run.PriceOf
         public int BasePrice { get; }
         public bool Sold { get; internal set; }
 
-        private ShopOffer(OfferKind kind, int basePrice, ViceDefinition vice = null, CocktailKind cocktail = default, Comp comp = default, PackKind pack = default)
+        private ShopOffer(OfferKind kind, int basePrice, ViceDefinition vice = null, CocktailKind cocktail = default, Comp comp = default, PackKind pack = default, TrickKind trick = default)
         {
+            Trick = trick;
             Pack = pack;
             Kind = kind;
             BasePrice = basePrice;
@@ -31,12 +33,14 @@ namespace HouseEdge.Core
         public static ShopOffer ForCocktail(CocktailKind cocktail) => new ShopOffer(OfferKind.Cocktail, Balance.CocktailPrice, cocktail: cocktail);
         public static ShopOffer ForComp(Comp comp) => new ShopOffer(OfferKind.Comp, Balance.CompPrice, comp: comp);
         public static ShopOffer ForPack(PackKind pack) => new ShopOffer(OfferKind.Pack, Packs.Price(pack), pack: pack);
+        public static ShopOffer ForTrick(TrickKind trick) => new ShopOffer(OfferKind.Trick, Balance.TrickPrice, trick: trick);
 
         public string Name => Kind switch
         {
             OfferKind.Vice => Vice.Name,
             OfferKind.Cocktail => Cocktails.Name(Cocktail),
             OfferKind.Pack => Packs.Name(Pack),
+            OfferKind.Trick => Tricks.Name(Trick),
             _ => Comps.Name(Comp) + " Comp",
         };
 
@@ -45,6 +49,7 @@ namespace HouseEdge.Core
             OfferKind.Vice => Vice.Description,
             OfferKind.Cocktail => Cocktails.Describe(Cocktail),
             OfferKind.Pack => Packs.Describe(Pack),
+            OfferKind.Trick => Tricks.Describe(Trick),
             _ => Comps.Describe(Comp),
         };
     }
@@ -86,6 +91,7 @@ namespace HouseEdge.Core
                 _offers.Add(ShopOffer.ForComp(Comps.All[random.Next(Comps.All.Count)]));
             for (int i = 0; i < Balance.ShopPackOffers; i++)
                 _offers.Add(ShopOffer.ForPack(Packs.All[random.Next(Packs.All.Count)]));
+            _offers.Add(ShopOffer.ForTrick(Tricks.All[random.Next(Tricks.All.Count)]));
         }
 
         internal void Rerolled() => RerollCost++;

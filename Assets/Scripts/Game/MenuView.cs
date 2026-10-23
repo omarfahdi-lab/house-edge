@@ -77,7 +77,9 @@ namespace HouseEdge.Game
             _resume = MenuButton(left, "Resume", () => ResumeClicked?.Invoke(), ButtonKind.Gold, "Esc");
             _newRun = MenuButton(left, "New run", NewRun, ButtonKind.Gold, "Space");
             var daily = MenuButton(left, "Daily Run", () => DailyClicked?.Invoke(), ButtonKind.Primary);
-            Ui.Tip(daily, "Daily Run", "Everyone gets the same seed today: same shops, same cards, same bosses. Standard deck, White Chip.");
+            var twist = Modifiers.ForSeed(Saves.DailySeed());
+            Ui.Tip(daily, $"Daily Run  ·  today: {Modifiers.Name(twist)}",
+                $"Everyone gets the same seed today: same shops, same cards, same bosses. Standard deck, White Chip.\nToday's twist, {Modifiers.Name(twist)}: {Modifiers.Describe(twist)}");
             // two smaller buttons side by side
             var pair = Ui.Row(left, 10);
             var howTo = MenuButton(pair, "How to play", () => _howTo.Open(), ButtonKind.Normal);

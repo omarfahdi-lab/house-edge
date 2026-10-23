@@ -20,6 +20,8 @@ namespace HouseEdge.Core
         public bool Daily;
         // the guided first run: the first table's opening hands are stacked to teach the game
         public bool Tutorial;
+        // a twist on the whole run (the Daily Run's changes every day)
+        public Modifier Modifier = Modifier.None;
         // Vices this player hasn't unlocked yet: they never show up in this run
         public List<string> LockedVices = new List<string>();
 
@@ -153,7 +155,7 @@ namespace HouseEdge.Core
                 value /= (uint)Digits.Length;
             } while (value > 0);
             chars.Reverse();
-            return $"{new string(chars.ToArray())}-{(int)options.Deck}{(int)options.Stake}{(options.Endless ? "E" : "")}{(options.Tutorial ? "T" : "")}";
+            return $"{new string(chars.ToArray())}-{(int)options.Deck}{(int)options.Stake}{(options.Endless ? "E" : "")}{(options.Tutorial ? "T" : "")}{(options.Modifier != Modifier.None ? "M" + (int)options.Modifier : "")}";
         }
 
         public static bool TryDecode(string code, out int seed, out RunOptions options)
@@ -178,6 +180,14 @@ namespace HouseEdge.Core
 
             seed = unchecked((int)(uint)value);
             options = new RunOptions { Deck = (StartingDeck)deck, Stake = (Stake)stake, Endless = parts[1].Contains("E"), Tutorial = parts[1].Contains("T") };
+            int m = parts[1].IndexOf('M');
+            if (m >= 0)
+            {
+                if (m + 1 >= parts[1].Length) return false;
+                int modifier = parts[1][m + 1] - '0';
+                if (modifier <= 0 || modifier >= Modifiers.All.Count) return false;
+                options.Modifier = (Modifier)modifier;
+            }
             return true;
         }
 

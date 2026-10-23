@@ -183,3 +183,25 @@ Sofia never has one.
 - **The coach only lets the pointed-at button through** on the scripted table. That's enforced in the Game layer
   (`Coach.Allows`), not Core, so Core has no notion of a tutorial beyond the stacked shoe. It can be skipped at any time.
 - **It starts on its own** only for a brand-new profile (no runs, tutorial never finished). Everyone else can start it from the menu.
+
+## Depth: the count, raises, tricks, levels, Feats, boss phases, slots, Daily twists
+
+- **The count is relative to your own deck.** A Hi-Lo count assumes a standard deck, but here the deck is yours
+  (Short Deck has no small cards at all). `Table.Count` compares the share of 10s and Aces left in the shoe with the
+  share in your whole deck, scaled to -5..+5. The hole card isn't in the shoe, so the count never leaks it.
+- **Raising costs Hands, not gold.** Gold is already the shop economy; Hands are the table's real resource, so a
+  lost x2 raise costs 1 extra Hand and x3 costs 2. You can only raise as far as your Hands cover. Raising into a
+  count of +3 or more adds Heat, which ties counting to the casino-security theme.
+- **Tricks are separate from Cocktails.** Cocktails change your deck between tables; Tricks act inside a hand.
+  Everyone starts with one, picked from the seed's value so the RNG stream (and every existing seed's run) is unchanged.
+  Take Back keeps a bust open even with no Burns left, otherwise it could never be played on the bust it's for.
+- **Vice levels are generic.** Rather than 84 hand-written upgrades, `Table.Credit` counts a trigger whenever a Vice
+  adds Chips or Mult and adds 25% (level 2, 12 triggers) or 50% (level 3, 30 triggers) of what it added. Penalties
+  (Knife's Edge's x0.5) are never boosted.
+- **Feats multiply at the very end**, after Double Down, Ante Up and the raise, so a Feat is always a visible jump.
+- **Boss second phases** fire once, when a deal ends with the score past half the target. Each one tightens the boss's
+  own theme. The Ceiling's first draft (bust over 18) dropped it to 77% beaten in the sim, so it makes ties go to the
+  house instead (79%). The House already changes every 2 hands and has no second phase.
+- **Balance after all of it:** the bot (which raises into hot shoes and plays the obvious tricks) wins 9.6% and 9.3%
+  of White Chip runs on two seed ranges, against about 10% before. The player gets stronger, the bosses fight back.
+- **Daily twists** come from the Daily seed, so everyone gets the same one, and they ride in the run code as `M<n>`.

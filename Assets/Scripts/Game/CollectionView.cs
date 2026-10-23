@@ -8,7 +8,7 @@ namespace HouseEdge.Game
     // everything you've found across runs: Vices, bosses and combos, with what's still locked
     public sealed class CollectionView
     {
-        private static readonly string[] Tabs = { "Vices", "Bosses", "Combos" };
+        private static readonly string[] Tabs = { "Vices", "Bosses", "Combos", "Feats" };
 
         private readonly VisualElement _root, _tabs, _page;
         private readonly Label _progress;
@@ -68,12 +68,14 @@ namespace HouseEdge.Game
             int seen = ViceCatalog.All.Count(v => _profile.HasSeen(v));
             var bosses = Bosses.PitBosses.Concat(new[] { Bosses.TheHouse, Bosses.EyeInTheSky, Bosses.Enforcer }).ToList();
             int faced = bosses.Count(b => _profile.HasFaced(b.Name));
-            _progress.text = $"Vices found {seen}/{ViceCatalog.All.Count}   ·   Bosses faced {faced}/{bosses.Count}   ·   Combos won {Combos.All.Sum(c => _profile.CombosWon(c)):N0}";
+            int feats = Feats.All.Count(f => _profile.FeatsHit(f) > 0);
+            _progress.text = $"Vices found {seen}/{ViceCatalog.All.Count}   ·   Bosses faced {faced}/{bosses.Count}   ·   Combos won {Combos.All.Sum(c => _profile.CombosWon(c)):N0}   ·   Feats {feats}/{Feats.All.Count}";
 
             _page.Clear();
             if (tab == 0) foreach (var vice in ViceCatalog.All) _page.Add(ViceTile(vice));
             else if (tab == 1) foreach (var boss in bosses) _page.Add(BossTile(boss));
-            else foreach (var combo in Combos.All) _page.Add(ComboTile(combo));
+            else if (tab == 2) foreach (var combo in Combos.All) _page.Add(ComboTile(combo));
+            else foreach (var feat in Feats.All) _page.Add(FeatTile(feat));
             int n = 0;
             foreach (var child in _page.Children()) Ui.Enter(child, 14, 12 * n++, 0.25f);
         }
@@ -133,8 +135,29 @@ namespace HouseEdge.Game
             {
                 Ui.Pill(tile, boss.Ability.ToUpperInvariant(), Ui.Bad, size: 10);
                 Ui.Body(tile, boss.Twist, 12, Ui.Cream, center: true);
+                if (boss.Rage != null) Ui.Body(tile, "Phase two: " + boss.Rage, 11, new Color(1f, 0.7f, 0.65f), center: true);
             }
             else Ui.Text(tile, "Not faced yet", 12, Ui.Dim);
+            return tile;
+        }
+
+        // rare named hands: hidden until you've made one
+        private VisualElement FeatTile(Feat feat)
+        {
+            long hit = _profile.FeatsHit(feat);
+            var tile = Ui.Column(null, 4);
+            tile.style.width = 220;
+            Ui.Padding(tile, 12, 14);
+            Ui.Margin(tile, 6);
+            tile.style.backgroundColor = Ui.Panel;
+            Ui.Rounded(tile, 12);
+            Ui.Border(tile, 1, hit > 0 ? Ui.Gold : new Color(1, 1, 1, 0.08f));
+            var head = Ui.Row(tile, 6);
+            Ui.Add(head, new SuitIcon(hit > 0 ? SuitIcon.Shape.Crown : SuitIcon.Shape.Lock, hit > 0 ? Ui.Gold : Ui.Dim, 16));
+            Ui.Text(head, Feats.Name(feat), 15, hit > 0 ? Ui.Gold : Ui.Cream, Weight.Heavy);
+            Ui.Body(tile, Feats.Describe(feat), 13, Ui.Cream);
+            Ui.Text(tile, $"x{Feats.Factor(feat):0.#} Mult on a winning hand", 12, Ui.Mult, Weight.Bold);
+            Ui.Text(tile, hit > 0 ? $"Made it {hit:N0} times" : "Not made yet", 12, hit > 0 ? Ui.Good : Ui.Dim, Weight.Medium);
             return tile;
         }
 

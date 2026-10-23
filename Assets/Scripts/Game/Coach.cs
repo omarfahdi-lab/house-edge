@@ -80,7 +80,9 @@ namespace HouseEdge.Game
         // the scripted table only takes the button the coach is pointing at
         public bool Allows(Run run, RunInput input)
         {
-            if (!Active(run) || !run.IsTutorialTable || input.Kind != RunInputKind.Table) return true;
+            if (!Active(run) || !run.IsTutorialTable) return true;
+            if (input.Kind == RunInputKind.PlayTrick) return false;
+            if (input.Kind != RunInputKind.Table) return true;
             var step = StepFor(run);
             return step?.Action == null || step.Value.Action == input.Action;
         }

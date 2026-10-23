@@ -33,6 +33,7 @@ namespace HouseEdge.Core
             V("Clover Club", Rarity.Common, Archetype.Lucky, "Each Club in a winning hand gives +3 Mult.", () => new CloverClub()),
             V("Heartbreaker", Rarity.Common, Archetype.Steady, "Each Heart in a winning hand gives +15 Chips.", () => new Heartbreaker()),
             V("Card Tricks", Rarity.Common, Archetype.Combo, "+3 Mult for every combo your winning hand makes.", () => new CardTricks()),
+            V("Cold Deck", Rarity.Common, Archetype.Steady, "+30 Chips on a win while the count is -2 or colder.", () => new ColdDeck()),
             V("Matchmaker", Rarity.Common, Archetype.Lucky, "Pair: +4 Mult. Two Pair: +8 Mult. Three of a Kind: +12 Mult.", () => new Matchmaker()),
 
             V("Card Counter", Rarity.Uncommon, Archetype.Cheater, "Always see the next card in the deck. +2 Heat per hand.", () => new CardCounter()),
@@ -62,6 +63,9 @@ namespace HouseEdge.Core
             V("Straight Shooter", Rarity.Uncommon, Archetype.Combo, "Winning hands with a Run get x2 Mult.", () => new StraightShooter()),
             V("Court Jester", Rarity.Uncommon, Archetype.Risky, "Winning hands with a Royal Court get x3 Mult.", () => new CourtJester()),
 
+            V("Hi-Lo", Rarity.Uncommon, Archetype.Cheater, "+3 Mult on a win for each point the count is above 0.", () => new HiLo()),
+
+            V("Bet Spreader", Rarity.Rare, Archetype.Risky, "Raised wins get x1.5 Mult, and a lost raise costs 1 fewer Hand.", () => new BetSpreader()),
             V("Rigged Shoe", Rarity.Rare, Archetype.Cheater, "The dealer must hit until they reach 18. +3 Heat per hand.", () => new RiggedShoe()),
             V("Lucky Sevens", Rarity.Rare, Archetype.Lucky, "Each 7 in your hand gives x1.5 Mult. Three 7s gives x7.", () => new LuckySevens()),
             V("Mirror", Rarity.Rare, Archetype.Combo, "Copies the Vice to its right.", () => new Mirror()),
@@ -88,6 +92,9 @@ namespace HouseEdge.Core
             V("High Stakes", Rarity.Legendary, Archetype.Risky, "Gains x0.25 Mult each time you hit on 17 or higher and don't bust.", () => new HighStakes()),
             V("The Dealer", Rarity.Legendary, Archetype.Cheater, "Once per table, you decide whether the dealer hits or stands. +10 Heat.", () => new TheDealerVice()),
             V("Whale", Rarity.Legendary, Archetype.Greedy, "x1 Mult for every 10 gold you hold.", () => new Whale()),
+            V("Tiebreaker", Rarity.Legendary, Archetype.Steady, "You win every push.", () => new Tiebreaker()),
+            V("Bottomless Burns", Rarity.Legendary, Archetype.Risky, "Burns never run out, but each one adds 4 Heat.", () => new BottomlessBurns()),
+            V("Four-Card Charlie", Rarity.Legendary, Archetype.Lucky, "Any 4-card hand that doesn't bust is a Charlie.", () => new FourCardCharlie()),
             V("Chain Reaction", Rarity.Legendary, Archetype.Combo, "Every time another Vice triggers, x1.1 Mult.", () => new ChainReaction()),
 
             V("Dirty Money", Rarity.Cursed, Archetype.Greedy, "+12 Mult on every win, but +5 Heat per win.", () => new DirtyMoney()),

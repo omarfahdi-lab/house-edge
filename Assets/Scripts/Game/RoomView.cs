@@ -13,6 +13,7 @@ namespace HouseEdge.Game
         private readonly Button _leave;
         private Run _run;
         private object _shownFor;
+        private readonly SlotMachine _slots;
 
         public event Action<RunInput> InputChosen;
         // a room option that works on a card: (option index, label)
@@ -33,6 +34,16 @@ namespace HouseEdge.Game
             _title = Ui.Title(_root, "", 40, Ui.Gold);
             _text = Ui.Body(_root, "", 16, Ui.Cream, center: true);
             _text.style.maxWidth = 680;
+            _slots = new SlotMachine();
+            _slots.style.marginTop = 10;
+            _root.Add(_slots);
+            // the result waits for the reels to stop
+            _slots.Stopped = () =>
+            {
+                Ui.Transition(_result, 0.2f, "opacity");
+                _result.style.opacity = 1;
+                Ui.Pop(_result, 1.3f);
+            };
             _content = Ui.Row(_root, 22);
             _content.style.marginTop = 14;
             _content.style.flexWrap = Wrap.Wrap;
@@ -54,6 +65,7 @@ namespace HouseEdge.Game
             object key = (run.Phase, run.Room);
             bool opened = !Equals(key, _shownFor);
             _shownFor = key;
+            if (opened) _slots.Reset();
             RefreshRoom(opened);
         }
 
@@ -63,8 +75,25 @@ namespace HouseEdge.Game
             Ui.Add(_icon, new SuitIcon(RoomIcon(room.Kind), Ui.Gold, 34));
             _title.text = room.Name.ToUpperInvariant();
             _text.text = Ui.Rich(room.Description);
-            _result.text = Ui.Rich(room.Result ?? "");
-            if (!string.IsNullOrEmpty(room.Result)) Ui.Pop(_result, 1.15f);
+            string result = Ui.Rich(room.Result ?? "");
+            bool newResult = result != _result.text;
+            _result.text = result;
+            bool slots = room.Kind == RoomKind.Slots;
+            Ui.Show(_slots, slots);
+            if (slots)
+            {
+                _slots.Set(room);
+                if (_slots.Spinning)
+                {
+                    Ui.Transition(_result, 0, "opacity");
+                    _result.style.opacity = 0;
+                }
+            }
+            else
+            {
+                _result.style.opacity = 1;
+                if (!string.IsNullOrEmpty(room.Result) && newResult) Ui.Pop(_result, 1.15f);
+            }
             Ui.Show(_leave, true);
             Ui.SetEnabled(_leave, _run.IsLegal(RunInput.LeaveRoom()));
 
@@ -133,6 +162,7 @@ namespace HouseEdge.Game
             RoomKind.Elite => SuitIcon.Shape.Flame,
             RoomKind.Mystery => SuitIcon.Shape.Star,
             RoomKind.Shop => SuitIcon.Shape.Diamond,
+            RoomKind.Slots => SuitIcon.Shape.Coin,
             _ => SuitIcon.Shape.Crown,
         };
     }

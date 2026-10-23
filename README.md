@@ -18,13 +18,21 @@ The twist: **the dealer draws from your deck too.** Stack it with 10s and you hi
 
 ## Highlights
 
+- **Skill on top of luck.** A **count** by the shoe shows how rich the remaining cards are in 10s and Aces next to
+  your own deck, and you can **Raise** to x2 or x3 before a deal: a raised win multiplies Mult, a lost raise costs extra
+  Hands, and raising into a hot shoe draws security's Heat. **Trick cards** (Peek, Take Back, Steal, Second Thoughts,
+  Ace Up the Sleeve) are one-use plays in the middle of a hand. **Vices level up** as they trigger (+25%, then +50%),
+  three **Legendary rule-breakers** change blackjack itself (Tiebreaker, Bottomless Burns, Four-Card Charlie), and
+  six **Feats** (The Black Jack, Triple Sevens, a Six-Card Charlie...) are rare named hands with a fanfare and a Mult
+  bonus. Every boss has a **second phase** past half the target, a **slot machine** room sits on the map, and the
+  **Daily Run** gets a twist each day (Wild Royals, Hot Night, Short Shoe, High Rollers, Tight Table).
 - **A guided first run.** A new player's first run (or the menu's Tutorial button) stacks the first table's opening
   hands in Core (`Tutorial.Script`), so every lesson is guaranteed: a plain win, a bust saved by a Burn, then a Flush
   that clears the table on its own. A coach panel points at the one button to press and lets only that through, then
   gives one-time tips on the map and in the shop. Tests play the script and check each lesson lands.
 - **Engine-free, deterministic rules.** Every rule lives in `HouseEdge.Core`, a plain C# assembly with no UnityEngine
   reference. One seeded RNG drives a whole run, so a run is just a seed plus a list of inputs: run codes, the Daily Run
-  and full replays all come from that. **406 NUnit tests** run on plain `dotnet test` in CI, no Unity license needed.
+  and full replays all come from that. **428 NUnit tests** run on plain `dotnet test` in CI, no Unity license needed.
 - **Combos, so winning isn't enough.** A plain win scores little. The big numbers come from poker patterns inside a
   blackjack hand (Pair, Two Pair, Three of a Kind, Suited, Flush, Run, Royal Court, Low Ball) that pay only when the hand
   beats the dealer, plus a win streak. Comps level combos up like Balatro's Planet cards, combo Vices multiply them,
@@ -40,7 +48,7 @@ The twist: **the dealer draws from your deck too.** Stack it with 10s and you hi
 - **Pit Bosses are characters.** Each has a portrait drawn in code, a title, a line, one named ability in plain words
   and a tip, shown in an entrance before their table. Bosses announce their ability when it fires ("Swaps your 7 for
   his Q") through `Table.Announce`, so the rule is never invisible.
-- **Effects are small classes on hooks.** 78 Vices, 15 bosses, 6 dealers, 7 enhancements, 4 stamps and 4 curse cards
+- **Effects are small classes on hooks.** 84 Vices, 15 bosses, 6 dealers, 7 enhancements, 4 stamps and 4 curse cards
   each override only the hooks they need (`OnCardDrawn`, `OnHit`, `OnStand`, `OnBust`, `OnHandScored`, ...). Adding a
   new one never touches the table's loop.
 - **Balance tuned with a bot.** A headless bot plays the real `Run` API: 1,000 full runs in about a second. It showed
@@ -140,7 +148,7 @@ Assets/
       Table.cs        one blackjack table: a state machine driven by LegalActions() / Apply(action)
       Run.cs          8 floors: tables, shop, floor map, rooms, debt, Heat, bosses. Apply(RunInput)
       TableEffect.cs  the hooks. Vices, bosses, dealers and card effects all derive from it
-      Vices/          78 Vices, one small class each; ViceCatalog lists them
+      Vices/          84 Vices, one small class each; ViceCatalog lists them
       CardEffects.cs  enhancements, stamps and curses, run card by card before the Vices
       Balance.cs      every tunable number
       BalanceBot.cs   the bot and BalanceSimulation
