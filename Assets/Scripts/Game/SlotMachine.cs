@@ -17,6 +17,9 @@ namespace HouseEdge.Game
         // the reels stopped and the result can show
         public bool Spinning => _spinning;
         public System.Action Stopped;
+        // the lever was pulled
+        public System.Action Pulled;
+        private readonly VisualElement _lever;
 
         public SlotMachine()
         {
@@ -48,6 +51,36 @@ namespace HouseEdge.Game
                 Show(i, (SlotSymbol)(i * 2 % 5));
             }
 
+            // the lever on the side: grab it and pull
+            _lever = new VisualElement();
+            _lever.style.position = Position.Absolute;
+            _lever.style.right = -30;
+            _lever.style.top = 40;
+            _lever.style.width = 30;
+            _lever.style.height = 110;
+            _lever.style.alignItems = Align.Center;
+            _lever.style.transformOrigin = new TransformOrigin(Length.Percent(50), Length.Percent(100));
+            var ball = new VisualElement { pickingMode = PickingMode.Ignore };
+            ball.style.width = ball.style.height = 28;
+            Ui.Rounded(ball, 14);
+            ball.style.backgroundImage = Ui.Gradient(new Color(1f, 0.35f, 0.3f), new Color(0.6f, 0.05f, 0.08f));
+            ball.style.backgroundSize = new BackgroundSize(Length.Percent(100), Length.Percent(100));
+            _lever.Add(ball);
+            var stick = new VisualElement { pickingMode = PickingMode.Ignore };
+            stick.style.width = 8;
+            stick.style.flexGrow = 1;
+            stick.style.backgroundColor = new Color(0.75f, 0.75f, 0.8f);
+            Ui.Rounded(stick, 4);
+            _lever.Add(stick);
+            Add(_lever);
+            Ui.Tip(_lever, "Pull the lever", $"{Balance.SlotPullCost} gold a pull, up to {Balance.SlotPulls} pulls.");
+            _lever.RegisterCallback<ClickEvent>(_ => Pull());
+            RegisterCallback<ClickEvent>(e =>
+            {
+                if (e.target == _lever) return;
+                Pull();
+            });
+
             // the marquee lights chase while the machine is idle
             int frame = 0;
             schedule.Execute(() =>
@@ -75,6 +108,20 @@ namespace HouseEdge.Game
 
         // a new room: forget the last machine's pulls
         public void Reset() => _pulls = -1;
+
+        // the lever swings down and back, then the room takes the pull
+        private void Pull()
+        {
+            if (_spinning) return;
+            Ui.Transition(_lever, 0.15f, "rotate", "scale");
+            _lever.style.scale = new Scale(new Vector2(1, -0.6f));
+            _lever.schedule.Execute(() =>
+            {
+                Ui.Transition(_lever, 0.3f, EasingMode.EaseOutBack, "scale");
+                _lever.style.scale = new Scale(Vector2.one);
+            }).StartingIn(180);
+            Pulled?.Invoke();
+        }
 
         private void Spin(SlotSymbol[] result)
         {

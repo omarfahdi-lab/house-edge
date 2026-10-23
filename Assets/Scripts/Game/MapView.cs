@@ -44,6 +44,12 @@ namespace HouseEdge.Game
 
         public event Action<RunInput> InputChosen;
 
+        // you, as a chip on the map, and whether it's walking to a stop right now
+        private VisualElement _token;
+        private Vector2 _tokenAt;
+        private bool _walking;
+        private List<PathStop> _choices = new List<PathStop>();
+
         public VisualElement Root => _root;
         public bool IsOpen => _root.style.display == DisplayStyle.Flex;
         // the map is open just to look, not to pick a stop
@@ -163,6 +169,16 @@ namespace HouseEdge.Game
                     }
             }
             _paths.Set(Segments(run, null));
+            _choices = nextStops;
+
+            // the token stands where you are: the stop you're at, or the table you just left
+            _walking = false;
+            _tokenAt = run.Here != null ? At(run.Here.Section * 3 + 1 + run.Here.Row, run.Here.Lane)
+                : TableAt(progress >= 6 ? 6 : progress >= 3 ? 3 : 0);
+            _token = Token();
+            _token.style.left = _tokenAt.x - 25;
+            _token.style.top = _tokenAt.y - 86;
+            _canvas.Add(_token);
 
             Ui.Show(_root, true);
             if (wasOpen) return;
@@ -270,6 +286,82 @@ namespace HouseEdge.Game
                 Ui.Text(pip, boss, 11, floor <= run.Floor ? Ui.Cream : Ui.Dim);
                 if (floor < run.Floor) Ui.Add(pip, new SuitIcon(SuitIcon.Shape.Check, Ui.Good, 11));
             }
+        }
+
+        // walk the token along the path to a stop, then go in
+        public void Choose(int index)
+        {
+            if (_walking || index < 0 || index >= _choices.Count) return;
+            var stop = _choices[index];
+            var to = At(stop.Section * 3 + 1 + stop.Row, stop.Lane);
+            if (Settings.ReducedMotion || _token == null)
+            {
+                InputChosen?.Invoke(RunInput.ChooseRoom(index));
+                return;
+            }
+            _walking = true;
+            var from = _tokenAt;
+            var token = _token;
+            const int frames = 22;
+            Ui.Transition(token, 0, "left", "top");
+            for (int f = 1; f <= frames + 6; f++)
+            {
+                int frame = f;
+                token.schedule.Execute(() =>
+                {
+                    if (frame <= frames)
+                    {
+                        // three little hops along the dotted line
+                        float t = frame / (float)frames;
+                        float eased = t * t * (3 - 2 * t);
+                        var at = Vector2.Lerp(from, to, eased);
+                        float hop = Mathf.Abs(Mathf.Sin(t * Mathf.PI * 3)) * 16;
+                        token.style.left = at.x - 25;
+                        token.style.top = at.y - 86 - hop;
+                        if (frame % 7 == 0) Footstep?.Invoke();
+                    }
+                    else if (frame == frames + 1) Ui.Pop(token, 1.3f);
+                    else if (frame == frames + 6)
+                    {
+                        _walking = false;
+                        InputChosen?.Invoke(RunInput.ChooseRoom(index));
+                    }
+                }).StartingIn(frame * 24);
+            }
+        }
+
+        // a footstep while the token walks, for the sound
+        public event Action Footstep;
+
+        // you on the map: a gold chip on a pin, bobbing gently
+        private static VisualElement Token()
+        {
+            var token = Ui.Column(null);
+            token.style.position = Position.Absolute;
+            token.style.width = 50;
+            token.style.alignItems = Align.Center;
+            token.pickingMode = PickingMode.Ignore;
+            var chip = new PokerChip(new Color(0.85f, 0.12f, 0.16f), Ui.Gold, 48);
+            chip.pickingMode = PickingMode.Ignore;
+            token.Add(chip);
+            var you = Ui.Text(chip, "YOU", 10, Ui.Cream, Weight.Heavy);
+            you.style.position = Position.Absolute;
+            you.style.left = you.style.right = 0;
+            you.style.top = 17;
+            you.style.unityTextAlign = TextAnchor.MiddleCenter;
+            var pin = new VisualElement { pickingMode = PickingMode.Ignore };
+            pin.style.width = 3;
+            pin.style.height = 22;
+            pin.style.backgroundColor = new Color(0.25f, 0.15f, 0.1f);
+            token.Add(pin);
+            float t = 0;
+            chip.schedule.Execute(() =>
+            {
+                if (Settings.ReducedMotion) return;
+                t += 0.05f;
+                chip.style.translate = new Translate(0, Mathf.Sin(t * 2.4f) * 2.5f);
+            }).Every(50);
+            return token;
         }
 
         // nodes are an outer box that holds the position and an inner one that animates,
@@ -389,7 +481,7 @@ namespace HouseEdge.Game
             int index = choice;
             // the disc lifts, not the node: the node's translate keeps it centred on its spot
             Ui.Lift(disc, 1.15f);
-            node.RegisterCallback<ClickEvent>(_ => InputChosen?.Invoke(RunInput.ChooseRoom(index)));
+            node.RegisterCallback<ClickEvent>(_ => Choose(index));
             // hovering a choice lights up the paths it opens
             node.RegisterCallback<PointerEnterEvent>(_ => _paths.Set(Segments(_run, stop)));
             node.RegisterCallback<PointerLeaveEvent>(_ => _paths.Set(Segments(_run, null)));

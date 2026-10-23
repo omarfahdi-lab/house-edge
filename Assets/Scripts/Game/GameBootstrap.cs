@@ -74,6 +74,7 @@ namespace HouseEdge.Game
             _deck = new DeckView(root);
             _map = new MapView(root);
             _map.InputChosen += TryApply;
+            _map.Footstep += () => _feedback.CardSound();
             _coach = new Coach(root, _table);
             _coach.Finished += () =>
             {
@@ -480,9 +481,9 @@ namespace HouseEdge.Game
             if (keyboard.wKey.wasPressedThisFrame) TryTable(PlayerAction.SwapWithDealer);
             if (Run.Phase == RunPhase.RoomChoice)
             {
-                if (keyboard.digit1Key.wasPressedThisFrame) TryApply(RunInput.ChooseRoom(0));
-                if (keyboard.digit2Key.wasPressedThisFrame) TryApply(RunInput.ChooseRoom(1));
-                if (keyboard.digit3Key.wasPressedThisFrame) TryApply(RunInput.ChooseRoom(2));
+                if (keyboard.digit1Key.wasPressedThisFrame) _map.Choose(0);
+                if (keyboard.digit2Key.wasPressedThisFrame) _map.Choose(1);
+                if (keyboard.digit3Key.wasPressedThisFrame) _map.Choose(2);
             }
             if (keyboard.xKey.wasPressedThisFrame) TryTable(PlayerAction.Raise);
             if (Run.Phase == RunPhase.AtTable && Run.Table.Phase == TablePhase.PlayerTurn)

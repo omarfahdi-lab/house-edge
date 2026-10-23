@@ -69,6 +69,11 @@ The twist: **the dealer draws from your deck too.** Stack it with 10s and you hi
   (`FloorMap`, generated from the run's seed so replays still match). You see the whole floor and plan a route; paths
   never cross, the first row after a table always has a Shop, and the lounge only appears right before a table. The bot
   plans paths too, and the win rate held at about 21%.
+- **Rooms are scenes, not menus.** Every stop on the map is a drawn room (bottle shelves at the Bar, flickering
+  monitors in the Security Office, a swinging lamp over the Loan Shark's safe, chasing bulbs in the slot hall) with
+  its own host, drawn from the same parts as the bosses, who greets you in a typed speech bubble and reacts to what
+  you pick. Choices are objects on the counter: drinks slide along the bar, boxes rattle and pop open, coins flip, and
+  the slot machine has a lever to pull. On the map, your chip hops along the dotted path to the stop you chose.
 - **Game feel.** Cards fly out of the shoe and the dealer's hole card flips over. Each result is acted out: winning
   cards hop and glow while the chips slide over to you, losing cards slump, busts tumble off the felt, and scoring
   hands pop a Chips x Mult breakdown over a turning sunburst. Losing the run rains cards and a sad trombone; winning it
