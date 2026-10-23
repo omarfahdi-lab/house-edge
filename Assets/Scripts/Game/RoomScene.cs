@@ -52,7 +52,15 @@ namespace HouseEdge.Game
         private float _time;
 
         // the photo backdrop for a room, if there is one
-        public static Texture2D Photo(RoomKind kind) => Resources.Load<Texture2D>("Backgrounds/" + kind switch
+        private static readonly System.Collections.Generic.Dictionary<string, Texture2D> Photos = new System.Collections.Generic.Dictionary<string, Texture2D>();
+
+        // the preloader hands photos over as they finish loading
+        public static void Keep(string name, Texture2D texture)
+        {
+            if (texture != null) Photos[name] = texture;
+        }
+
+        public static Texture2D Photo(RoomKind kind) => PhotoNamed(kind switch
         {
             RoomKind.Bar => "bar",
             RoomKind.Slots => "slots",
@@ -66,6 +74,14 @@ namespace HouseEdge.Game
             RoomKind.Shop => "shop",
             _ => "mystery",
         });
+
+        private static Texture2D PhotoNamed(string name)
+        {
+            if (Photos.TryGetValue(name, out var photo)) return photo;
+            photo = Resources.Load<Texture2D>("Backgrounds/" + name);
+            Photos[name] = photo;
+            return photo;
+        }
 
         public RoomScene(RoomKind kind, bool photo = false)
         {

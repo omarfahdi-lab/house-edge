@@ -275,6 +275,52 @@ namespace HouseEdge.Game
 
         private readonly List<Flight> _flights = new List<Flight>();
 
+        // Balatro-style pixel sparks: little squares that pop out, hang for a beat, then streak into a target
+        private sealed class Spark
+        {
+            public VisualElement View;
+            public Vector2 Position, Velocity, Target;
+            public float Age, Hang, Life;
+            public bool Homing;
+        }
+
+        private readonly List<Spark> _sparks = new List<Spark>();
+        private const int MaxSparks = 260;
+
+        // sparks from one point that fly into another (a card into the Chips box). to = from just bursts
+        public void Sparks(Vector2 from, Vector2 to, Color color, int count, float spread = 260)
+        {
+            bool homing = (to - from).sqrMagnitude > 1;
+            for (int i = 0; i < count; i++)
+            {
+                if (_sparks.Count >= MaxSparks)
+                {
+                    _sparks[0].View.RemoveFromHierarchy();
+                    _sparks.RemoveAt(0);
+                }
+                var pixel = new VisualElement { pickingMode = PickingMode.Ignore };
+                pixel.style.position = Position.Absolute;
+                float size = 3 + _random.Next(5);
+                pixel.style.width = pixel.style.height = size;
+                // a few shades of the colour, like a little palette
+                float shade = 0.75f + (float)_random.NextDouble() * 0.5f;
+                pixel.style.backgroundColor = new Color(Mathf.Min(1, color.r * shade), Mathf.Min(1, color.g * shade), Mathf.Min(1, color.b * shade), 1);
+                Add(pixel);
+                float angle = (float)(_random.NextDouble() * Math.PI * 2);
+                float power = spread * (0.3f + (float)_random.NextDouble() * 0.7f);
+                _sparks.Add(new Spark
+                {
+                    View = pixel,
+                    Position = from,
+                    Velocity = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * power,
+                    Target = to + new Vector2(_random.Next(-12, 13), _random.Next(-10, 11)),
+                    Hang = 0.18f + (float)_random.NextDouble() * 0.2f,
+                    Life = homing ? 1.1f : 0.5f + (float)_random.NextDouble() * 0.35f,
+                    Homing = homing,
+                });
+            }
+        }
+
         private readonly List<Bit> _bits = new List<Bit>();
         private readonly System.Random _random = new System.Random();
 
@@ -404,6 +450,30 @@ namespace HouseEdge.Game
                 b.View.style.top = b.Position.y;
                 b.View.style.rotate = new Rotate(b.Angle);
                 b.View.style.opacity = Mathf.Clamp01((b.Life - b.Age) / 0.4f) * (b.Gravity < 500 ? 0.85f : 1);
+            }
+
+            for (int i = _sparks.Count - 1; i >= 0; i--)
+            {
+                var s = _sparks[i];
+                s.Age += dt;
+                bool arrived = s.Homing && (s.Target - s.Position).sqrMagnitude < 64;
+                if (s.Age >= s.Life || arrived)
+                {
+                    s.View.RemoveFromHierarchy();
+                    _sparks.RemoveAt(i);
+                    continue;
+                }
+                if (s.Homing && s.Age > s.Hang)
+                {
+                    // after the pop, accelerate toward the target
+                    var toward = (s.Target - s.Position);
+                    s.Velocity = Vector2.Lerp(s.Velocity, toward.normalized * Mathf.Max(600, toward.magnitude * 7), 0.22f);
+                }
+                else s.Velocity *= 0.9f;
+                s.Position += s.Velocity * dt;
+                s.View.style.left = s.Position.x;
+                s.View.style.top = s.Position.y;
+                s.View.style.opacity = s.Homing ? 1 : Mathf.Clamp01((s.Life - s.Age) / 0.25f);
             }
 
             for (int i = _flights.Count - 1; i >= 0; i--)

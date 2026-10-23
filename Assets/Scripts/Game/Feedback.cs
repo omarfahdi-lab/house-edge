@@ -134,17 +134,17 @@ namespace HouseEdge.Game
 
             // light rays behind a big hand
             _rays = new Sunburst(new Color(0.98f, 0.79f, 0.32f, 0.16f), 620);
-            _rays.style.top = 300 - 310;
+            _rays.style.top = PopupTop + 60 - 310;
             _rays.style.opacity = 0;
             root.Add(_rays);
 
-            // Chips x Mult = total, in the middle of the table
+            // Chips x Mult = total, on the open right side of the felt, clear of every card
             _popup = Ui.Column(root, 6);
             _popup.pickingMode = PickingMode.Ignore;
             _popup.style.position = Position.Absolute;
-            _popup.style.left = Hud.Width;
-            _popup.style.right = 0;
-            _popup.style.top = 236;
+            _popup.style.right = 16;
+            _popup.style.width = PopupWidth;
+            _popup.style.top = PopupTop;
             _popup.style.alignItems = Align.Center;
             var equation = Ui.Row(_popup, 10);
             (_chipsBox, _chips) = ScoreBox(equation, Ui.Chips, "CHIPS");
@@ -273,6 +273,9 @@ namespace HouseEdge.Game
                             Schedule(t + i * 0.16f, () =>
                             {
                                 PopCard?.Invoke(hand, card);
+                                // each card throws its chips into the Chips box
+                                if (!_skipping && !Settings.ReducedMotion && CardAnchor?.Invoke(hand, card) is Vector2 spot)
+                                    _particles.Sparks(_root.WorldToLocal(spot), Center(_chipsBox), Ui.Chips, 9);
                                 SetChips((int)Math.Round(s.Chips * (card + 1) / (double)n));
                                 Tick(b);
                             });
@@ -302,7 +305,7 @@ namespace HouseEdge.Game
                 {
                     CommitScore?.Invoke();
                     Ui.Pop(_total, 1.35f);
-                    var center = new Vector2(TableCenterX, 330);
+                    var center = new Vector2(_root.layout.width - 16 - PopupWidth / 2, PopupTop + 90);
                     _particles.Coins(center, Mathf.Clamp((int)(share * 40), 6, 40));
                     if (big || share >= 0.5f) _particles.Burst(center, big ? 60 : 36);
                     if (big) Flash(new Color(0.98f, 0.79f, 0.32f), 0.4f, 0.12f);
@@ -414,6 +417,7 @@ namespace HouseEdge.Game
             if (_skipping) return;
             _chips.text = chips.ToString("N0");
             Ui.Pop(_chipsBox, 1.18f);
+            if (!Settings.ReducedMotion) _particles.Sparks(Center(_chipsBox), Center(_chipsBox), Ui.Chips, 7, 160);
         }
 
         private void SetMult(double mult)
@@ -421,6 +425,18 @@ namespace HouseEdge.Game
             if (_skipping) return;
             _mult.text = mult.ToString("0.##");
             Ui.Pop(_multBox, 1.25f);
+            if (!Settings.ReducedMotion) _particles.Sparks(Center(_multBox), Center(_multBox), Ui.Mult, 8, 170);
+        }
+
+        private Vector2 Center(VisualElement e) => _root.WorldToLocal(e.worldBound.center);
+
+        // pixels fly from whatever scored into the box it fed: blue into Chips, red into Mult, gold for x Mult
+        private void Feed(Vector2 from, ScoreStep step)
+        {
+            if (_skipping || Settings.ReducedMotion) return;
+            if (step.ChipsAdded > 0) _particles.Sparks(from, Center(_chipsBox), Ui.Chips, Mathf.Clamp(step.ChipsAdded / 3, 6, 18));
+            if (step.Multiplied) _particles.Sparks(from, Center(_multBox), Ui.Gold, 22, 320);
+            else if (step.MultAdded > 0) _particles.Sparks(from, Center(_multBox), Ui.Mult, Mathf.Clamp((int)(step.MultAdded * 3), 6, 18));
         }
 
         // each beat of scoring rings a little higher than the last
@@ -436,13 +452,13 @@ namespace HouseEdge.Game
         {
             var box = Ui.Column(_callouts, 2);
             box.style.position = Position.Absolute;
-            // to the right of the Chips x Mult boxes, where the felt is empty
-            box.style.left = TableCenterX + 300;
-            box.style.top = 225;
+            // in the open middle of the felt, between the dealer's cards and yours
+            box.style.left = TableCenterX;
+            box.style.top = BannerTop;
             box.style.alignItems = Align.Center;
             box.style.translate = new Translate(Length.Percent(-50), 0);
             box.pickingMode = PickingMode.Ignore;
-            var head = Ui.Title(box, title, 44, color);
+            var head = Ui.Title(box, title, 38, color);
             head.style.textShadow = new TextShadow { offset = new Vector2(0, 4), blurRadius = 16, color = new Color(0, 0, 0, 0.95f) };
             var line = Ui.Text(box, detail, 18, Ui.Cream, Weight.Heavy);
             line.style.backgroundColor = new Color(0.03f, 0.04f, 0.05f, 0.9f);
@@ -450,13 +466,13 @@ namespace HouseEdge.Game
             Ui.Padding(line, 3, 10);
             foreach (var e in box.Query<VisualElement>().ToList()) e.pickingMode = PickingMode.Ignore;
             Ui.Pop(box, 1.8f);
-            _particles.Burst(new Vector2(TableCenterX + 300, 255), 18, 380);
+            _particles.Burst(new Vector2(TableCenterX, BannerTop + 30), 18, 380);
             float life = 0.8f / TableView.Speed;
             box.schedule.Execute(() =>
             {
                 Ui.Transition(box, 0.3f, "opacity", "top");
                 box.style.opacity = 0;
-                box.style.top = 200;
+                box.style.top = BannerTop - 25;
             }).StartingIn((long)(life * 1000));
             box.schedule.Execute(box.RemoveFromHierarchy).StartingIn((long)(life * 1000) + 350);
         }
@@ -474,6 +490,7 @@ namespace HouseEdge.Game
             // rare hands get the fanfare
             if (step.Kind == ScoreSource.Feat)
             {
+                Feed(new Vector2(TableCenterX, BannerTop + 30), step);
                 Banner(step.Name.ToUpperInvariant() + "!", string.Join("  ", parts), Ui.Gold);
                 Play(_fanfare, steady: true);
                 _particles.Burst(new Vector2(TableCenterX, 250), 80, 700);
@@ -482,6 +499,7 @@ namespace HouseEdge.Game
             }
             if (step.Kind == ScoreSource.Raise)
             {
+                Feed(new Vector2(TableCenterX, BannerTop + 30), step);
                 Banner("THE RAISE PAYS!", string.Join("  ", parts), Ui.Gold);
                 return;
             }
@@ -489,6 +507,7 @@ namespace HouseEdge.Game
             // combos and streaks get a big banner in the middle of the table
             if (step.Kind == ScoreSource.Combo || step.Kind == ScoreSource.Streak)
             {
+                Feed(new Vector2(TableCenterX, BannerTop + 30), step);
                 Banner(step.Kind == ScoreSource.Combo ? step.Name.ToUpperInvariant() + "!" : "STREAK!", string.Join("  ", parts),
                     step.Kind == ScoreSource.Combo ? Ui.Cocktail : Ui.HeatColor);
                 return;
@@ -521,8 +540,14 @@ namespace HouseEdge.Game
                 row.style.backgroundColor = new Color(0.98f, 0.79f, 0.32f, 0.3f);
                 row.schedule.Execute(() => row.style.backgroundColor = before).StartingIn(450);
             }
-            else at = new Vector2(TableCenterX, 452);
+            // no particular source: beside the score popup, clear of the cards
+            else
+            {
+                // several in a row stack down instead of landing on each other
+                at = new Vector2(TableCenterX - 270, 320 + 44 * (_calloutRow++ % 3));
+            }
 
+            Feed(at, step);
             var label = Ui.Text(_callouts, (name != null ? name + "  " : "") + string.Join("  ", parts), 18, Ui.Cream, Weight.Heavy);
             label.style.position = Position.Absolute;
             label.style.backgroundColor = new Color(0.03f, 0.04f, 0.05f, 0.9f);
@@ -575,6 +600,9 @@ namespace HouseEdge.Game
             yield return new WaitForSecondsRealtime(seconds);
             action();
         }
+
+        private const float PopupWidth = 300, PopupTop = 290, BannerTop = 310;
+        private int _calloutRow;
 
         private float TableCenterX => Hud.Width + (_root.layout.width - Hud.Width) / 2f;
 
@@ -631,7 +659,7 @@ namespace HouseEdge.Game
             _rays.style.opacity = raysAlpha;
             if (raysAlpha > 0)
             {
-                _rays.style.left = TableCenterX - 310;
+                _rays.style.left = _root.layout.width - 16 - PopupWidth / 2 - 310;
                 _rays.style.rotate = new Rotate(Time.time * 25);
             }
 

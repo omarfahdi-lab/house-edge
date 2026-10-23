@@ -100,6 +100,12 @@ namespace HouseEdge.Game
                     }
                     continue;
                 }
+                // Pause:N waits N seconds, e.g. for the preloader
+                if (raw.StartsWith("Pause:"))
+                {
+                    yield return new WaitForSecondsRealtime(float.Parse(raw.Split(':')[1], System.Globalization.CultureInfo.InvariantCulture));
+                    continue;
+                }
                 // Watch:N plays N bot inputs slowly enough to see (and record)
                 if (raw.StartsWith("Watch:"))
                 {
@@ -118,7 +124,18 @@ namespace HouseEdge.Game
             }
             // let UI Toolkit lay out, and the card animations finish
             for (int i = 0; i < 10; i++) yield return null;
-            yield return new WaitForSecondsRealtime(float.TryParse(Arg("-wait"), out float wait) ? wait : 1.2f);
+            // measure the frame rate while waiting, to find what makes the game slow
+            float waitFor = float.TryParse(Arg("-wait"), out float wait) ? wait : 1.2f;
+            float start = Time.realtimeSinceStartup, worst = 0;
+            int frames = 0;
+            while (Time.realtimeSinceStartup - start < waitFor)
+            {
+                yield return null;
+                frames++;
+                worst = Mathf.Max(worst, Time.unscaledDeltaTime);
+            }
+            float elapsed = Time.realtimeSinceStartup - start;
+            Debug.Log($"DevCapture: {frames / elapsed:0} fps average, worst frame {worst * 1000:0} ms");
             ScreenCapture.CaptureScreenshot(_path);
             yield return null;
             yield return null;

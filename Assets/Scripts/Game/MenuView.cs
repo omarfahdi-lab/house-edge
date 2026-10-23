@@ -52,6 +52,15 @@ namespace HouseEdge.Game
             _root.Add(shade);
 
             // left: the logo and the big buttons
+            // a dark wash on the left so the drifting cards never fight the menu text
+            var wash = new VisualElement { pickingMode = PickingMode.Ignore };
+            wash.style.position = Position.Absolute;
+            wash.style.left = wash.style.top = wash.style.bottom = 0;
+            wash.style.width = 640;
+            wash.style.backgroundImage = SideShade();
+            wash.style.backgroundSize = new BackgroundSize(Length.Percent(100), Length.Percent(100));
+            _root.Add(wash);
+
             var left = Ui.Column(_root, 12);
             left.style.position = Position.Absolute;
             left.style.left = 70;
@@ -211,6 +220,20 @@ namespace HouseEdge.Game
                 t += 0.016f;
                 _logo.style.translate = new Translate(0, Mathf.Sin(t * 1.6f) * 4);
             }).Every(16);
+        }
+
+        // dark on the left, fading out to the right
+        private static Texture2D SideShade()
+        {
+            var texture = new Texture2D(64, 1, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            for (int x = 0; x < 64; x++)
+            {
+                float t = x / 63f;
+                float alpha = t < 0.6f ? 0.82f : Mathf.Lerp(0.82f, 0, (t - 0.6f) / 0.4f);
+                texture.SetPixel(x, 0, new Color(0.01f, 0.03f, 0.02f, alpha));
+            }
+            texture.Apply();
+            return texture;
         }
 
         private static Switch AudioSwitch(VisualElement parent, string label, Action clicked)

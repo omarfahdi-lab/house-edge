@@ -102,8 +102,8 @@ namespace HouseEdge.Game
             _root.Add(new Ambience());
             _replay = Ui.Pill(_root, "REPLAY", Ui.Bad, filled: true, size: 13);
             _replay.style.position = Position.Absolute;
-            _replay.style.left = 20;
-            _replay.style.top = 14;
+            _replay.style.right = 120;
+            _replay.style.top = 18;
 
             // the shoe the cards are dealt from
             _shoe = Ui.Column(_root, 4);
@@ -135,32 +135,40 @@ namespace HouseEdge.Game
             Ui.Tip(tricksHead, "Trick cards", $"One-use plays for the middle of a hand: peek, steal, take a card back. You hold up to {Balance.TrickSlots}. Find them in shops, Elite wins, slot machines and the Magician.");
             _trickCards = Ui.Column(_tricks, 6);
 
-            // who you're playing: the dealer or the Pit Boss
-            // a boss's portrait sits on the left of the plate
-            _plate = Ui.Glass(_root, 12, row: true, radius: 12);
-            _plate.style.maxWidth = 620;
-            Ui.Padding(_plate, 7, 16);
+            // who you're playing, on a card in the top-left corner: the dealer or the Pit Boss
+            _plate = Ui.Glass(_root, 10, row: true, radius: 12);
+            _plate.style.position = Position.Absolute;
+            _plate.style.left = 16;
+            _plate.style.top = 12;
+            _plate.style.width = 320;
+            _plate.style.alignItems = Align.FlexStart;
+            Ui.Padding(_plate, 8, 12);
             _plateFace = new VisualElement();
             _plate.Add(_plateFace);
-            var plateText = Ui.Column(_plate, 2);
-            plateText.style.alignItems = Align.Center;
+            var plateText = Ui.Column(_plate, 3);
+            plateText.style.alignItems = Align.FlexStart;
             plateText.style.flexShrink = 1;
-            var plateTop = Ui.Row(plateText, 8);
-            _plateTag = Ui.Pill(plateTop, "", Ui.Gold, size: 10);
-            _plateName = Ui.Title(plateTop, "", 20, Ui.Gold);
-            _plateText = Ui.Body(plateText, "", 13, Ui.Cream, center: true);
+            _plateTag = Ui.Pill(plateText, "", Ui.Gold, size: 10);
+            _plateName = Ui.Title(plateText, "", 19, Ui.Gold);
+            _plateText = Ui.Body(plateText, "", 12, Ui.Cream);
 
+            // the person across the table stands behind the dealer's cards, seen from the waist up
             _opponentSlot = new VisualElement { pickingMode = PickingMode.Ignore };
             _opponentSlot.style.position = Position.Absolute;
-            _opponentSlot.style.left = 70;
-            _opponentSlot.style.top = 74;
+            _opponentSlot.style.left = 0;
+            _opponentSlot.style.right = 0;
+            _opponentSlot.style.top = 0;
+            _opponentSlot.style.height = OpponentVisible;
+            _opponentSlot.style.alignItems = Align.Center;
+            _opponentSlot.style.overflow = Overflow.Hidden;
             _root.Add(_opponentSlot);
 
-            // what the boss (or the dealer) says, next to their head
+            // what they say, next to their head
             _bubble = Ui.Row(_root, 8);
             _bubble.style.position = Position.Absolute;
-            _bubble.style.top = 92;
-            _bubble.style.left = 236;
+            _bubble.style.top = 26;
+            _bubble.style.left = Length.Percent(50);
+            _bubble.style.marginLeft = 112;
             _bubble.style.backgroundColor = new Color(0.98f, 0.95f, 0.87f);
             Ui.Rounded(_bubble, 14);
             Ui.Padding(_bubble, 8, 14);
@@ -174,7 +182,8 @@ namespace HouseEdge.Game
             // dealer, the Twins' second hand and the next-card peek
             var dealerRow = Ui.Row(_root, 30);
             dealerRow.style.alignItems = Align.FlexStart;
-            dealerRow.style.marginTop = 10;
+            // the cards sit on the felt in front of the dealer's waist
+            dealerRow.style.marginTop = OpponentVisible - 40;
             var dealer = Ui.Column(dealerRow, 8);
             dealer.style.alignItems = Align.Center;
             _dealerCards = Ui.Row(dealer);
@@ -626,8 +635,11 @@ namespace HouseEdge.Game
                 {
                     bool down = mimed && i == 1;
                     var view = Animate(down ? CardView.CreateFaceDown() : CardView.Create(hand.Cards[i]), hand.Cards[i], down);
-                    // overlap a little so five-card hands fit
-                    if (i > 0) view.style.marginLeft = -20;
+                    // side by side, overlapping only when a long hand needs the room
+                    bool crowded = hand.Cards.Count > 4 || table.PlayerHands.Count > 1;
+                    if (i > 0) view.style.marginLeft = crowded ? -20 : 6;
+                    // a covered card hides its bottom corner, so no half-cut numbers peek out
+                    if (crowded && i < hand.Cards.Count - 1) CardView.HideLowerCorner(view);
                     cards.Add(view);
                     views.Add(view);
                 }
@@ -731,28 +743,31 @@ namespace HouseEdge.Game
             }
         }
 
+        // how much of the opponent shows above the table: the head, the arms and the top of the torso
+        private const float OpponentVisible = 190;
+
         private void RefreshOpponent(Run run)
         {
             string who = run.ActiveTable != run.Table ? "Vinnie" : run.Boss?.Name ?? run.Dealer?.Name;
             if (who == _opponentFor) return;
             _opponentFor = who;
             _opponentSlot.Clear();
-            _opponent = who != null && Puppet.Has(who) ? new Puppet(who, 220) : null;
+            _opponent = who != null && Puppet.Has(who) ? new Puppet(who, 250) : null;
             if (_opponent == null) return;
+            // room above the head for raised arms; the slot cuts them off at the waist
+            _opponent.style.marginTop = 4;
             _opponentSlot.Add(_opponent);
-            // they stroll in from the side
-            _opponent.Walking = true;
-            Ui.Transition(_opponentSlot, 0, "translate", "opacity");
-            _opponentSlot.style.translate = new Translate(-160, 0);
-            _opponentSlot.style.opacity = 0;
-            var walker = _opponent;
-            _opponentSlot.schedule.Execute(() =>
+            // they step up to the table
+            Ui.Transition(_opponent, 0, "translate", "opacity");
+            _opponent.style.translate = new Translate(0, 90);
+            _opponent.style.opacity = 0;
+            var stepping = _opponent;
+            stepping.schedule.Execute(() =>
             {
-                Ui.Transition(_opponentSlot, 0.9f, EasingMode.EaseOutSine, "translate", "opacity");
-                _opponentSlot.style.translate = new Translate(0, 0);
-                _opponentSlot.style.opacity = 1;
-            }).StartingIn(30);
-            _opponentSlot.schedule.Execute(() => walker.Walking = false).StartingIn(950);
+                Ui.Transition(stepping, 0.6f, EasingMode.EaseOutBack, "translate", "opacity");
+                stepping.style.translate = new Translate(0, 0);
+                stepping.style.opacity = 1;
+            }).StartingIn(40);
         }
 
         // the boss's second phase: the nameplate shakes and stays red-hot
@@ -803,6 +818,7 @@ namespace HouseEdge.Game
             view.style.translate = new Translate(0, -16);
             view.style.scale = new Scale(new Vector2(1.08f, 1.08f));
             CardView.SetSelected(view, true);
+            CardView.Shine(view, Ui.Gold);
             view.style.translate = new Translate(0, -16);
             view.schedule.Execute(() =>
             {

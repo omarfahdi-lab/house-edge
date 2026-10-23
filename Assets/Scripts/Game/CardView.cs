@@ -144,12 +144,22 @@ namespace HouseEdge.Game
             }
 
             Ui.Tip(root, Name(card), Explain(card));
+            // upgraded cards catch the light now and then, like foil
+            if (enhanced || card.Stamp != Stamp.None)
+            {
+                int every = 2800 + (card.GetHashCode() & 1023) * 2;
+                root.schedule.Execute(() =>
+                {
+                    if (root.panel != null && root.resolvedStyle.opacity > 0.5f) Shine(root, Color.white, halo: false);
+                }).Every(every);
+            }
             return root;
         }
 
         private static void Corner(VisualElement face, string rank, SuitIcon.Shape suit, Color ink, float scale, bool flipped)
         {
             var corner = Ui.Column(face);
+            corner.name = flipped ? "corner-low" : "corner-high";
             corner.style.position = Position.Absolute;
             corner.style.alignItems = Align.Center;
             corner.style.minWidth = 20 * scale;
@@ -239,6 +249,57 @@ namespace HouseEdge.Game
             if (shape is SuitIcon.Shape mark) Ui.Add(badge, new SuitIcon(mark, trim, 22 * scale));
             else Ui.Text(badge, "HE", (int)(17 * scale), trim).style.unityFontDefinition = Ui.DisplayFont;
             return root;
+        }
+
+        // a card scoring: a halo blooms around it and a streak of light sweeps across the face
+        public static void Shine(VisualElement card, Color glow, bool halo = true)
+        {
+            if (Settings.ReducedMotion || card.panel == null) return;
+            var face = card.Q("face");
+            if (face == null) return;
+            if (halo)
+            {
+                for (int ring = 0; ring < 2; ring++)
+                {
+                    var bloom = new VisualElement { pickingMode = PickingMode.Ignore };
+                    bloom.style.position = Position.Absolute;
+                    float inset = -6 - ring * 7;
+                    bloom.style.left = bloom.style.right = bloom.style.top = bloom.style.bottom = inset;
+                    Ui.Rounded(bloom, 12 + ring * 6);
+                    Ui.Border(bloom, 4 - ring, new Color(glow.r, glow.g, glow.b, ring == 0 ? 0.95f : 0.45f));
+                    bloom.style.backgroundColor = new Color(glow.r, glow.g, glow.b, ring == 0 ? 0.18f : 0.06f);
+                    card.Insert(0, bloom);
+                    Ui.Transition(bloom, 0.55f, EasingMode.EaseOutSine, "opacity", "scale");
+                    bloom.schedule.Execute(() =>
+                    {
+                        bloom.style.opacity = 0;
+                        bloom.style.scale = new Scale(new Vector2(1.12f, 1.12f));
+                    }).StartingIn(60);
+                    bloom.schedule.Execute(bloom.RemoveFromHierarchy).StartingIn(700);
+                }
+            }
+            var streak = new VisualElement { pickingMode = PickingMode.Ignore };
+            streak.style.position = Position.Absolute;
+            streak.style.top = -30;
+            streak.style.bottom = -30;
+            streak.style.width = 22;
+            streak.style.backgroundColor = new Color(1, 1, 1, 0.5f);
+            streak.style.rotate = new Rotate(20);
+            streak.style.translate = new Translate(-40, 0);
+            face.Add(streak);
+            streak.schedule.Execute(() =>
+            {
+                Ui.Transition(streak, 0.35f, EasingMode.EaseInOutSine, "translate");
+                streak.style.translate = new Translate(Width * 1.6f, 0);
+            }).StartingIn(20);
+            streak.schedule.Execute(streak.RemoveFromHierarchy).StartingIn(420);
+        }
+
+        // for a card partly covered by the next one: its bottom corner would show a cut-off number
+        public static void HideLowerCorner(VisualElement card)
+        {
+            var corner = card.Q("corner-low");
+            if (corner != null) corner.style.display = DisplayStyle.None;
         }
 
         // a gold ring around a card, for picked cards

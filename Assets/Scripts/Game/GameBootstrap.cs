@@ -158,6 +158,7 @@ namespace HouseEdge.Game
             }
             else OpenMenu();
             DevCapture.AttachIfRequested(this);
+            StartCoroutine(Preloader.Run());
         }
 
         public void ShowDeck() => _deck.ShowDeck(Run);

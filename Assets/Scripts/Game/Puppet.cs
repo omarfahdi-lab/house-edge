@@ -157,9 +157,18 @@ namespace HouseEdge.Game
             rig.Mouth.style.translate = new Translate(-w / 2, -h / 2);
         }
 
+        // hidden puppets (a closed screen, a scrolled-away list) don't need to move
+        private bool Visible()
+        {
+            if (panel == null) return false;
+            for (VisualElement e = this; e != null; e = e.parent)
+                if (e.resolvedStyle.display == DisplayStyle.None || e.resolvedStyle.opacity <= 0.01f) return false;
+            return true;
+        }
+
         private void Tick()
         {
-            if (panel == null) return;
+            if (!Visible()) return;
             float dt = 0.016f;
             bool still = Settings.ReducedMotion;
             _time += still ? 0 : dt;
@@ -260,6 +269,12 @@ namespace HouseEdge.Game
             }
             Meta[id] = meta;
             return meta;
+        }
+
+        // the preloader hands textures over as they finish loading
+        public static void Keep(string name, Texture2D texture)
+        {
+            if (texture != null) Textures[name] = texture;
         }
 
         private static Texture2D Texture(string name)
