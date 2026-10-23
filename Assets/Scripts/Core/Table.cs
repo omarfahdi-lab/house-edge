@@ -670,6 +670,7 @@ namespace HouseEdge.Core
                     var (chips, mult) = Combos.Base(combo);
                     score.AddChips(chips);
                     score.AddMult(mult);
+                    if (Gambler != null && ArchetypeBonuses.Has(Gambler, Archetype.Combo)) score.AddMult(Balance.ComboSetBonusMult);
                     score.Mark(ScoreSource.Combo, Combos.Name(combo), combo);
                 }
                 int streak = System.Math.Min(WinStreak * Balance.StreakMultPerWin, Balance.MaxStreakBonus);

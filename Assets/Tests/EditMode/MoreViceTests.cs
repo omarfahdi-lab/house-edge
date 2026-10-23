@@ -25,11 +25,14 @@ namespace HouseEdge.Tests
         [Test]
         public void TheCatalog_HasEveryViceFromTheDesign()
         {
-            // 19 common, 22 uncommon, 18 rare, 7 legendary, 4 cursed (the 5 combo Vices brought it from 65 to 70)
-            Assert.That(ViceCatalog.All.Count, Is.EqualTo(70));
+            // 22 common, 26 uncommon, 19 rare, 7 legendary, 4 cursed (the 8 suit and combo Vices brought it from 70 to 78)
+            Assert.That(ViceCatalog.All.Count, Is.EqualTo(78));
+            Assert.That(ViceCatalog.OfRarity(Rarity.Common).Count(), Is.EqualTo(22));
+            Assert.That(ViceCatalog.OfRarity(Rarity.Uncommon).Count(), Is.EqualTo(26));
+            Assert.That(ViceCatalog.OfRarity(Rarity.Rare).Count(), Is.EqualTo(19));
             Assert.That(ViceCatalog.OfRarity(Rarity.Legendary).Count(), Is.EqualTo(7));
             Assert.That(ViceCatalog.OfRarity(Rarity.Cursed).Count(), Is.EqualTo(4));
-            Assert.That(ViceCatalog.All.Select(v => v.Id).Distinct().Count(), Is.EqualTo(70));
+            Assert.That(ViceCatalog.All.Select(v => v.Id).Distinct().Count(), Is.EqualTo(78));
         }
 
         [Test]
@@ -40,12 +43,12 @@ namespace HouseEdge.Tests
         }
 
         [Test]
-        public void PokerFace_Cuts30PercentOfHeat()
+        public void PokerFace_Cuts40PercentOfHeat()
         {
             var g = new Gambler();
             g.Vices.Add(V("Poker Face"));
             g.AddHeat(10);
-            Assert.That(g.Heat, Is.EqualTo(7));
+            Assert.That(g.Heat, Is.EqualTo(6));
         }
 
         [Test]
@@ -61,7 +64,7 @@ namespace HouseEdge.Tests
             var t = With(V("Card Counter"), "10", "10", "6", "9", "4");
             t.Apply(Deal);
             Assert.That(t.NextCardPreview?.ToString(), Is.EqualTo("4♠"));
-            Assert.That(t.Gambler.Heat, Is.EqualTo(3));
+            Assert.That(t.Gambler.Heat, Is.EqualTo(2));
         }
 
         [Test]
@@ -70,7 +73,7 @@ namespace HouseEdge.Tests
             var t = With(V("X-Ray Specs"), "10", "10", "6", "9");
             t.Apply(Deal);
             Assert.That(t.HoleCardHidden, Is.False);
-            Assert.That(t.Gambler.Heat, Is.EqualTo(5));
+            Assert.That(t.Gambler.Heat, Is.EqualTo(3));
         }
 
         [Test]
@@ -108,11 +111,11 @@ namespace HouseEdge.Tests
         }
 
         [Test]
-        public void Burnout_Gives3MultPerBurnThisTable()
+        public void Burnout_Gives4MultPerBurnThisTable()
         {
             var t = With(V("Burnout"), "10", "10", "6", "8", "K", "3");
             Play(t, Deal, Hit, Burn, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(1 + 3));
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 4));
         }
 
         [Test]
@@ -142,7 +145,7 @@ namespace HouseEdge.Tests
             var t = With(V("Sleight of Hand"), "10", "10", "2", "9", "3", "4");
             Play(t, Deal, Hit, Burn);
             Assert.That(t.BurnsLeft, Is.EqualTo(Balance.StartingBurns));
-            Assert.That(t.Gambler.Heat, Is.EqualTo(3));
+            Assert.That(t.Gambler.Heat, Is.EqualTo(2));
         }
 
         [Test]
@@ -182,8 +185,8 @@ namespace HouseEdge.Tests
             var snow = (Vice)V("Snowball");
             var t = With(snow, "K", "9", "Q", "9", "K", "9", "Q", "9", "10", "10", "6", "9", "K", "K", "9", "Q", "9");
             Play(t, Deal, Stand, Deal, Stand);
-            // (20 + 5) for the win, + 5 from the first win
-            Assert.That(Score(t).Chips, Is.EqualTo(25 + 5));
+            // (20 + 5) for the win, + 7 from the first win
+            Assert.That(Score(t).Chips, Is.EqualTo(25 + 7));
             Play(t, Deal, Hit, Stand, Deal, Stand);
             Assert.That(Score(t).Chips, Is.EqualTo(25));
         }
@@ -224,7 +227,8 @@ namespace HouseEdge.Tests
         {
             var t = With(new[] { V("Mirror"), V("Lucky Penny") }, "K", "9", "Q", "9");
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(1 + 4 + 4));
+            // a win's x1 + Lucky Penny's +5, copied
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 5 + 5));
         }
 
         [Test]
@@ -237,11 +241,11 @@ namespace HouseEdge.Tests
         }
 
         [Test]
-        public void AllIn_QuadruplesTheMult()
+        public void AllIn_TriplesTheMult()
         {
             var t = With(V("All In"), "K", "9", "Q", "9");
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(1 * 4));
+            Assert.That(Score(t).Mult, Is.EqualTo(1 * 3));
             Assert.That(t.Gambler.Vices[0].BlocksInterest, Is.True);
         }
 
@@ -291,12 +295,13 @@ namespace HouseEdge.Tests
         }
 
         [Test]
-        public void SmoothTalker_Adds1MultPer5Heat()
+        public void SmoothTalker_Adds1MultPer3Heat()
         {
             var t = With(V("Smooth Talker"), "K", "9", "Q", "9");
             t.Gambler.AddHeat(20);
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(1 + 4));
+            // a win's x1 + 20 Heat / 3
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 6));
         }
 
         [Test]
@@ -386,7 +391,7 @@ namespace HouseEdge.Tests
         {
             var t = With(new[] { V("Lucky Penny"), V("Even Money"), V("Chain Reaction") }, "K", "9", "Q", "9");
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo((1 + 4 + 8) * 1.1 * 1.1).Within(0.001));
+            Assert.That(Score(t).Mult, Is.EqualTo((1 + 5 + 8) * 1.1 * 1.1).Within(0.001));
         }
 
         [Test]

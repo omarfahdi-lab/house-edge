@@ -28,10 +28,15 @@ namespace HouseEdge.Game
             Stake.Black => new Color(0.13f, 0.13f, 0.15f),
             Stake.Purple => new Color(0.5f, 0.24f, 0.76f),
             Stake.Gold => new Color(0.95f, 0.72f, 0.2f),
+            Stake.Blue => new Color(0.18f, 0.42f, 0.86f),
+            Stake.Orange => new Color(0.95f, 0.5f, 0.12f),
+            Stake.Silver => new Color(0.72f, 0.75f, 0.8f),
+            Stake.Platinum => new Color(0.86f, 0.9f, 0.95f),
             _ => new Color(0.93f, 0.92f, 0.88f),
         };
 
-        public static Color InsertOf(Stake stake) => stake == Stake.White ? new Color(0.2f, 0.42f, 0.85f) : new Color(0.97f, 0.96f, 0.92f);
+        public static Color InsertOf(Stake stake) => stake == Stake.White ? new Color(0.2f, 0.42f, 0.85f)
+            : stake >= Stake.Silver ? new Color(0.25f, 0.27f, 0.32f) : new Color(0.97f, 0.96f, 0.92f);
 
         private void Draw(MeshGenerationContext context)
         {

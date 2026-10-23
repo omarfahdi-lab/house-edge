@@ -9,7 +9,7 @@ namespace HouseEdge.Core.Vices
 
     public sealed class PokerFace : Vice
     {
-        public override double HeatFactor => 0.7;
+        public override double HeatFactor => 0.6;
     }
 
     public sealed class SideHustle : Vice
@@ -22,13 +22,13 @@ namespace HouseEdge.Core.Vices
     public sealed class CardCounter : Vice
     {
         public override void OnTableStart(Table table) => table.Rules.SeeNextCard = true;
-        public override void OnDeal(Table table) => table.AddHeat(3);
+        public override void OnDeal(Table table) => table.AddHeat(2);
     }
 
     public sealed class XRaySpecs : Vice
     {
         public override void OnTableStart(Table table) => table.Rules.HoleCardFaceUp = true;
-        public override void OnDeal(Table table) => table.AddHeat(5);
+        public override void OnDeal(Table table) => table.AddHeat(3);
     }
 
     public sealed class SplitPersonality : Vice
@@ -63,7 +63,7 @@ namespace HouseEdge.Core.Vices
 
         public override string Status => _mult > 0 ? $"+{_mult} Mult" : null;
         public override void OnTableStart(Table table) => _mult = 0;
-        public override void OnBurn(Table table, PlayerHand hand) => _mult += 3 * Growth(table);
+        public override void OnBurn(Table table, PlayerHand hand) => _mult += 4 * Growth(table);
 
         public override void OnHandScored(Table table, HandScore score)
         {
@@ -78,7 +78,7 @@ namespace HouseEdge.Core.Vices
             var copy = table.DealerCards[table.DealerCards.Count - 1].Copy();
             copy.Enhancement = Enhancement.Gilded;
             table.Gambler.Deck.Add(copy);
-            table.AddHeat(5);
+            table.AddHeat(3);
         }
     }
 
@@ -101,7 +101,7 @@ namespace HouseEdge.Core.Vices
         {
             if (hand.BurnsUsed != 1) return;
             table.AddBurns(1);
-            table.AddHeat(3);
+            table.AddHeat(2);
         }
     }
 
@@ -162,7 +162,7 @@ namespace HouseEdge.Core.Vices
                 return;
             }
             if (score.ScoresCards) score.AddChips(_chips);
-            if (score.Outcome.IsWin()) _chips += 5 * Growth(table);
+            if (score.Outcome.IsWin()) _chips += 7 * Growth(table);
         }
     }
 
@@ -184,7 +184,7 @@ namespace HouseEdge.Core.Vices
     public sealed class RiggedShoe : Vice
     {
         public override void OnTableStart(Table table) => table.Rules.DealerStandsOn = Math.Max(table.Rules.DealerStandsOn, 18);
-        public override void OnDeal(Table table) => table.AddHeat(5);
+        public override void OnDeal(Table table) => table.AddHeat(3);
     }
 
     public sealed class LuckySevens : Vice
@@ -247,7 +247,7 @@ namespace HouseEdge.Core.Vices
 
         public override void OnHandScored(Table table, HandScore score)
         {
-            if (score.ScoresCards) score.MultiplyMult(4);
+            if (score.ScoresCards) score.MultiplyMult(3);
         }
     }
 
@@ -281,7 +281,7 @@ namespace HouseEdge.Core.Vices
     {
         public override void OnHandScored(Table table, HandScore score)
         {
-            if (score.ScoresCards) score.AddMult(table.Gambler.Heat / 5);
+            if (score.ScoresCards) score.AddMult(table.Gambler.Heat / 3);
         }
     }
 

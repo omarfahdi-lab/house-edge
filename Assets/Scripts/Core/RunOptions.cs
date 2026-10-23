@@ -6,8 +6,8 @@ namespace HouseEdge.Core
 {
     public enum StartingDeck { Standard, ShortDeck, AceHigh, Lowball, MarkedDeck, DealersDeck }
 
-    // difficulty. each stake includes every rule before it
-    public enum Stake { White, Red, Green, Black, Purple, Gold }
+    // difficulty. each stake keeps every rule of the ones before it
+    public enum Stake { White, Red, Green, Black, Purple, Gold, Blue, Orange, Silver, Platinum }
 
     // everything that sets a run up besides its seed
     public sealed class RunOptions
@@ -94,14 +94,26 @@ namespace HouseEdge.Core
         public static string Describe(Stake stake) => stake switch
         {
             Stake.Red => "Low Tables pay no gold.",
-            Stake.Green => "Targets are 1.25x.",
-            Stake.Black => "You start the run with a Dead Card in your deck.",
-            Stake.Purple => "Heat drops half as fast between tables.",
+            Stake.Green => "Targets are 1.1x.",
+            Stake.Black => "You start the run with 2 Dead Cards in your deck.",
+            Stake.Purple => "Shop prices are 1 gold higher, and Heat drops half as fast between tables.",
             Stake.Gold => "The dealer hits on soft 17.",
+            Stake.Blue => "1 fewer Burn at every table.",
+            Stake.Orange => "Targets are 1.1x higher again.",
+            Stake.Silver => "Pit Bosses and Elite tables have 1.2x targets.",
+            Stake.Platinum => "1 fewer Hand at every table, and interest is capped at 2 gold.",
             _ => "Base game.",
         };
 
-        public static double TargetFactor(Stake stake) => stake >= Stake.Green ? 1.25 : 1;
+        public static double TargetFactor(Stake stake) => (stake >= Stake.Green ? 1.1 : 1) * (stake >= Stake.Orange ? 1.1 : 1);
+
+        // Purple and up: everything in shops and rooms costs 1 more
+        public static int PriceBump(Stake stake) => stake >= Stake.Purple ? 1 : 0;
+
+        // Silver and up: bosses and Elites ask for more
+        public static double BossFactor(Stake stake) => stake >= Stake.Silver ? 1.2 : 1;
+
+        public const int PlatinumInterestCap = 2;
     }
 
     // run-wide rules from the deck and stake, applied to every table
@@ -119,6 +131,8 @@ namespace HouseEdge.Core
                 table.AddHands(-1);
             }
             if (_options.Stake >= Stake.Gold) table.Rules.DealerHitsSoft17 = true;
+            if (_options.Stake >= Stake.Blue) table.AddBurns(-1);
+            if (_options.Stake >= Stake.Platinum) table.AddHands(-1);
         }
     }
 

@@ -8,7 +8,7 @@ namespace HouseEdge.Core.Vices
     {
         public override void OnHandScored(Table table, HandScore score)
         {
-            if (score.Outcome.IsWin()) score.AddMult(4);
+            if (score.Outcome.IsWin()) score.AddMult(5);
         }
     }
 
@@ -16,7 +16,7 @@ namespace HouseEdge.Core.Vices
     {
         private int _streak;
 
-        public override string Status => _streak > 0 ? $"+{_streak * 2} Mult" : null;
+        public override string Status => _streak > 0 ? $"+{_streak * 3} Mult" : null;
 
         public override void OnTableStart(Table table) => _streak = 0;
 
@@ -25,7 +25,7 @@ namespace HouseEdge.Core.Vices
             if (score.Outcome.IsWin())
             {
                 _streak++;
-                score.AddMult(2 * _streak);
+                score.AddMult(3 * _streak);
             }
             else if (score.Outcome != Outcome.Push && score.Outcome != Outcome.Surrender) _streak = 0;
         }
@@ -89,7 +89,7 @@ namespace HouseEdge.Core.Vices
         public override void OnHandScored(Table table, HandScore score)
         {
             var cards = score.Hand.Cards;
-            if (score.ScoresCards && cards.Count >= 2 && cards[0].Rank == cards[1].Rank) score.AddMult(6);
+            if (score.ScoresCards && cards.Count >= 2 && cards[0].Rank == cards[1].Rank) score.AddMult(8);
         }
     }
 
@@ -98,7 +98,7 @@ namespace HouseEdge.Core.Vices
         public override void OnHandScored(Table table, HandScore score)
         {
             var cards = score.Hand.Cards;
-            if (score.ScoresCards && cards.All(c => c.Suit == cards[0].Suit)) score.AddMult(5);
+            if (score.ScoresCards && cards.All(c => c.Suit == cards[0].Suit)) score.AddMult(6);
         }
     }
 
@@ -132,7 +132,7 @@ namespace HouseEdge.Core.Vices
     {
         public override void OnHandScored(Table table, HandScore score)
         {
-            if (score.ScoresCards && table.Roll(1, 2)) score.AddMult(10);
+            if (score.ScoresCards && table.Roll(1, 2)) score.AddMult(12);
         }
     }
 
@@ -194,7 +194,7 @@ namespace HouseEdge.Core.Vices
             if (!score.ScoresCards) return;
             int faces = score.Hand.Cards.Count(c => c.Rank >= Rank.Jack && c.Rank <= Rank.King);
             score.AddChips(10 * faces);
-            score.AddMult(faces);
+            score.AddMult(2 * faces);
         }
     }
 }

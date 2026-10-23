@@ -116,7 +116,8 @@ namespace HouseEdge.Core
             Random = new GameRandom(seed);
             Gambler = new Gambler(Balance.StartingGold, Decks.Build(Options.Deck));
             if (Options.Deck == StartingDeck.MarkedDeck) Gambler.AddHeat(Balance.MarkedDeckHeat);
-            if (Options.Stake >= Stake.Black) Gambler.Deck.Add(Card.Cursed(Curse.DeadCard));
+            if (Options.Stake >= Stake.Black)
+                for (int i = 0; i < 2; i++) Gambler.Deck.Add(Card.Cursed(Curse.DeadCard));
             PickFloorBoss();
             BuildMap();
             StartTable();
@@ -134,8 +135,11 @@ namespace HouseEdge.Core
         public long TargetFor(TableKind stage) => (long)Math.Round(Balance.Target(Floor, stage) * Stakes.TargetFactor(Options.Stake));
         public long CurrentTarget => Table?.Target ?? TargetFor(Stage);
 
-        public int PriceOf(ShopOffer offer) => Shop.HeatAdjusted(offer.BasePrice, Gambler);
-        public int RerollCost => Shop.HeatAdjusted(Shop.RerollCost, Gambler);
+        public int PriceOf(ShopOffer offer) => Priced(offer.BasePrice);
+        public int RerollCost => Priced(Shop.RerollCost);
+
+        // anything you pay for in a shop or room: Purple stake and up add 1, Suspected Heat adds 25%
+        private int Priced(int basePrice) => Shop.HeatAdjusted(basePrice + Stakes.PriceBump(Options.Stake), Gambler);
         public int SellValue(Vice vice) => Balance.SellPrice(Balance.VicePrice(vice.Definition.Rarity));
 
         // the stage after the current one, and whether it starts a new floor
@@ -381,7 +385,8 @@ namespace HouseEdge.Core
 
             // an Elite plays for the next table's target
             var stage = AtElite ? NextStage.stage : Stage;
-            long target = (long)Math.Round(TargetFor(stage) * (Boss?.TargetFactor ?? 1) * (AtElite ? Balance.EliteTargetFactor : _nextTargetFactor));
+            double bossFactor = Boss != null && (AtElite || Stage == TableKind.Boss) ? Stakes.BossFactor(Options.Stake) : 1;
+            long target = (long)Math.Round(TargetFor(stage) * (Boss?.TargetFactor ?? 1) * bossFactor * (AtElite ? Balance.EliteTargetFactor : _nextTargetFactor));
             if (!AtElite) _nextTargetFactor = 1;
             Table = new Table(Gambler, Random, target, effects);
             if (AtElite) Table.AddHands(-Balance.EliteHandsLess);
@@ -450,7 +455,9 @@ namespace HouseEdge.Core
             LastPayout = new TablePayout(
                 redStake ? 0 : Balance.TablePayout(kind),
                 Table.HandsLeft * Math.Max(perHand, Balance.GoldPerUnusedHand),
-                noInterest ? 0 : Balance.Interest(Gambler.Gold, ArchetypeBonuses.InterestCap(Gambler)));
+                noInterest ? 0 : Balance.Interest(Gambler.Gold, Options.Stake >= Stake.Platinum
+                    ? Math.Min(Stakes.PlatinumInterestCap, ArchetypeBonuses.InterestCap(Gambler))
+                    : ArchetypeBonuses.InterestCap(Gambler)));
             Gambler.GainGold(LastPayout.Total);
         }
 
@@ -663,7 +670,7 @@ namespace HouseEdge.Core
                 case RoomKind.Bar:
                     for (int i = 0; i < Room.Cocktails.Count; i++)
                         options.Add(new RoomOption(RoomActionKind.BuyCocktail, Cocktails.Name(Room.Cocktails[i]),
-                            Shop.HeatAdjusted(Balance.BarCocktailPrice, Gambler), i));
+                            Priced(Balance.BarCocktailPrice), i));
                     options.Add(new RoomOption(RoomActionKind.FreeCocktail, "Take a free random Cocktail"));
                     break;
                 case RoomKind.BackRoom:
@@ -675,7 +682,7 @@ namespace HouseEdge.Core
                             -PawnValue(Gambler.Vices[i]), i));
                     if (Room.UsedRare != null)
                         options.Add(new RoomOption(RoomActionKind.BuyUsedRare, $"Buy a used {Room.UsedRare.Name}",
-                            Shop.HeatAdjusted(Balance.UsedRarePrice, Gambler)));
+                            Priced(Balance.UsedRarePrice)));
                     break;
                 case RoomKind.LoanShark:
                     foreach (int amount in Balance.LoanAmounts)
@@ -700,7 +707,7 @@ namespace HouseEdge.Core
                     var choices = Events.Choices(Room.Event);
                     for (int i = 0; i < choices.Count; i++)
                         options.Add(new RoomOption(RoomActionKind.EventChoice, choices[i].label,
-                            choices[i].cost > 0 ? Shop.HeatAdjusted(choices[i].cost, Gambler) : choices[i].cost, i));
+                            choices[i].cost > 0 ? Priced(choices[i].cost) : choices[i].cost, i));
                     break;
                 case RoomKind.HighLimitLounge:
                     var (floor, stage) = NextStage;

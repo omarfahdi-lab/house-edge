@@ -154,9 +154,9 @@ namespace HouseEdge.Core
         public const int AnteUpLoss = 3;
         public const double AnteUpMult = 2;
         public const int HotHandMult = 5;
-        public const int CardMechanicHeat = 10;
-        public const int ColdReadHeat = 8;
-        public const int TheDealerHeat = 15;
+        public const int CardMechanicHeat = 6;
+        public const int ColdReadHeat = 5;
+        public const int TheDealerHeat = 10;
         public const int SurrenderCost = 3;
         public const int InsuranceCost = 2;
         public const double DoubleDownMult = 2;
@@ -166,6 +166,8 @@ namespace HouseEdge.Core
         public const int DealerBustBonusChips = 10;
         // each win in a row at a table adds this much Mult to the next winning hand
         public const int StreakMultPerWin = 1;
+        // the Combo set bonus: extra Mult on every combo
+        public const int ComboSetBonusMult = 2;
         public const int MaxStreakBonus = 6;
         public const int DealerBustBonusMult = 0;
 

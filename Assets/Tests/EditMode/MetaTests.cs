@@ -36,14 +36,14 @@ namespace HouseEdge.Tests
         public void GreenStake_RaisesTargets_AndIncludesRed()
         {
             var run = new Run(1, new RunOptions { Stake = Stake.Green });
-            Assert.That(run.Table.Target, Is.EqualTo((long)System.Math.Round(Balance.Target(1, TableKind.Low) * 1.25)));
+            Assert.That(run.Table.Target, Is.EqualTo((long)System.Math.Round(Balance.Target(1, TableKind.Low) * 1.1)));
         }
 
         [Test]
-        public void BlackStake_StartsWithADeadCard()
+        public void BlackStake_StartsWithTwoDeadCards()
         {
             var run = new Run(1, new RunOptions { Stake = Stake.Black });
-            Assert.That(run.Gambler.Deck.Count(c => c.Curse == Curse.DeadCard), Is.EqualTo(1));
+            Assert.That(run.Gambler.Deck.Count(c => c.Curse == Curse.DeadCard), Is.EqualTo(2));
         }
 
         [Test]

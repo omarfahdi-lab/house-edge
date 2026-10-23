@@ -43,7 +43,7 @@ The twist: **the dealer draws from your deck too.** Stack it with 10s and you hi
   the first draft of the design couldn't be won and why, and drove every number change (see [Balance](#balance)).
 - **Everything from the design doc:** 8 floors with a floor map of 8 room types, 12 Pit Bosses plus The Eye in the Sky,
   The Enforcer and a 3-phase House, Heat and casino security, side bets, Cocktails, Comps, archetype set bonuses,
-  6 starting decks, 6 stakes, unlocks, the Daily Run, run codes and Endless.
+  6 starting decks, 10 stakes, unlocks, the Daily Run, run codes and Endless.
 - **Built entirely in code.** One bootstrap method builds the camera, a UI Toolkit interface, and synthesized sound and music.
   Cards, suits, icons, poker chips and the table's felt are drawn in code (`Painter2D` vector shapes and generated
   textures, so they work on WebGL with no font fallback). The only assets are two open-source fonts.
@@ -187,8 +187,28 @@ should land well above it. Floors 1-2 are forgiving (96-97% of tables) and every
 | 7 | 92% | 92% | 83% | 20% | 2.7-3.5 |
 | 8 | 94% | 89% | 84% (The House) | 14% | 2.7-4.5 |
 
-Focusing the bot on one archetype shows the next thing to tune: Risky 20.1%, Steady 16.8%, Greedy 10.5%, Lucky 7.9%,
-Combo 6.5%, Cheater 4.1%. Cheater builds trail because Heat sends you to security and the bot can't read tells.
+**Every playstyle viable.** Focusing the bot on one archetype used to range from 2% (Cheater) to 22% (Risky).
+A balance pass cut Cheater Heat costs, gave Lucky and Combo Vices more punch, toned All In down from x4 to x3,
+added 8 suit and combo Vices, and gave the Combo set bonus +2 Mult per combo. Now (two seed ranges): Risky 16-17%,
+Steady 14%, Greedy 10-12%, Lucky 7-9%, Cheater 7%, Combo 4-6%. Combo reads lowest because the bot never builds toward
+combos, which is exactly what Combo Vices reward.
+
+**A difficulty ladder.** Ten stakes, each keeping every rule before it, like Slay the Spire's Ascension. Each step
+is a similar notch harder for the bot:
+
+| Stake | Adds | Bot win rate |
+| ----- | ---- | -----------: |
+| White | base game | 10.9% |
+| Red | Low Tables pay no gold | 7.1% |
+| Green | targets 1.1x | 5.5% |
+| Black | 2 Dead Cards in your deck | 4.6% |
+| Purple | prices +1, Heat cools half as fast | 3.3% |
+| Gold | the dealer hits soft 17 | 2.8% |
+| Blue | 1 fewer Burn | 1.5% |
+| Orange | targets 1.1x again | 1.1% |
+| Silver | Pit Bosses and Elites 1.2x | 0.4% |
+| Platinum | 1 fewer Hand, interest capped at 2 | 0.1% |
+
 A test (`TunedBalance_KeepsTheBotNearItsTargetWinRate`) runs 300 seeded runs and fails if the bot's win rate leaves
 7-25%, so CI catches balance regressions.
 

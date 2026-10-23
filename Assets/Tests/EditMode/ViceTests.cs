@@ -31,12 +31,12 @@ namespace HouseEdge.Tests
         }
 
         [Test]
-        public void LuckyPenny_Adds4MultOnAWin_NotOnAPush()
+        public void LuckyPenny_Adds5MultOnAWin_NotOnAPush()
         {
-            // win with 20 -> 20 + 5 = 25 Chips, 1 + 4 Mult
+            // win with 20 -> 20 + 5 = 25 Chips, 1 + 5 Mult
             var win = With(V("Lucky Penny"), "K", "9", "Q", "9");
             Play(win, Deal, Stand);
-            Assert.That(Score(win).Total, Is.EqualTo(25 * 5));
+            Assert.That(Score(win).Total, Is.EqualTo(25 * 6));
 
             var push = With(V("Lucky Penny"), "K", "9", "9", "K");
             Play(push, Deal, Stand);
@@ -44,7 +44,7 @@ namespace HouseEdge.Tests
         }
 
         [Test]
-        public void HotStreak_Grows2MultPerConsecutiveWin_AndResetsOnALoss()
+        public void HotStreak_Grows3MultPerConsecutiveWin_AndResetsOnALoss()
         {
             var t = With(V("Hot Streak"),
                 "K", "9", "Q", "9",   // win
@@ -53,11 +53,11 @@ namespace HouseEdge.Tests
                 "K", "9", "Q", "9");  // win
             // a win's x1 + Hot Streak. the second win also gets the table's own +1 streak Mult
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(1 + 2));
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 3));
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(1 + 1 + 4));
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 1 + 6));
             Play(t, Deal, Stand, Deal, Stand);
-            Assert.That(Score(t).Mult, Is.EqualTo(1 + 2));
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 3));
         }
 
         [Test]
@@ -72,10 +72,10 @@ namespace HouseEdge.Tests
         [Test]
         public void HighRoller_Adds2MultPerTenValueCard()
         {
-            // two 10s, Lucky Penny + High Roller -> (20 + 5) x (1 + 4 + 2 + 2) = 225
+            // two 10s, Lucky Penny + High Roller -> (20 + 5) x (1 + 5 + 2 + 2) = 250
             var t = new Table(Stack("K", "9", "Q", "9"), long.MaxValue, new[] { V("Lucky Penny"), V("High Roller") });
             Play(t, Deal, Stand);
-            Assert.That(Score(t).Total, Is.EqualTo(25 * 9));
+            Assert.That(Score(t).Total, Is.EqualTo(25 * 10));
         }
 
         [Test]
@@ -117,21 +117,21 @@ namespace HouseEdge.Tests
         }
 
         [Test]
-        public void PocketPair_Adds6Mult_ForAStartingPair()
+        public void PocketPair_Adds8Mult_ForAStartingPair()
         {
             var t = With(V("Pocket Pair"), "9", "10", "9", "7");
             Play(t, Deal, Stand);
-            // a win's x1 + the Pair combo's +1 + Pocket Pair's +6
-            Assert.That(Score(t).Mult, Is.EqualTo(1 + 1 + 6));
+            // a win's x1 + the Pair combo's +1 + Pocket Pair's +8
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 1 + 8));
         }
 
         [Test]
-        public void SuitUp_Adds5Mult_WhenEveryCardSharesASuit()
+        public void SuitUp_Adds6Mult_WhenEveryCardSharesASuit()
         {
             var t = With(V("Suit Up"), "Kh", "9", "9h", "7", "K");
             Play(t, Deal, Stand);
-            // a win's x1 + the Suited combo's +1 + Suit Up's +5
-            Assert.That(Score(t).Mult, Is.EqualTo(1 + 1 + 5));
+            // a win's x1 + the Suited combo's +1 + Suit Up's +6
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 1 + 6));
         }
 
         [Test]
@@ -177,7 +177,7 @@ namespace HouseEdge.Tests
             }
             var results = Enumerable.Range(1, 20).Select(ScoreWithSeed).ToList();
             Assert.That(results, Is.EqualTo(Enumerable.Range(1, 20).Select(ScoreWithSeed).ToList()));
-            Assert.That(results.Distinct(), Is.EquivalentTo(new long[] { 25, 275 }), "either 25 x 1 or 25 x 11");
+            Assert.That(results.Distinct(), Is.EquivalentTo(new long[] { 25, 325 }), "either 25 x 1 or 25 x 13");
         }
 
         [Test]
@@ -227,12 +227,13 @@ namespace HouseEdge.Tests
         }
 
         [Test]
-        public void FaceValue_Adds10ChipsAnd1MultPerFaceCard()
+        public void FaceValue_Adds10ChipsAnd2MultPerFaceCard()
         {
             var t = With(V("Face Value"), "K", "9", "Q", "9");
             Play(t, Deal, Stand);
+            // two face cards: +20 Chips, +4 Mult
             Assert.That(Score(t).Chips, Is.EqualTo(25 + 20));
-            Assert.That(Score(t).Mult, Is.EqualTo(1 + 2));
+            Assert.That(Score(t).Mult, Is.EqualTo(1 + 4));
         }
     }
 }

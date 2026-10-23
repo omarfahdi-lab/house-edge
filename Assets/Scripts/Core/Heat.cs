@@ -38,7 +38,7 @@ namespace HouseEdge.Core
             Archetype.Cheater => "All Heat you gain is halved.",
             Archetype.Greedy => "Interest cap goes up by 3.",
             Archetype.Steady => "+1 Hand at every table.",
-            _ => "Scaling Vices grow twice as fast.",
+            _ => "Scaling Vices grow twice as fast, and every combo gives +2 more Mult.",
         };
 
         public static double HeatFactor(Gambler gambler) => Has(gambler, Archetype.Cheater) ? 0.5 : 1;

@@ -135,7 +135,7 @@ namespace HouseEdge.Game
             Section(setup, "STAKE", "Difficulty. Each chip adds a rule on top of the ones before it. Win to unlock the next.");
             _stakes = Ui.Row(setup);
             _stakes.style.justifyContent = Justify.SpaceBetween;
-            _stakes.style.paddingLeft = _stakes.style.paddingRight = 12;
+            _stakes.style.paddingLeft = _stakes.style.paddingRight = 0;
             var stakeInfo = InfoBox(setup);
             _stakeName = Ui.Text(stakeInfo, "", 15, Ui.Cream, Weight.Bold);
             _stakeText = Ui.Body(stakeInfo, "", 13, Ui.Dim);
@@ -353,15 +353,15 @@ namespace HouseEdge.Game
             bool selected = stake == _stake;
             var column = Ui.Column(null, 4);
             column.style.alignItems = Align.Center;
-            column.style.width = 70;
+            column.style.width = 54;
             var holder = new VisualElement();
-            holder.style.width = holder.style.height = 56;
+            holder.style.width = holder.style.height = 46;
             holder.style.alignItems = Align.Center;
             holder.style.justifyContent = Justify.Center;
-            Ui.Rounded(holder, 28);
+            Ui.Rounded(holder, 23);
             if (selected) Ui.Border(holder, 3, Ui.Gold);
             column.Add(holder);
-            var chip = new PokerChip(PokerChip.ColorOf(stake), PokerChip.InsertOf(stake), selected ? 46 : 42);
+            var chip = new PokerChip(PokerChip.ColorOf(stake), PokerChip.InsertOf(stake), selected ? 40 : 36);
             holder.Add(chip);
             if (!unlocked)
             {
@@ -370,7 +370,7 @@ namespace HouseEdge.Game
                 lockIcon.style.position = Position.Absolute;
                 holder.Add(lockIcon);
             }
-            Ui.Text(column, stake.ToString(), 12, selected ? Ui.Gold : unlocked ? Ui.Cream : Ui.Dim, selected ? Weight.Heavy : Weight.Medium);
+            Ui.Text(column, stake.ToString(), 11, selected ? Ui.Gold : unlocked ? Ui.Cream : Ui.Dim, selected ? Weight.Heavy : Weight.Medium);
 
             Ui.Transition(holder, 0.15f, "scale");
             if (selected) holder.style.scale = new Scale(new Vector2(1.08f, 1.08f));

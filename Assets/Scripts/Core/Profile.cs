@@ -80,7 +80,7 @@ namespace HouseEdge.Core
             if (won)
             {
                 Wins++;
-                if (run.Options.Stake == HighestStake && HighestStake < Stake.Gold)
+                if (run.Options.Stake == HighestStake && HighestStake < Stakes.All[Stakes.All.Count - 1])
                 {
                     HighestStake++;
                     unlocked.Add($"{Stakes.Name(HighestStake)} stake");
