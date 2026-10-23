@@ -128,7 +128,7 @@ namespace HouseEdge.Tests
             var t = StackedTableNoTarget("10", "10", "6", "9", "K", "4");
             Play(t, Deal, Hit);
             Assert.That(t.Phase, Is.EqualTo(TablePhase.PlayerTurn), "waits so the player can burn");
-            Assert.That(t.LegalActions(), Is.EquivalentTo(new[] { Burn, Stand }));
+            Assert.That(t.LegalActions(), Is.EquivalentTo(new[] { Burn, Stand, PalmClean, PalmSeen }));
             Play(t, Burn, Stand);
             Assert.That(t.LastScores.Single().Outcome, Is.EqualTo(Outcome.Win));
         }
@@ -138,6 +138,9 @@ namespace HouseEdge.Tests
         {
             var t = StackedTableNoTarget("10", "10", "6", "9", "K", "Q", "J", "8");
             Play(t, Deal, Hit, Burn, Burn, Burn);
+            // the palm could still save it, so the bust waits
+            Assert.That(t.Phase, Is.EqualTo(TablePhase.PlayerTurn));
+            Play(t, Stand);
             Assert.That(t.BurnsLeft, Is.EqualTo(0));
             Assert.That(t.LastScores.Single().Outcome, Is.EqualTo(Outcome.Bust));
         }

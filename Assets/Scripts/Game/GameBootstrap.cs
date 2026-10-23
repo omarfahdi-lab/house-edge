@@ -46,6 +46,7 @@ namespace HouseEdge.Game
         private float _replayTimer;
 
         public Run Run { get; private set; }
+        public TableView Table => _table;
         public bool Replaying => _replay != null;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -127,7 +128,7 @@ namespace HouseEdge.Game
             Tooltip.Create(root);
 
             _table.ActionChosen += action => TryApply(RunInput.Table(action));
-            _table.TrickChosen += slot => TryApply(RunInput.PlayTrick(slot));
+            _table.TrickPlayed += (slot, target) => TryApply(RunInput.PlayTrick(slot, target));
             _shop.InputChosen += TryApply;
             _hud.InputChosen += TryApply;
             _hud.CocktailClicked += UseCocktail;
@@ -149,6 +150,7 @@ namespace HouseEdge.Game
 
             // a run sits behind the menu so the table isn't empty
             Run = new Run(DevCapture.SeedOverride ?? System.Environment.TickCount);
+            Gallery.Deal(Run.Seed);
             _feedback.Reset(Run);
             Refresh();
             if (DevCapture.Requested)
@@ -245,6 +247,8 @@ namespace HouseEdge.Game
             options.LockedVices = options.Daily ? new List<string>() : _profile.LockedVices;
             _bosses.Clear();
             _mapShownFloor = 0;
+            // a fresh set of paintings to play the dealers, hosts and you
+            Gallery.Deal(seed);
             Run = new Run(seed, options);
             _menu.Close();
             _deck.Close();
@@ -423,6 +427,7 @@ namespace HouseEdge.Game
             if (keyboard.escapeKey.wasPressedThisFrame)
             {
                 if (_collection.IsOpen) _collection.Close();
+                else if (_table.CancelTarget()) { }
                 else if (_bossIntro.IsOpen) _bossIntro.Close();
                 else if (_map.Viewing) _map.Close();
                 else if (_deck.IsOpen) _deck.Close();
@@ -489,8 +494,8 @@ namespace HouseEdge.Game
             if (keyboard.xKey.wasPressedThisFrame) TryTable(PlayerAction.Raise);
             if (Run.Phase == RunPhase.AtTable && Run.Table.Phase == TablePhase.PlayerTurn)
             {
-                if (keyboard.digit1Key.wasPressedThisFrame) TryApply(RunInput.PlayTrick(0));
-                if (keyboard.digit2Key.wasPressedThisFrame) TryApply(RunInput.PlayTrick(1));
+                if (keyboard.digit1Key.wasPressedThisFrame) _table.UseTrickSlot(0);
+                if (keyboard.digit2Key.wasPressedThisFrame) _table.UseTrickSlot(1);
             }
             if (keyboard.dKey.wasPressedThisFrame) TryTable(PlayerAction.DoubleDown);
             if (keyboard.pKey.wasPressedThisFrame) TryTable(PlayerAction.Split);

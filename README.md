@@ -69,9 +69,11 @@ The twist: **the dealer draws from your deck too.** Stack it with 10s and you hi
   (`FloorMap`, generated from the run's seed so replays still match). You see the whole floor and plan a route; paths
   never cross, the first row after a table always has a Shop, and the lounge only appears right before a table. The bot
   plans paths too, and the win rate held at about 21%.
-- **A cast of old masters.** Every boss, dealer and host is a public-domain painting in a gilt frame: The Cheat is
-  de La Tour's *Cheat with the Ace of Diamonds*, The Mime is Watteau's *Pierrot*, The Eye in the Sky is Redon's
-  floating eye, The House is Rigaud's *Louis XIV*. Like Balatro's jokers they never walk but are always alive: they
+- **A cast of old masters.** Every boss, dealer and host is a public-domain painting in a gilt frame, with a museum
+  plaque underneath. The bosses keep their signature works (The Cheat is de La Tour's *Cheat with the Ace of
+  Diamonds*, The Mime is Watteau's *Pierrot*, The House is Rigaud's *Louis XIV*); everyone else is dealt from a
+  gallery of 320 famous portraits, from the *Mona Lisa* to *The Laughing Cavalier*, unseen ones first, so you rarely
+  meet the same face twice ([the full list](docs/GALLERY.md)). Like Balatro's jokers they never walk but are always alive: they
   sway on their hooks, bob when they talk, and react (a gold glow when you lose, a grey droop when you win, an angry
   shake in a boss's phase two).
 - **Rooms are scenes, not menus.** Every stop on the map is a drawn room (bottle shelves at the Bar, flickering

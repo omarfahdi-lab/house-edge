@@ -187,6 +187,7 @@ namespace HouseEdge.Game
                 Ui.Text(row, Tricks.Name(kind), 14, new Color(0.55f, 0.85f, 1f), Weight.Bold).style.width = 150;
                 Ui.Body(row, Tricks.Describe(kind), 13, Ui.Cream).style.flexShrink = 1;
             }
+            Para($"HANDS ON THE TABLE. A gold LUCKY CHIP sometimes rolls across the felt: click it before it's gone for +{Balance.LuckyChipGold} gold and +{Balance.LuckyChipMult} Mult if the hand wins. Once a table, right after you Hit, you can DRAG that card into your sleeve to take it back. Watch the security camera by the shoe: do it while it looks away (green) for +{Balance.PalmCleanHeat} Heat, or get seen (red) for +{Balance.PalmSeenHeat}.");
             Para("FEATS are rare named hands, like The Black Jack (Ace of Spades and a black Jack) or a Six-Card Charlie. A winning Feat multiplies the whole hand's Mult and goes in your collection.");
         }
 
@@ -300,6 +301,8 @@ namespace HouseEdge.Game
                 ("W", "Swap with the dealer (Card Mechanic Vice)"),
                 ("X", "Raise the bet before a deal"),
                 ("1 / 2", "Play a trick card during your turn"),
+                ("Drag", "Drag your last card into your sleeve to palm it"),
+                ("Click", "Grab the lucky chip; pick a card for Steal or Nudge"),
                 ("1 / 2 / 3", "Pick the next stop on the map"),
                 ("Tab", "Look at the map"),
                 ("M", "Mute"),

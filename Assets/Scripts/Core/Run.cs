@@ -223,7 +223,7 @@ namespace HouseEdge.Core
                     return Phase == RunPhase.InRoom && !InBackRoomHand;
                 case RunInputKind.PlayTrick:
                     return Phase == RunPhase.AtTable && !Table.IsOver && InRange(input.Index, Gambler.Tricks.Count)
-                        && Table.CanUseTrick(Gambler.Tricks[input.Index]);
+                        && Table.CanUseTrick(Gambler.Tricks[input.Index], input.Index2);
                 case RunInputKind.RepayDebt:
                     return Gambler.Debt > 0 && Gambler.Gold > 0 && (betweenTables || Phase == RunPhase.RoomChoice) && !InBackRoomHand;
                 default:
@@ -333,7 +333,7 @@ namespace HouseEdge.Core
                 case RunInputKind.PlayTrick:
                     var trick = Gambler.Tricks[input.Index];
                     Gambler.Tricks.RemoveAt(input.Index);
-                    Table.UseTrick(trick);
+                    Table.UseTrick(trick, input.Index2);
                     if (Table.IsOver) FinishTable();
                     break;
                 case RunInputKind.PickPackCard:

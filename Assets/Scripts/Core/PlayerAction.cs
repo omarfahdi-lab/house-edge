@@ -29,6 +29,12 @@ namespace HouseEdge.Core
 
         // before the deal: raise the bet one step (x2, x3), and back to x1 after the top
         Raise,
+
+        // a lucky chip rolling across the felt: grab it
+        CatchChip,
+        // slide your last card up your sleeve, once a table: while the camera looks away, or caught by it
+        PalmClean,
+        PalmSeen,
     }
 
     public enum TablePhase

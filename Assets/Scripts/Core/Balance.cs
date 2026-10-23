@@ -104,6 +104,12 @@ namespace HouseEdge.Core
         public const int TrickPrice = 3;
         public const int AceUpSleeveHeat = 8;
 
+        // the lucky chip that sometimes rolls across the felt, and palming a card
+        public const int LuckyChipGold = 2;
+        public const int LuckyChipMult = 4;
+        public const int PalmCleanHeat = 3;
+        public const int PalmSeenHeat = 22;
+
         // the slot machine room
         public const int SlotPullCost = 4;
         public const int SlotPulls = 3;

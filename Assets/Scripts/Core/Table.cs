@@ -68,6 +68,14 @@ namespace HouseEdge.Core
         // extra Hands the last deal's lost raise cost
         public int RaiseHandsLost { get; private set; }
 
+        // a lucky chip rolling across the felt this deal, and whether you caught it
+        public bool ChipOnTable { get; private set; }
+        public bool ChipCaught { get; private set; }
+        // you get one palm a table
+        public bool PalmUsed { get; private set; }
+        // cards a Nudge lowered this deal, put back when it's cleared
+        private readonly List<Card> _nudged = new List<Card>();
+
         // the boss's second phase: once the score is past half the target
         public bool Raged { get; private set; }
         public bool RagedThisDeal { get; private set; }
@@ -225,6 +233,12 @@ namespace HouseEdge.Core
                     break;
                 case TablePhase.PlayerTurn:
                     var hand = ActiveHand;
+                    if (ChipOnTable) actions.Add(PlayerAction.CatchChip);
+                    if (CanPalm(hand))
+                    {
+                        actions.Add(PlayerAction.PalmClean);
+                        actions.Add(PlayerAction.PalmSeen);
+                    }
                     if (hand.Value.IsBust)
                     {
                         // a hit just busted and a Burn could still save it
@@ -258,6 +272,15 @@ namespace HouseEdge.Core
                 case PlayerAction.Deal: Deal(); break;
                 case PlayerAction.AnteUp: AntedUp = true; break;
                 case PlayerAction.Raise: BetLevel = NextBetLevel; break;
+                case PlayerAction.CatchChip:
+                    ChipOnTable = false;
+                    ChipCaught = true;
+                    Gambler.GainGold(Balance.LuckyChipGold);
+                    break;
+                case PlayerAction.PalmClean:
+                case PlayerAction.PalmSeen:
+                    Palm(ActiveHand, action == PlayerAction.PalmSeen);
+                    break;
                 case PlayerAction.BetPerfectPair:
                 case PlayerAction.Bet21Plus3:
                 case PlayerAction.BetBustIt:
@@ -299,6 +322,18 @@ namespace HouseEdge.Core
 
         private bool CanBurn(PlayerHand hand) => hand.LastCardWasHit && (BurnsLeft > 0 || Rules.UnlimitedBurns) && !Rules.BurnsDisabled;
 
+        private bool CanPalm(PlayerHand hand) => !PalmUsed && hand.LastCardWasHit && hand.Cards.Count > 2;
+
+        // the last card you hit goes up your sleeve (and back under the shoe). being seen costs a lot of Heat
+        private void Palm(PlayerHand hand, bool seen)
+        {
+            PalmUsed = true;
+            _shoe.PutBottom(hand.RemoveLast());
+            hand.LastCardWasHit = false;
+            AddHeat(seen ? Balance.PalmSeenHeat : Balance.PalmCleanHeat);
+            Announce(seen ? "Caught on camera palming a card!" : "Palmed it. Nobody saw a thing.");
+        }
+
         private bool CanSurrender(PlayerHand hand) =>
             _hands.Count == 1 && hand.Cards.Count == 2 && !hand.HasActed && Gambler.CanAfford(Balance.SurrenderCost);
 
@@ -332,6 +367,8 @@ namespace HouseEdge.Core
             DrawForDealer();
             DrawFor(hand);
             DrawForDealer();
+            // about one deal in four a lucky chip rolls by. worked out from the table, so it costs no random draws
+            ChipOnTable = (DealsPlayed * 31 + (int)(Target % 97) + _dealerCards[0].LowValue) % 4 == 0;
 
             foreach (var effect in ActiveEffects()) effect.OnDeal(this);
 
@@ -369,6 +406,10 @@ namespace HouseEdge.Core
             SideBetResult = null;
             AnteLost = false;
             _swapUsedThisDeal = false;
+            ChipOnTable = false;
+            ChipCaught = false;
+            foreach (var card in _nudged) card.Rank++;
+            _nudged.Clear();
             _coldReadUsedThisDeal = false;
             _dealerStopped = false;
             _endTurnAfterCard = false;
@@ -421,8 +462,8 @@ namespace HouseEdge.Core
         private void AfterCardTaken(PlayerHand hand)
         {
             var value = hand.Value;
-            // a bust waits for the player while a Burn (or a Take Back trick) could still save it
-            bool canStillBurn = value.IsBust && (CanBurn(hand) || Gambler.Tricks.Contains(TrickKind.TakeBack));
+            // a bust waits for the player while a Burn, a palm or a Take Back trick could still save it
+            bool canStillBurn = value.IsBust && (CanBurn(hand) || CanPalm(hand) || Gambler.Tricks.Contains(TrickKind.TakeBack));
             bool snakeEyes = _endTurnAfterCard;
             _endTurnAfterCard = false;
             if ((value.IsBust && !canStillBurn) || value.IsCharlie || (snakeEyes && !value.IsBust)) EndHand(hand);
@@ -722,6 +763,8 @@ namespace HouseEdge.Core
             }
             if (SideBet == SideBet.HotHand && win) score.AddMult(Balance.HotHandMult);
             score.Mark(ScoreSource.Bonus, "Hot Hand");
+            if (ChipCaught && win) score.AddMult(Balance.LuckyChipMult);
+            score.Mark(ScoreSource.Bonus, "Lucky Chip");
 
             // combos only pay when you beat the dealer
             if (win)
@@ -794,24 +837,39 @@ namespace HouseEdge.Core
 
         // trick cards
 
-        public bool CanUseTrick(TrickKind kind)
+        // does it need you to pick one of your cards?
+        public static bool Targeted(TrickKind kind) => kind == TrickKind.Steal || kind == TrickKind.Nudge;
+
+        // can this card of yours be a Nudge target
+        public bool CanNudge(int card)
+        {
+            var hand = ActiveHand;
+            if (hand == null || card < 0 || card >= hand.Cards.Count) return false;
+            var c = hand.Cards[card];
+            return !c.IsCursed && c.Rank >= Rank.Three && c.Rank <= Rank.Ten && !_nudged.Contains(c);
+        }
+
+        public bool CanUseTrick(TrickKind kind, int target = -1)
         {
             if (Phase != TablePhase.PlayerTurn) return false;
             var hand = ActiveHand;
+            if (target >= hand.Cards.Count) return false;
             return kind switch
             {
                 TrickKind.Peek => HoleCardHidden,
                 TrickKind.TakeBack => hand.LastCardWasHit && hand.Cards.Count > 2,
                 TrickKind.Steal => !hand.Value.IsBust && DealerUpCard != null,
+                TrickKind.Nudge => target < 0 ? Enumerable.Range(0, hand.Cards.Count).Any(CanNudge) : CanNudge(target),
                 TrickKind.SecondThoughts => !hand.IsDoubled && hand.HasActed && !hand.Value.IsBust,
                 _ => !hand.Value.IsBust,
             };
         }
 
         // the run takes the card out of your hand; this plays it
-        internal void UseTrick(TrickKind kind)
+        internal void UseTrick(TrickKind kind, int target = -1)
         {
             var hand = ActiveHand;
+            if (target < 0) target = kind == TrickKind.Nudge ? Enumerable.Range(0, hand.Cards.Count).Last(CanNudge) : hand.Cards.Count - 1;
             switch (kind)
             {
                 case TrickKind.Peek:
@@ -821,8 +879,14 @@ namespace HouseEdge.Core
                     _shoe.PutBottom(hand.RemoveLast());
                     hand.LastCardWasHit = false;
                     break;
+                case TrickKind.Nudge:
+                    var nudged = hand.Cards[target];
+                    nudged.Rank--;
+                    _nudged.Add(nudged);
+                    AfterCardTaken(hand);
+                    break;
                 case TrickKind.Steal:
-                    SwapWithDealerUpCard(hand, hand.Cards.Count - 1);
+                    SwapWithDealerUpCard(hand, target);
                     hand.LastCardWasHit = false;
                     AfterCardTaken(hand);
                     break;

@@ -1,0 +1,320 @@
+Q12418|Mona Lisa|Leonardo da Vinci|1503
+Q474338|Lady with an Ermine|Leonardo da Vinci|1490
+Q661378|The Anatomy Lesson of Dr. Nicolaes Tulp|Rembrandt|1632
+Q220859|Arnolfini Portrait|Jan van Eyck|1434
+Q1267893|Ginevra de' Benci|Leonardo da Vinci|1476
+Q1245354|A Bar at the Folies-Bergère|Édouard Manet|1882
+Q604761|The Blue Boy|Thomas Gainsborough|1770
+Q354396|Portrait of Adele Bloch-Bauer I|Gustav Klimt|1907
+Q656434|La Belle Ferronnière|Leonardo da Vinci|1495
+Q1212937|The Ambassadors|Hans Holbein the Younger|1533
+Q766782|The Jewish Bride|Rembrandt|1667
+Q3869871|When Will You Marry?|Paul Gauguin|1892
+Q698015|Madonna of the Carnation|Leonardo da Vinci|1475
+Q2338404|Portrait of a Musician|Leonardo da Vinci|1485
+Q1217003|Portrait of an Unknown Woman|Ivan Kramskoi|1883
+Q948034|La velata|Raphael|1513
+Q2409245|Portrait of a Young Girl|Petrus Christus|1470
+Q2439462|Portrait of a Lady|Rogier van der Weyden|1460
+Q930535|Tahitian Women on the Beach|Paul Gauguin|1890
+Q1240092|Portrait of Innocent X|Diego Velázquez|1700
+Q3808227|Girls at the Piano|Pierre-Auguste Renoir|1892
+Q655705|The Musicians|Caravaggio|1595
+Q2278818|Agostina Segatori Sitting in the Café du Tambourin|Vincent van Gogh|1887
+Q2610729|Portrait of Leo X|Raphael|1518
+Q630121|Two Sisters|Pierre-Auguste Renoir|1881
+Q2344396|Portrait of a Lady with a Unicorn|Raphael|1505
+Q1328065|Portrait of Eleanor of Toledo and her son Giovanni de' Medici|Bronzino|1544
+Q1282840|Napoleon I on his Imperial Throne|Jean-Auguste-Dominique Ingres|1806
+Q536024|Nana|Édouard Manet|1877
+Q546977|Portrait of Baldassare Castiglione|Raphael|1515
+Q1659469|In the Summer|Pierre-Auguste Renoir|1868
+Q4156438|Girl with peaches|Valentin Serov|1887
+Q6402081|The Nobleman with his Hand on his Chest|El Greco|1580
+Q16333797|Rudolf II as Vertumnus|Giuseppe Arcimboldo|1591
+Q512971|The Shepherdess|William-Adolphe Bouguereau|1889
+Q958088|Portrait of a Young Woman|Johannes Vermeer|1665
+Q970968|Symphony in White, No. 1: The White Girl|James McNeill Whistler|1860
+Q23922|Woman with a Mirror|Titian|1515
+Q2528106|Portrait of Bindo Altoviti|Raphael|1515
+Q2627028|Portrait of Elisabetta Gonzaga|Raphael|1504
+Q4062416|Alice|Amedeo Modigliani|1918
+Q2899286|Berthe Morisot with a Bouquet of Violets|Édouard Manet|1872
+Q180632|Pope Paul III and His Grandsons|Titian|1546
+Q948894|La Mousmé|Vincent van Gogh|1888
+Q965124|Laughing Cavalier|Frans Hals|1624
+Q3784247|La Bella|Titian|1537
+Q2276546|La donna gravida|Raphael|1505
+Q2392901|Portrait of a Man (Self      Portrait?)|Jan van Eyck|1433
+Q4717953|Portrait of Juan de Pareja|Diego Velázquez|1650
+Q9397770|Jewess with Oranges|Aleksander Gierymski|1880
+Q2985455|Portrait of Monsieur Bertin|Jean-Auguste-Dominique Ingres|1832
+Q3206722|Gipsy Girl|Frans Hals|1626
+Q1150782|Léal Souvenir|Jan van Eyck|1432
+Q2422889|Portrait of a Young Man|Raphael|1513
+Q2535563|Portrait of a Cardinal|Raphael|1510
+Q7232350|Portrait of the Artist's Mother|Vincent van Gogh|1888
+Q3035829|Don Manuel Osorio de Zuniga|Francisco Goya|1787
+Q3700536|Portrait of a Lady in Blue|Thomas Gainsborough|1780
+Q3807740|Portrait of the actress Jeanne Samary|Pierre-Auguste Renoir|1877
+Q1585399|Portrait of Doña Isabel de Porcel|Francisco Goya|1800
+Q1633898|La Schiavona|Titian|1510
+Q2264914|Infanta Margarita Teresa in a Blue Dress|Diego Velázquez|1659
+Q17343012|Portrait of Jacob de Gheyn III|Rembrandt|1632
+Q481454|In the Conservatory|Édouard Manet|1878
+Q595707|Laura|Giorgione|1506
+Q919861|Portrait of a Young Woman|Raphael|1507
+Q1130759|Infanta Margarita Teresa in a Pink Dress|Juan Bautista Martínez del Mazo|1665
+Q1759759|Portrait of Doge Leonardo Loredan|Giovanni Bellini|1500
+Q1990128|Portrait of Lucrezia Panciatichi|Bronzino|1545
+Q2270805|The Boy in the Red Vest|Paul Cézanne|1889
+Q2574120|Boy Peeling Fruit|Caravaggio|1592
+Q2734111|Portrait of Maffeo Barberini, later Pope Urban VIII|Caravaggio|1598
+Q2786992|View of the Village|Frédéric Bazille|1868
+Q4013804|Violante|Titian|1515
+Q4681871|Adele Bloch-Bauer II|Gustav Klimt|1912
+Q4936154|Bocca Baciata|Dante Gabriel Rossetti|1859
+Q5128805|Portrait of Clarissa Strozzi|Titian|1542
+Q5296650|Portrait of Sir Thomas More|Hans Holbein the Younger|1527
+Q6251405|Pink and Blue|Pierre-Auguste Renoir|1881
+Q7232319|Portrait of a Carthusian|Petrus Christus|1446
+Q10466368|The Lady with a Fan, The Artist's Wife|Alexander Roslin|1768
+Q15644879|La Parisienne|Pierre-Auguste Renoir|1874
+Q3553389|Portrait of a Man with a Blue Chaperon|Jan van Eyck|1435
+Q3998985|Charles I in Three Positions|Anthony van Dyck|1635
+Q3853901|Portrait of Isabella d'Este|Titian|1535
+Q3138273|Prince Balthasar Charles With a Dwarf|Diego Velázquez|1631
+Q949323|Fray Hortensio Félix Paravicino|El Greco|1609
+Q959174|Portrait of a Man with a Medal of Cosimo the Elder|Sandro Botticelli|1474
+Q136433749|Portrait of Elisabeth Lederer|Gustav Klimt|1914
+Q24011|Mademoiselle Caroline Rivière|Jean-Auguste-Dominique Ingres|1806
+Q24118|The Clubfoot|Jusepe de Ribera|1642
+Q1848811|Man with a Glove|Titian|1520
+Q2269788|Portrait of Doctor Felix Rey|Vincent van Gogh|1889
+Q2713823|Portrait of a Young Man with an Apple|Raphael|1504
+Q4179482|Tahitian Woman with a Flower|Paul Gauguin|1891
+Q3399498|Portrait of Cardinal Niccolò Albergati|Jan van Eyck|1438
+Q3937568|Portrait of Hieronymus Holzschuher|Albrecht Dürer|1526
+Q6106760|Portrait of Jorge Manuel Theotocópuli|El Greco|1600
+Q18222055|Joséphine-Éléonore-Marie-Pauline de Galard de Brassac de Béarn (1825–1860), Princesse de Broglie|Jean-Auguste-Dominique Ingres|1853
+Q19826371|Gabrielle Cot|William-Adolphe Bouguereau|1890
+Q23008305|Portrait of the Artist's Sisters Playing Chess|Sofonisba Anguissola|1555
+Q28442857|Portrait of a Lady|Gustav Klimt|1916
+Q3387944|Pierrot|Jean-Antoine Watteau|1718
+Q698993|Portrait of Jacopo Strada|Titian|1567
+Q768333|Titus as a Monk|Rembrandt|1660
+Q880502|Willem van Heythuysen posing with a sword|Frans Hals|1625
+Q1113763|Portrait of Pablo de Valladolid|Diego Velázquez|1632
+Q1211943|The Lady with a Fan|Diego Velázquez|1637
+Q99569815|Young Man Holding a Roundel|Sandro Botticelli|1480
+Q1844748|Boy Carrying a Sword|Édouard Manet|1861
+Q1994442|Portrait of a Woman|Lorenzo Lotto|1530
+Q2311238|Portrait of a Couple probably Isaac Massa and Beatrix van der Laen|Frans Hals|1622
+Q2515309|Portrait of Agnolo Doni|Raphael|1500
+Q2537138|The Parasol|Francisco Goya|1777
+Q2607055|Portrait of Maddalena Doni|Raphael|1505
+Q2736720|Self-portrait with Dr Arrieta|Francisco Goya|1820
+Q5177084|Countess of Chinchon|Francisco Goya|1800
+Q5966425|Lady in a Fur Wrap|Alonso Sánchez Coello|1577
+Q11695670|Girl in a Picture Frame|Rembrandt|1641
+Q17189258|Comtesse d'Haussonville|Jean-Auguste-Dominique Ingres|1845
+Q3089617|Portrait of Frédéric Bazille Painting|Pierre-Auguste Renoir|1867
+Q3204168|Portrait of the Infanta Maria Theresa of Spain|Diego Velázquez|1652
+Q3399411|Portrait of a Young woman with a Winged Bonnet|Rogier van der Weyden|1440
+Q3399452|Portrait of Margareta van Eyck|Jan van Eyck|1439
+Q3937410|Portrait of a Man|Titian|1515
+Q3937442|Emperor Maximilian I|Albrecht Dürer|1519
+Q3937561|Portrait of Giulio Clovio|El Greco|1571
+Q3937623|Portrait of Maria Portinari|Hans Memling|1470
+Q3937643|Portrait of Pope Paul III|Titian|1543
+Q867678|Antea|Parmigianino|1535
+Q973260|Philip II in Armour|Titian|1551
+Q1090371|Philip IV in Brown and Silver|Diego Velázquez|1635
+Q1194663|The Jurist|Giuseppe Arcimboldo|1566
+Q3625842|Portrait of Cosimo I de' Medici|Bronzino|1544
+Q3643957|The Bravo|Titian|1517
+Q1282978|Bonaparte at the Pont d'Arcole|Antoine-Jean Gros|1796
+Q1460271|Portrait of Pope Paul V|Caravaggio|1605
+Q2459266|Portrait of a Kleptomaniac|Théodore Géricault|1820
+Q2635552|Portrait of Cardinal Alessandro Farnese|Raphael|1509
+Q4373334|Christina of Denmark, Duchess of Milan|Hans Holbein the Younger|1538
+Q5712837|Self-Portrait (?)|El Greco|1595
+Q8187529|A Studio at Les Batignolles|Henri Fantin-Latour|1870
+Q9351747|A Polish Nobleman|Rembrandt|1637
+Q2894005|The Four Philosophers|Peter Paul Rubens|1611
+Q18344787|Lady Agnew of Lochnaw|Unknown artist|1892
+Q28796116|Athenaeum Portrait|Gilbert Stuart|1796
+Q3076965|Prince Balthasar Charles as a Hunter|Diego Velázquez|1635
+Q3212193|Portrait of Mariana of Austria|Diego Velázquez|1652
+Q3225899|Portrait of Prince Philip Prospero|Diego Velázquez|1659
+Q3231193|Boy blowing bubbles|Édouard Manet|1867
+Q3937422|Man with a Roman coin|Hans Memling|1473
+Q3937473|Portrait of Bartolomeo Panciatichi|Bronzino|1540
+Q3937618|Marie Antoinette with a Rose|Élisabeth Louise Vigée Le Brun|1783
+Q390713|Buffoon with books, formerly known as portrait of "el Primo"|Diego Velázquez|1640
+Q428274|Portrait of Tommaso Inghirami, called Fedra|Raphael|1510
+Q472037|By the Seashore|Pierre-Auguste Renoir|1883
+Q481447|Goethe in the Roman Campagna|Johann Heinrich Wilhelm Tischbein|1787
+Q655420|The Black Duchess|Francisco Goya|1797
+Q729194|Portrait of Sebastián de Morra|Diego Velázquez|1644
+Q866500|Turkish Slave|Parmigianino|1533
+Q1114361|The Jester Named Don John of Austria|Diego Velázquez|1632
+Q3607621|Portrait of a Halberdier, Francesco Guardi?|Pontormo|1529
+Q39226|Street Singer|Édouard Manet|1862
+Q44124|Lola de Valence|Édouard Manet|1862
+Q1626128|Homage to Delacroix|Henri Fantin-Latour|1864
+Q2017819|Portrait of a Woman|Antonio da Correggio|1520
+Q2269047|L'Italienne|Vincent van Gogh|1887
+Q2395137|Portrait of a Courtesan|Caravaggio|1590
+Q2444277|Portrait of Pietro Bembo|Raphael|1504
+Q2607072|Portrait of Perugino|Raphael|1504
+Q2629715|Portrait of a Man|Raphael|1503
+Q4009159|Old Woman|Giorgione|1506
+Q4373336|Portrait of Maria Trip|Rembrandt|1639
+Q4896868|La Belle Angèle|Paul Gauguin|1889
+Q4901871|La Leocadia|Francisco Goya|1819
+Q6106748|Portrait of Antonio de Covarrubias|El Greco|1590
+Q9068409|Portrait of Procurator Jacopo Soranzo|Jacopo Tintoretto|1550
+Q15943274|Saint Elizabeth of Portugal|Francisco de Zurbarán|1635
+Q3399514|Portrait of Pope Pius VII|Jacques-Louis David|1805
+Q3937595|Portrait of Lorenzo Cybo|Parmigianino|1524
+Q2944272|La Tirana|Francisco Goya|1799
+Q3013751|Portrait of Guidobaldo da Montefeltro|Raphael|1506
+Q3038404|Doña Antonia de Ipeñarrieta y Galdós and Her Son Don Luis|Diego Velázquez|1632
+Q3399378|Portrait of Adèle Besson|Pierre-Auguste Renoir|1918
+Q3399413|Portrait of Baudouin de Lannoy|Jan van Eyck|1434
+Q3399428|Portrait of Francesco d'Este|Rogier van der Weyden|1460
+Q3937397|Portrait of a Man|Antonello da Messina|1475
+Q3937431|Portrait of Cardinal Ludovico Trevisan|Andrea Mantegna|1457
+Q3937498|Claude Monet|Pierre-Auguste Renoir|1875
+Q3937511|Portrait of Eleonora Gonzaga della Rovere|Titian|1537
+Q3937546|Portrait of Giovanni di Nicolao Arnolfini|Jan van Eyck|1438
+Q3937719|Portrait of a Young Man with a Lamp|Lorenzo Lotto|1508
+Q3937735|Portrait of a Venetian Woman|Albrecht Dürer|1505
+Q605863|Portrait of a gentleman in his studio|Lorenzo Lotto|1530
+Q732821|Portrait of Luca Pacioli|Jacopo de' Barbari|1497
+Q738242|Portrait of Jakob Fugger the Rich|Albrecht Dürer|1520
+Q945164|Portrait of Alof de Wignacourt and his Page|Caravaggio|1600
+Q945250|Portrait of Francesco delle Opere|Pietro Perugino|1494
+Q1133457|Portrait of Francisco Lezcano|Diego Velázquez|1634
+Q3656034|Portrait of a Youth|Giorgione|1503
+Q3713925|Girl with a Fan|Pierre-Auguste Renoir|1885
+Q3715966|Two Venetian Ladies|Vittore Carpaccio|1490
+Q3784753|Cardinal Fernando Niño de Guevara|El Greco|1600
+Q2909911|Bonaparte, First Consul|Jean-Auguste-Dominique Ingres|1803
+Q2105277|Marsilio Cassotti and His Bride Faustina|Lorenzo Lotto|1523
+Q2130035|Portrait of Johann Kleberger|Albrecht Dürer|1526
+Q4252531|Portrait of Cardinal Pietro Bembo|Titian|1539
+Q4660495|A Vision of Fiammetta|Dante Gabriel Rossetti|1878
+Q4952174|Boy on the Rocks|Henri Rousseau|1897
+Q4992187|Portrait of Frédéric Chopin and George Sand|Eugène Delacroix|1837
+Q5036652|Captain George K. H. Coussmaker|Joshua Reynolds|1782
+Q5561848|The Tailor|Giovanni Battista Moroni|1567
+Q6106755|Ferdinand Guillemardet|Francisco Goya|1798
+Q6106796|Portrait of Cardinal Tavera|El Greco|1609
+Q6470018|Lady Caroline Howard|Joshua Reynolds|1778
+Q7142987|Pasteur's portrait by Edelfelt|Albert Edelfelt|1885
+Q7200240|Place de la Concorde|Edgar Degas|1875
+Q7232280|Portrait of Isabella of Portugal|Titian|1548
+Q9364415|Scholar at his desk|Rembrandt|1641
+Q12184056|The Flower Girl|Bartolomé Esteban Murillo|1665
+Q12738203|Mr and Mrs William Hallett ('The Morning Walk')|Thomas Gainsborough|1785
+Q3399492|Portrait of Cardinal Bibbiena|Raphael|1516
+Q3937578|Portrait of Jakob Muffel|Albrecht Dürer|1526
+Q3937582|Portrait of Jan Six|Rembrandt|1654
+Q3937591|Portrait of Laura da Pola|Lorenzo Lotto|1543
+Q3809182|Portrait of Jerónimo de Cevallos|El Greco|1613
+Q2842448|Portrait of Dr. Francisco de Pisa|El Greco|1612
+Q2873059|Around the Piano|Henri Fantin-Latour|1885
+Q11824907|Portrait of Diego de Covarrubias y Leiva|El Greco|1600
+Q16549709|Clotilde seated on the Sofa|Joaquín Sorolla|1910
+Q17324371|Portrait of Abraham de Potter|Carel Fabritius|1649
+Q18089111|The Kitchen Maid|Rembrandt|1651
+Q18161868|Portrait of Georgiana, Duchess of Devonshire|Thomas Gainsborough|1785
+Q19186089|Portrait of Jan de Leeuw|Jan van Eyck|1436
+Q20088065|Portrait of Alfonso d'Avalos, Marchese del Vasto, in Armor with a Page|Titian|1533
+Q20188807|Woman with a Cat|Pierre-Auguste Renoir|1875
+Q21728497|Portrait of the Actress Antonia Zarate|Francisco Goya|1810
+Q58336269|Joaquín Sorolla García dressed in white|Joaquín Sorolla|1896
+Q20278308|A Young Artist (Ditlev Blunck) Examining a Sketch in a Mirror|Wilhelm Bendz|1826
+Q24951450|Charles II in armour|Juan Carreño de Miranda|1681
+Q3204167|Infanta Margarita Teresa|Diego Velázquez|1653
+Q3220569|The Jester Barbarroja|Diego Velázquez|1633
+Q3292964|Portrait of Maria Anna of Spain, Queen of Hungary (1606-1646)|Diego Velázquez|1630
+Q3380051|Portrait of Philip IV in Fraga|Diego Velázquez|1644
+Q3399375|Portrait of Ambroise Vollard|Paul Cézanne|1899
+Q3399385|Portrait of Eugène Boch|Vincent van Gogh|1888
+Q3399388|Portrait of Doña Isabel de Requesens y Enríquez de Cardona-Anglesola|Giulio Romano|1518
+Q3399462|Diptych of Philip de Croÿ with The Virgin and Child|Rogier van der Weyden|1460
+Q3937426|Portrait of the Count-Duke of Olivares|Diego Velázquez|1638
+Q3937438|Portrait of Bishop Bernardo de' Rossi|Lorenzo Lotto|1505
+Q3937445|Portrait of the Duchess of Alba|Francisco Goya|1795
+Q3937475|Portrait of Bernhart von Reesen|Albrecht Dürer|1521
+Q3937517|Portrait of Febo da Brescia|Lorenzo Lotto|1543
+Q3937539|Portrait of Galeazzo Maria Sforza|Piero del Pollaiuolo|1471
+Q3937542|Portrait of Gian Galeazzo Sanvitale|Parmigianino|1524
+Q3937666|Portrait of Sir Richard Southwell|Hans Holbein the Younger|1536
+Q3937730|Portrait of a Young Man with a Book|Bronzino|1530
+Q428985|Un coin de table|Henri Fantin-Latour|1872
+Q536094|Democritus|Diego Velázquez|1628
+Q736446|Woman in Black|Pierre-Auguste Renoir|1876
+Q742801|Portrait of a Young Man|Sandro Botticelli|1470
+Q747914|The Jester Calabacillas|Diego Velázquez|1635
+Q955670|La Femme à la cafetière (Woman with a Coffeepot)|Paul Cézanne|1895
+Q1113749|Portrait of Fra Antonio Martelli|Caravaggio|1607
+Q1115403|Portrait of Philip IV in Armour|Diego Velázquez|1626
+Q1133853|Portrait of Juan Martínez Montañés|Diego Velázquez|1635
+Q3788155|Portrait of Helena Fourment with Two of Her Children|Peter Paul Rubens|1636
+Q3793584|The Little Peasant|Amedeo Modigliani|1918
+Q124356656|Portrait of Fräulein Lieser|Gustav Klimt|1917
+Q1304358|Head of Christ|Rembrandt|1647
+Q1551926|Portrait of Stéphane Mallarmé|Édouard Manet|1876
+Q1760522|Lansdowne Portrait|Gilbert Stuart|1796
+Q1760564|Portrait of a Young Man|Sandro Botticelli|1480
+Q2410044|Portrait of Helena van der Schalcke|Gerard ter Borch|1648
+Q4164272|The Shrimp Girl|William Hogarth|1743
+Q4373352|The Honourable Mrs Graham|Thomas Gainsborough|1775
+Q4556666|Portrait of the Count-Duke of Olivares|Diego Velázquez|1624
+Q4862984|Baronne de Rothschild|Jean-Auguste-Dominique Ingres|1848
+Q6034865|Saint Louis, King of France|El Greco|1592
+Q6106772|Portrait of an Elderly Man|El Greco|1587
+Q6106776|Portrait of a Young Gentleman|El Greco|1600
+Q6929863|Mrs. Richard Brinsley Sheridan|Thomas Gainsborough|1785
+Q7232305|Portrait of Pietro Aretino|Titian|1545
+Q9068379|Portrait of Manuel Godoy|Francisco Goya|1801
+Q12148886|Portrait of Count Nikolay Guryev|Jean-Auguste-Dominique Ingres|1821
+Q13365716|Porträt mit Äpfeln: Frau des Künstlers|August Macke|1909
+Q14753025|Portrait of Delphine Ramel|Jean-Auguste-Dominique Ingres|1859
+Q15880867|Portrait of Doña Antonia Zárate|Francisco Goya|1805
+Q15918393|La Belle Zélie|Jean-Auguste-Dominique Ingres|1806
+Q15935001|Portrait of a Man, called condottiere|Antonello da Messina|1475
+Q3399505|Portrait of Alphonse Leroy|Jacques-Louis David|1783
+Q3937598|Portrait of Lucina Brembati|Lorenzo Lotto|1520
+Q6106766|Portrait of Nicholas Kratzer|Hans Holbein the Younger|1528
+Q11695673|Portrait of a Girl Dressed in Blue|Johannes Cornelisz Verspronck|1641
+Q16594979|Portrait of Don Ramón Satué|Francisco Goya|1823
+Q17026932|Mrs. Fiske Warren (Gretchen Osgood) and Her Daughter Rachel|Unknown artist|1903
+Q18170716|Democritus|Jusepe de Ribera|1630
+Q19894296|Merahi metua no Tehamana|Paul Gauguin|1893
+Q22056364|Refugees|Jēkabs Kazaks|1917
+Q59195142|Clotilde García del Castillo|Joaquín Sorolla|1890
+Q18923677|Portrait of Princess Maria Christina|Élisabeth Louise Vigée Le Brun|1790
+Q3220568|Portrait of the Jester Calabazas|Diego Velázquez|1630
+Q3387593|Unfinished Portrait of General Bonaparte|Jacques-Louis David|1797
+Q3399419|Portrait of Cooper Penrose|Jacques-Louis David|1802
+Q3399446|Portrait of Monsieur X (Pierre Loti)|Henri Rousseau|1906
+Q3399444|Portrait of Don Luis de Góngora|Antonio Varas|1622
+Q3937463|Portrait of Andrea Odoni|Lorenzo Lotto|1527
+Q3937472|Portrait of Bia de' Medici|Bronzino|1543
+Q3937503|Portrait of a Young Woman|Parmigianino|1530
+Q3937545|The Physician Giovanni Agostino della Torre and his Son, Niccolò|Lorenzo Lotto|1515
+Q3937632|Portrait of the Nuremberg Painter Michael Wolgemut|Albrecht Dürer|1516
+Q3937655|Portrait of Pier Maria Rossi di San Secondo|Parmigianino|1535
+Q3937675|William Sisley|Pierre-Auguste Renoir|1864
+Q3937673|Portrait of Vincenzo Mosti|Titian|1520
+Q3937694|Portrait of a Gentleman|Lorenzo Lotto|1535
+Q3937693|Portrait of an Old Man with Gloves|Lorenzo Lotto|1543
+Q3937737|Portrait of a Gonfaloniere|Artemisia Gentileschi|1622
+Q521680|Perla di Modena|Giulio Romano|1518
+Q769461|Ritratto di Lunia Czechowska con ventaglio|Amedeo Modigliani|1919
+Q786196|Portrait of a young woman|Giulio Romano|1519

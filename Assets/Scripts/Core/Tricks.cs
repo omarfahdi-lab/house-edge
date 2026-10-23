@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace HouseEdge.Core
 {
     // one-use plays you make in the middle of a hand. you hold up to 2
-    public enum TrickKind { Peek, TakeBack, Steal, SecondThoughts, AceUpTheSleeve }
+    public enum TrickKind { Peek, TakeBack, Steal, SecondThoughts, AceUpTheSleeve, Nudge }
 
     public static class Tricks
     {
@@ -22,7 +22,8 @@ namespace HouseEdge.Core
         {
             TrickKind.Peek => "Turn the dealer's hole card face up for this hand.",
             TrickKind.TakeBack => "Put the card you just hit back under the shoe. Works even after a bust.",
-            TrickKind.Steal => "Swap your last card with the dealer's face-up card.",
+            TrickKind.Steal => "Pick one of your cards and swap it with the dealer's face-up card.",
+            TrickKind.Nudge => "Pick one of your number cards (3 to 10): it counts 1 less for this hand.",
             TrickKind.SecondThoughts => "Double Down after you've already hit: this hand's win scores x2, and you stand.",
             _ => $"Slip an Ace of Spades into your hand. It vanishes after the hand. +{Balance.AceUpSleeveHeat} Heat.",
         };

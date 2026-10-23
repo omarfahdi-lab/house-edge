@@ -160,6 +160,7 @@ namespace HouseEdge.Game
                 case "HowTo": game.ShowHowTo(index); break;
                 case "Map": game.ShowMap(); break;
                 case "Collection": game.ShowCollection(); break;
+                case "Trick": game.Table.UseTrickSlot(index); break;
                 case "Tutorial": game.StartRun(game.Run.Seed, new RunOptions { Tutorial = true }); break;
                 case "Intro": game.PreviewBoss(index); break;
                 case "BotTo":

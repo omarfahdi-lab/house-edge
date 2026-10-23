@@ -8,7 +8,7 @@ namespace HouseEdge.Editor
     {
         private void OnPreprocessTexture()
         {
-            bool characters = assetPath.Contains("/Resources/Characters/") || assetPath.Contains("/Resources/Portraits/");
+            bool characters = assetPath.Contains("/Resources/Characters/") || assetPath.Contains("/Resources/Portraits/") || assetPath.Contains("/Resources/Gallery/");
             bool backgrounds = assetPath.Contains("/Resources/Backgrounds/");
             if (!characters && !backgrounds) return;
             var importer = (TextureImporter)assetImporter;
@@ -17,8 +17,13 @@ namespace HouseEdge.Editor
             importer.alphaIsTransparency = assetPath.Contains("/Resources/Characters/");
             importer.wrapMode = UnityEngine.TextureWrapMode.Clamp;
             importer.npotScale = TextureImporterNPOTScale.None;
-            importer.textureCompression = assetPath.Contains("/Resources/Characters/") ? TextureImporterCompression.Uncompressed : TextureImporterCompression.CompressedHQ;
-            importer.maxTextureSize = backgrounds ? 2048 : 1024;
+            bool gallery = assetPath.Contains("/Resources/Gallery/");
+            importer.textureCompression = assetPath.Contains("/Resources/Characters/") ? TextureImporterCompression.Uncompressed
+                : gallery ? TextureImporterCompression.Compressed : TextureImporterCompression.CompressedHQ;
+            importer.maxTextureSize = backgrounds ? 2048 : gallery ? 512 : 1024;
+            // hundreds of gallery paintings: crunch them so the build stays small
+            importer.crunchedCompression = gallery;
+            importer.compressionQuality = 60;
         }
     }
 }

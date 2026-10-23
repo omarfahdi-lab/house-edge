@@ -66,7 +66,8 @@ namespace HouseEdge.Core
         public static RunInput RepayDebt() => new RunInput(RunInputKind.RepayDebt);
         public static RunInput PickPackCard(int index) => new RunInput(RunInputKind.PickPackCard, index: index);
         public static RunInput SkipPack() => new RunInput(RunInputKind.SkipPack);
-        public static RunInput PlayTrick(int slot) => new RunInput(RunInputKind.PlayTrick, index: slot);
+        // target: which of your cards it works on (Steal, Nudge); -1 for none or your last card
+        public static RunInput PlayTrick(int slot, int target = -1) => new RunInput(RunInputKind.PlayTrick, index: slot, index2: target);
 
         // deck cards picked for a Cocktail, in order
         public IEnumerable<int> CardTargets()

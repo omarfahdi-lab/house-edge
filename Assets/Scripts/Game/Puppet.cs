@@ -34,7 +34,7 @@ namespace HouseEdge.Game
         }
 
         // is there a painting for this character?
-        public static bool Has(string name) => Texture(Id(name)) != null;
+        public static bool Has(string name) => Gallery.For(name) != null || Texture(Id(name)) != null;
 
         // the preloader hands paintings over as they finish loading
         public static void Keep(string id, Texture2D texture)
@@ -51,7 +51,9 @@ namespace HouseEdge.Game
             style.width = width;
             style.height = height;
             style.flexShrink = 0;
-            var texture = Texture(Id(name));
+            // this run's painting for them, or their signature portrait
+            var painting = Gallery.For(name);
+            var texture = painting is Gallery.Painting p ? Gallery.Texture(p) : Texture(Id(name));
 
             // a soft gold bloom behind the frame, for happy moments
             _glow = Layer(this, -10);
@@ -87,6 +89,24 @@ namespace HouseEdge.Game
             }
             _image.style.backgroundImage = texture;
             _image.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Cover);
+
+            // a museum label under bigger paintings: what it is and who painted it
+            string label = painting?.Label ?? SignatureLabel(Id(name));
+            if (!bust && height >= 150 && label != null)
+            {
+                var plaque = Ui.Text(this, label, 10, new Color(0.25f, 0.17f, 0.06f), Weight.Bold);
+                plaque.style.position = Position.Absolute;
+                plaque.style.top = height + 8;
+                plaque.style.left = -30;
+                plaque.style.right = -30;
+                plaque.style.unityTextAlign = TextAnchor.MiddleCenter;
+                plaque.style.whiteSpace = WhiteSpace.Normal;
+                plaque.style.backgroundImage = Ui.Gradient(new Color(0.98f, 0.86f, 0.5f), new Color(0.78f, 0.6f, 0.26f));
+                plaque.style.backgroundSize = new BackgroundSize(Length.Percent(100), Length.Percent(100));
+                Ui.Rounded(plaque, 3);
+                Ui.Padding(plaque, 2, 6);
+                plaque.pickingMode = PickingMode.Ignore;
+            }
 
             _emote = Ui.Text(this, "", (int)Mathf.Clamp(height * 0.11f, 12, 30), Ui.Ink, Weight.Heavy);
             _emote.style.position = Position.Absolute;
@@ -205,6 +225,27 @@ namespace HouseEdge.Game
             _glow.style.opacity = glow;
             _glow.style.translate = new Translate(shakeX, lift);
         }
+
+        // the bosses' own paintings
+        private static string SignatureLabel(string id) => id switch
+        {
+            "thetwins" => "The Cholmondeley Ladies  ·  British School, c. 1600",
+            "theiceman" => "The Skating Minister  ·  Henry Raeburn, c. 1795",
+            "thecheat" => "The Cheat with the Ace of Diamonds  ·  Georges de La Tour, c. 1635",
+            "themime" => "Pierrot  ·  Antoine Watteau, c. 1718",
+            "thetaxman" => "The Tax Collectors  ·  Marinus van Reymerswaele, c. 1540",
+            "thepurist" => "Whistler's Mother  ·  James McNeill Whistler, 1871",
+            "theceiling" => "The Absinthe Drinker  ·  Édouard Manet, 1859",
+            "thesweeper" => "Man with a Hoe  ·  Jean-François Millet, 1862",
+            "thesilencer" => "Silence  ·  Henry Fuseli, c. 1800",
+            "thecardmechanic" => "The Cardsharps  ·  Caravaggio, c. 1594",
+            "thehoarder" => "The Parable of the Rich Fool  ·  Rembrandt, 1627",
+            "thepitboss" => "Aristide Bruant  ·  Toulouse-Lautrec, 1892",
+            "theeyeinthesky" => "The Eye, Like a Strange Balloon  ·  Odilon Redon, 1882",
+            "theenforcer" => "The Bravo  ·  Titian, c. 1520",
+            "thehouse" => "Louis XIV  ·  Hyacinthe Rigaud, 1701",
+            _ => null,
+        };
 
         private static Texture2D Texture(string id)
         {

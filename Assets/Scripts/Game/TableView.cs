@@ -64,8 +64,11 @@ namespace HouseEdge.Game
         public Vector2 PlayerCenter => _playerHands.worldBound.center;
 
         public event Action<PlayerAction> ActionChosen;
-        // a trick card's slot was clicked
-        public event Action<int> TrickChosen;
+        // a trick played: (slot, the card it targets or -1)
+        public event Action<int, int> TrickPlayed;
+
+        private readonly HandsOn _handsOn;
+        private Run _run;
 
         private readonly CountMeter _count;
         // who you're playing against, standing at the table: the dealer, or the boss
@@ -104,6 +107,10 @@ namespace HouseEdge.Game
             _replay.style.position = Position.Absolute;
             _replay.style.right = 120;
             _replay.style.top = 18;
+
+            _handsOn = new HandsOn(_root);
+            _handsOn.ActionChosen += action => ActionChosen?.Invoke(action);
+            _handsOn.TrickPlayed += (slot, target) => TrickPlayed?.Invoke(slot, target);
 
             // the shoe the cards are dealt from
             _shoe = Ui.Column(_root, 4);
@@ -408,6 +415,9 @@ namespace HouseEdge.Game
             RefreshTell(run, table);
             RefreshResult(table);
             RefreshHint(table);
+            _run = run;
+            bool live = run.Phase == RunPhase.AtTable && table == run.Table && !table.IsOver;
+            _handsOn.Refresh(run, table, ActiveCards(table), live);
             RefreshBets(table);
 
             var legal = table.LegalActions();
@@ -992,9 +1002,10 @@ namespace HouseEdge.Game
                 case TablePhase.PlayerTurn when hand != null:
                     var value = hand.Value;
                     if (value.IsBust)
-                        hint = table.BurnsLeft > 0 && !table.Rules.BurnsDisabled
+                        hint = (table.BurnsLeft > 0 && !table.Rules.BurnsDisabled
                             ? "You went bust! Burn throws that card away and draws a new one. Or Stand to take the loss."
-                            : "You went bust. Stand to take the loss.";
+                            : "You went bust. Stand to take the loss.")
+                            + (!table.PalmUsed && hand.LastCardWasHit ? " Or drag the card into your sleeve to palm it, when the camera looks away." : "");
                     else if (table.PlayerHands.Count > 1)
                         hint = $"Playing hand {table.ActiveHandIndex + 1} of {table.PlayerHands.Count}. Hit to take a card, Stand to keep {value.Total}.";
                     else
@@ -1040,6 +1051,33 @@ namespace HouseEdge.Game
         }
 
         // the trick cards you hold, lit up when they can be played right now
+        private List<VisualElement> ActiveCards(Table table) =>
+            table.Phase == TablePhase.PlayerTurn && table.ActiveHandIndex < _handViews.Count ? _handViews[table.ActiveHandIndex].cards : new List<VisualElement>();
+
+        // a trick slot clicked (or its key pressed): play it, or point it at a card first
+        public void UseTrickSlot(int slot)
+        {
+            if (_run == null || slot >= _run.Gambler.Tricks.Count || !_run.IsLegal(RunInput.PlayTrick(slot))) return;
+            var kind = _run.Gambler.Tricks[slot];
+            if (!Table.Targeted(kind))
+            {
+                TrickPlayed?.Invoke(slot, -1);
+                return;
+            }
+            _handsOn.BeginTarget(slot, kind, _run.Table, ActiveCards(_run.Table));
+            _hint.text = kind == TrickKind.Steal
+                ? "Click the card of yours to swap with the dealer's face-up card. Esc cancels."
+                : "Click a number card of yours to lower it by 1 for this hand. Esc cancels.";
+        }
+
+        public bool CancelTarget()
+        {
+            if (!_handsOn.Targeting) return false;
+            _handsOn.EndTarget();
+            if (_run != null) RefreshHint(_run.Table);
+            return true;
+        }
+
         private void RefreshTricks(Run run, Table table)
         {
             var tricks = run.Gambler.Tricks;
@@ -1052,7 +1090,7 @@ namespace HouseEdge.Game
                 int slot = i;
                 var kind = tricks[i];
                 bool usable = run.IsLegal(RunInput.PlayTrick(i));
-                var card = Ui.Button(_trickCards, Tricks.Name(kind), () => TrickChosen?.Invoke(slot), ButtonKind.Normal, (i + 1).ToString());
+                var card = Ui.Button(_trickCards, Tricks.Name(kind), () => UseTrickSlot(slot), ButtonKind.Normal, (i + 1).ToString());
                 card.style.height = 40;
                 card.style.width = 150;
                 Ui.Padding(card, 0, 8);

@@ -167,6 +167,60 @@ namespace HouseEdge.Tests
             Assert.That(run.Gambler.Tricks, Is.Empty);
         }
 
+        // hands-on: the lucky chip, palming, targeted tricks
+
+        [Test]
+        public void TheLuckyChip_PaysGoldAndMultWhenCaught()
+        {
+            for (int seed = 1; seed < 200; seed++)
+            {
+                var t = new Table(seed, long.MaxValue);
+                Play(t, Deal);
+                if (!t.ChipOnTable || t.Phase != TablePhase.PlayerTurn) continue;
+                int gold = t.Gold;
+                Play(t, CatchChip);
+                Assert.That(t.ChipOnTable, Is.False);
+                Assert.That(t.Gold, Is.EqualTo(gold + Balance.LuckyChipGold));
+                Assert.That(t.LegalActions(), Has.No.Member(CatchChip));
+                return;
+            }
+            Assert.Fail("no lucky chip in 200 tables");
+        }
+
+        [Test]
+        public void Palming_UndoesAHit_OncePerTable_AndBeingSeenCostsHeat()
+        {
+            var t = With("10", "9", "6", "8", "K", "5", "10", "9", "3", "Q");
+            Play(t, Deal, Hit);
+            Assert.That(t.ActiveHand.Value.IsBust, Is.True);
+            Play(t, PalmSeen);
+            Assert.That(t.ActiveHand.Value.Total, Is.EqualTo(16));
+            Assert.That(t.Gambler.Heat, Is.EqualTo(Balance.PalmSeenHeat));
+            Play(t, Stand, Deal, Hit);
+            Assert.That(t.LegalActions(), Has.No.Member(PalmClean), "only once a table");
+        }
+
+        [Test]
+        public void Steal_SwapsTheCardYouPick_AndNudgeLowersOne()
+        {
+            var t = With("10", "K", "6", "7");
+            Play(t, Deal);
+            t.UseTrick(TrickKind.Steal, 0);
+            Assert.That(t.PlayerHands[0].Cards[0].Rank, Is.EqualTo(Rank.King));
+            Assert.That(t.DealerUpCard.Rank, Is.EqualTo(Rank.Ten));
+
+            var n = With("9", "K", "8", "7");
+            Play(n, Deal);
+            Assert.That(n.CanUseTrick(TrickKind.Nudge, 1), Is.True);
+            var eight = n.ActiveHand.Cards[1];
+            n.UseTrick(TrickKind.Nudge, 1);
+            Assert.That(n.ActiveHand.Value.Total, Is.EqualTo(16));
+            Play(n, Stand);
+            n.AddHands(1);
+            Play(n, Deal);
+            Assert.That(eight.Rank, Is.EqualTo(Rank.Eight), "the nudge only lasts the hand");
+        }
+
         // Vice levels
 
         [Test]

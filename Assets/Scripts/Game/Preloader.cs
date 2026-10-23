@@ -9,14 +9,11 @@ namespace HouseEdge.Game
     {
         private static readonly string[] Backgrounds = { "bar", "slots", "pawn", "vault", "security", "lostfound", "lounge", "backroom", "cardroom", "shop", "mystery" };
         private static readonly string[] Tracks = { "Lobby_Time", "Bossa_Antigua", "Hitman" };
-        // every character's painting
+        // the bosses' signature paintings (everyone else comes from the Gallery)
         public static readonly string[] Portraits =
         {
             "thetwins", "theiceman", "thecheat", "themime", "thetaxman", "thepurist", "theceiling", "thesweeper", "thesilencer",
             "thecardmechanic", "thehoarder", "thepitboss", "theeyeinthesky", "theenforcer", "thehouse",
-            "rookieray", "silentsofia", "chattychen", "oldpete", "vegasval", "luckylou",
-            "sal", "vinnie", "morty", "finn", "dot", "gus", "officerreyes", "madamerose", "cherry", "mrbig", "slickeddie",
-            "jules", "thecoat", "hank", "flash", "security", "theusher", "zappo", "you",
         };
 
         public static IEnumerator Run()
