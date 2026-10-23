@@ -466,6 +466,17 @@ namespace HouseEdge.Game
                 var bounds = _root.WorldToLocal(row.worldBound);
                 at = new Vector2(bounds.xMax + 110, Mathf.Clamp(bounds.center.y, 40, _root.layout.height - 40));
                 Ui.Pop(row, 1.07f);
+                // a quick wiggle, like a Joker firing
+                float[] tilt = { -4, 4, -2, 0 };
+                for (int i = 0; i < tilt.Length; i++)
+                {
+                    float angle = tilt[i];
+                    row.schedule.Execute(() =>
+                    {
+                        Ui.Transition(row, 0.05f, "rotate");
+                        row.style.rotate = new Rotate(angle);
+                    }).StartingIn(60 * i);
+                }
                 var before = row.style.backgroundColor;
                 row.style.backgroundColor = new Color(0.98f, 0.79f, 0.32f, 0.3f);
                 row.schedule.Execute(() => row.style.backgroundColor = before).StartingIn(450);

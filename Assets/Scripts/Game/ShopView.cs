@@ -76,7 +76,8 @@ namespace HouseEdge.Game
             _run = run;
             bool reward = run.Phase == RunPhase.BossReward;
             // the title only animates when the screen opens, not on every purchase
-            object key = (run.Table, run.Phase);
+            // opening a pack and coming back is still the same visit
+            object key = (run.Table, run.Phase == RunPhase.OpeningPack ? RunPhase.Shop : run.Phase, run.Here);
             bool opened = !Equals(key, _shownFor);
             _shownFor = key;
 
@@ -207,9 +208,12 @@ namespace HouseEdge.Game
             {
                 width = 176;
                 bool cocktail = offer.Kind == OfferKind.Cocktail;
-                card = SmallCard(cocktail ? "COCKTAIL" : "COMP", offer.Name, offer.Description,
-                    cocktail ? Ui.Cocktail : Ui.Chips, width, cocktail ? SuitIcon.Shape.Glass : SuitIcon.Shape.Star);
-                if (cocktail) Ui.Tip(card, offer.Name, offer.Description + "\nDrink it from the sidebar when you want.");
+                bool pack = offer.Kind == OfferKind.Pack;
+                card = SmallCard(pack ? "CARD PACK" : cocktail ? "COCKTAIL" : "COMP", offer.Name, offer.Description,
+                    pack ? Ui.Gold : cocktail ? Ui.Cocktail : Ui.Chips, width,
+                    pack ? SuitIcon.Shape.Cards : cocktail ? SuitIcon.Shape.Glass : SuitIcon.Shape.Star);
+                if (pack) Ui.Tip(card, offer.Name, offer.Description + "\nOpen it and keep one of its 3 cards for your deck. Great for building Flushes and Pairs.");
+                else if (cocktail) Ui.Tip(card, offer.Name, offer.Description + "\nDrink it from the sidebar when you want.");
                 else
                 {
                     int level = _run.Gambler.CompLevel(offer.Comp);

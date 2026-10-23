@@ -4,7 +4,8 @@ using System.Collections.Generic;
 namespace HouseEdge.Core
 {
     // Shop is a stop on the map like the rooms, but it opens the shop instead of a room
-    public enum RoomKind { Bar, BackRoom, PawnShop, LoanShark, CardRoom, LostAndFound, SecurityOffice, HighLimitLounge, Shop }
+    // Elite is an optional hard table, Mystery a random event
+    public enum RoomKind { Bar, BackRoom, PawnShop, LoanShark, CardRoom, LostAndFound, SecurityOffice, HighLimitLounge, Shop, Elite, Mystery }
 
     public enum RoomActionKind
     {
@@ -16,6 +17,8 @@ namespace HouseEdge.Core
         TakeLostVice,
         PayOffHeat, Bribe,
         SkipNextTable,
+        // a "?" event: Arg is which choice
+        EventChoice,
     }
 
     // one thing you can do in a room. Arg is the cocktail, loan amount or Vice slot it's about
@@ -43,7 +46,7 @@ namespace HouseEdge.Core
         public static readonly IReadOnlyList<RoomKind> All = new[]
         {
             RoomKind.Bar, RoomKind.BackRoom, RoomKind.PawnShop, RoomKind.LoanShark, RoomKind.CardRoom,
-            RoomKind.LostAndFound, RoomKind.SecurityOffice, RoomKind.HighLimitLounge,
+            RoomKind.LostAndFound, RoomKind.SecurityOffice, RoomKind.HighLimitLounge, RoomKind.Elite, RoomKind.Mystery,
         };
 
         public static string Name(RoomKind room) => room switch
@@ -56,6 +59,8 @@ namespace HouseEdge.Core
             RoomKind.LostAndFound => "Lost and Found",
             RoomKind.SecurityOffice => "Security Office",
             RoomKind.Shop => "Shop",
+            RoomKind.Elite => "Elite Table",
+            RoomKind.Mystery => "?",
             _ => "High Limit Lounge",
         };
 
@@ -68,7 +73,9 @@ namespace HouseEdge.Core
             RoomKind.CardRoom => "Remove, duplicate or enhance one card in your deck.",
             RoomKind.LostAndFound => "Take a free random Vice. 1 in 3 chance it's Cursed.",
             RoomKind.SecurityOffice => "Pay 2 gold per 10 Heat to clear it, or bribe a guard for a Cheater Vice (+20 Heat).",
-            RoomKind.Shop => "Buy Vices, Cocktails and Comps.",
+            RoomKind.Shop => "Buy Vices, Cocktails, Comps and card packs.",
+            RoomKind.Elite => "An optional table under a Pit Boss's rule, with fewer Hands. Win: pick a Rare Vice. Lose: you keep going, but lose half your gold.",
+            RoomKind.Mystery => "Something happens. A stranger, a chance, a choice.",
             _ => "Skip the next table entirely, but the table after it has a 1.5x target.",
         };
     }
@@ -77,8 +84,8 @@ namespace HouseEdge.Core
     public sealed class Room
     {
         public RoomKind Kind { get; }
-        public string Name => Rooms.Name(Kind);
-        public string Description => Rooms.Describe(Kind);
+        public string Name => Kind == RoomKind.Mystery ? Events.Title(Event) : Rooms.Name(Kind);
+        public string Description => Kind == RoomKind.Mystery ? Events.Scene(Event) : Rooms.Describe(Kind);
 
         // Bar
         public List<CocktailKind> Cocktails { get; } = new List<CocktailKind>();
@@ -87,6 +94,8 @@ namespace HouseEdge.Core
         public ViceDefinition UsedRare { get; internal set; }
         // Back Room: a one-hand table, once it starts
         public Table BackRoomTable { get; internal set; }
+        // a "?" stop: what happened
+        public EventKind Event { get; internal set; }
 
         // a one-time choice (free drink, loan, card service, free Vice, bribe, back room hand, skip) was made
         public bool Used { get; internal set; }

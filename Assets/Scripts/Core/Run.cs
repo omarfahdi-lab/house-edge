@@ -20,6 +20,8 @@ namespace HouseEdge.Core
         InRoom,
         Won,
         Lost,
+        // a card pack is open: keep one of Run.PackCards, or none
+        OpeningPack,
     }
 
     // gold for beating a table, shown at the top of the shop
@@ -72,6 +74,20 @@ namespace HouseEdge.Core
         public BossDefinition FloorBoss { get; private set; }
         public bool AtEyeInTheSky { get; private set; }
         public bool AtEnforcer { get; private set; }
+        // playing an optional Elite table on the map
+        public bool AtElite { get; private set; }
+        private bool _eliteReward;
+        private BossDefinition _eliteBoss;
+
+        // the cards in the pack being opened
+        public IReadOnlyList<Card> PackCards => _packCards;
+        public PackKind OpenPack { get; private set; }
+        private readonly List<Card> _packCards = new List<Card>();
+
+        // what this run saw and did, for the collection
+        public HashSet<string> SeenVices { get; } = new HashSet<string>();
+        public HashSet<string> BossesFaced { get; } = new HashSet<string>();
+        public int[] CombosWon { get; } = new int[Combos.All.Count];
         public RunPhase Phase { get; private set; }
         public int TablesBeaten { get; private set; }
         public Shop Shop { get; } = new Shop();
@@ -127,6 +143,8 @@ namespace HouseEdge.Core
 
         public bool IsLegal(RunInput input)
         {
+            if (Phase == RunPhase.OpeningPack)
+                return input.Kind == RunInputKind.SkipPack || input.Kind == RunInputKind.PickPackCard && InRange(input.Index, _packCards.Count);
             bool betweenTables = Phase == RunPhase.Shop || Phase == RunPhase.BossReward || Phase == RunPhase.InRoom;
             switch (input.Kind)
             {
@@ -233,7 +251,8 @@ namespace HouseEdge.Core
                 case RunInputKind.Reroll:
                     Gambler.LoseGold(RerollCost);
                     Shop.Rerolled();
-                    Shop.Stock(Gambler, Random);
+                    Shop.Stock(Gambler, Random, Options.LockedVices);
+                    foreach (var offer in Shop.Offers.Where(o => o.Kind == OfferKind.Vice)) SeenVices.Add(offer.Vice.Id);
                     break;
                 case RunInputKind.LeaveShop:
                     LeaveShop();
@@ -243,10 +262,10 @@ namespace HouseEdge.Core
                     break;
                 case RunInputKind.PickReward:
                     Gambler.Vices.Add(_rewards[input.Index].Create());
-                    OpenShop();
+                    AfterReward();
                     break;
                 case RunInputKind.SkipReward:
-                    OpenShop();
+                    AfterReward();
                     break;
                 case RunInputKind.ChooseRoom:
                     WalkTo(NextStops[input.Index]);
@@ -260,6 +279,15 @@ namespace HouseEdge.Core
                 case RunInputKind.RepayDebt:
                     Gambler.RepayDebt();
                     break;
+                case RunInputKind.PickPackCard:
+                    Gambler.Deck.Add(_packCards[input.Index]);
+                    _packCards.Clear();
+                    Phase = RunPhase.Shop;
+                    break;
+                case RunInputKind.SkipPack:
+                    _packCards.Clear();
+                    Phase = RunPhase.Shop;
+                    break;
             }
         }
 
@@ -272,6 +300,12 @@ namespace HouseEdge.Core
                 case OfferKind.Vice: Gambler.Vices.Add(offer.Vice.Create()); break;
                 case OfferKind.Cocktail: Gambler.Cocktails.Add(new Cocktail(offer.Cocktail)); break;
                 case OfferKind.Comp: Gambler.LevelUp(offer.Comp); break;
+                case OfferKind.Pack:
+                    _packCards.Clear();
+                    _packCards.AddRange(Packs.Open(offer.Pack, Random));
+                    OpenPack = offer.Pack;
+                    Phase = RunPhase.OpeningPack;
+                    break;
             }
         }
 
@@ -304,7 +338,8 @@ namespace HouseEdge.Core
             return vice;
         }
 
-        private List<string> OwnedViceIds() => Gambler.Vices.Select(v => v.Definition.Id).ToList();
+        // Vices that can't be rolled: the ones you hold and the ones you haven't unlocked
+        private List<string> OwnedViceIds() => Gambler.Vices.Select(v => v.Definition.Id).Concat(Options.LockedVices).ToList();
 
         // tables
 
@@ -333,8 +368,10 @@ namespace HouseEdge.Core
             var effects = new List<TableEffect>();
             Boss = AtEyeInTheSky ? Bosses.EyeInTheSky.Create()
                 : AtEnforcer ? Bosses.Enforcer.Create()
+                : AtElite ? _eliteBoss.Create()
                 : Stage == TableKind.Boss ? FloorBoss.Create()
                 : null;
+            if (Boss != null) BossesFaced.Add(Boss.Name);
             Dealer = Boss == null ? Dealers.Random(Random) : null;
             if (Boss != null) effects.Add(Boss);
             if (Dealer != null) effects.Add(Dealer);
@@ -342,14 +379,22 @@ namespace HouseEdge.Core
             effects.AddRange(Gambler.Vices);
             effects.Add(new RunStats(this));
 
-            long target = (long)Math.Round(TargetFor(Stage) * (Boss?.TargetFactor ?? 1) * _nextTargetFactor);
-            _nextTargetFactor = 1;
+            // an Elite plays for the next table's target
+            var stage = AtElite ? NextStage.stage : Stage;
+            long target = (long)Math.Round(TargetFor(stage) * (Boss?.TargetFactor ?? 1) * (AtElite ? Balance.EliteTargetFactor : _nextTargetFactor));
+            if (!AtElite) _nextTargetFactor = 1;
             Table = new Table(Gambler, Random, target, effects);
+            if (AtElite) Table.AddHands(-Balance.EliteHandsLess);
             Phase = RunPhase.AtTable;
         }
 
         private void FinishTable()
         {
+            if (AtElite)
+            {
+                FinishElite();
+                return;
+            }
             TotalScore += Table.Score;
             if (Table.Phase == TablePhase.Lost)
             {
@@ -422,7 +467,8 @@ namespace HouseEdge.Core
                 taken.Add(vice.Id);
                 _rewards.Add(vice);
             }
-            if (_rewards.Count == 0) OpenShop();
+            foreach (var reward in _rewards) SeenVices.Add(reward.Id);
+            if (_rewards.Count == 0) AfterReward();
             else Phase = RunPhase.BossReward;
         }
 
@@ -436,9 +482,57 @@ namespace HouseEdge.Core
         private void OpenShop()
         {
             Shop.Reset();
-            Shop.Stock(Gambler, Random);
+            Shop.Stock(Gambler, Random, Options.LockedVices);
+            foreach (var offer in Shop.Offers.Where(o => o.Kind == OfferKind.Vice)) SeenVices.Add(offer.Vice.Id);
             Phase = RunPhase.Shop;
         }
+
+        // a Pit Boss's reward leads to the shop; an Elite's back onto the map
+        private void AfterReward()
+        {
+            if (_eliteReward)
+            {
+                _eliteReward = false;
+                LeaveStop();
+            }
+            else OpenShop();
+        }
+
+        // an optional table under a random Pit Boss's rule (never this floor's own boss)
+        private void StartElite()
+        {
+            var pool = Bosses.PitBosses.Where(b => b != FloorBoss).ToList();
+            _eliteBoss = pool[Random.Next(pool.Count)];
+            AtElite = true;
+            StartTable();
+        }
+
+        // win: paid like a High Table, then pick a Rare Vice. lose: the run goes on, but half your gold is gone
+        private void FinishElite()
+        {
+            AtElite = false;
+            TotalScore += Table.Score;
+            LastFreeVice = null;
+            if (Table.Phase == TablePhase.Lost)
+            {
+                EliteResult = $"You lost the Elite table and {Gambler.Gold / 2} gold.";
+                Gambler.LoseGold(Gambler.Gold / 2);
+                Gambler.GrowDebt();
+                LeaveStop();
+                return;
+            }
+            TablesBeaten++;
+            EliteResult = null;
+            PayOut(TableKind.High);
+            // a table like any other: the loan grows and Heat cools (half as fast on Purple stake)
+            Gambler.GrowDebt();
+            Gambler.CoolDown(Options.Stake >= Stake.Purple ? Balance.HeatCooldownPerTable / 2 : Balance.HeatCooldownPerTable);
+            _eliteReward = true;
+            OfferBossReward();
+        }
+
+        // what happened at the last Elite table you lost, for the map to say
+        public string EliteResult { get; private set; }
 
         // after a Low or High Table: onto the map, choosing the first stop
         private void StartPath()
@@ -455,6 +549,7 @@ namespace HouseEdge.Core
             _lane = stop.Lane;
             stop.Visited = true;
             if (stop.Kind == RoomKind.Shop) OpenShop();
+            else if (stop.Kind == RoomKind.Elite) StartElite();
             else EnterRoom(stop.Kind);
         }
 
@@ -521,6 +616,9 @@ namespace HouseEdge.Core
                     break;
                 case RoomKind.PawnShop:
                     Room.UsedRare = Shop.RollVice(Random, OwnedViceIds(), Rarity.Rare);
+                    break;
+                case RoomKind.Mystery:
+                    Room.Event = Events.All[Random.Next(Events.All.Count)];
                     break;
             }
             Phase = RunPhase.InRoom;
@@ -598,6 +696,12 @@ namespace HouseEdge.Core
                             steps * Balance.HeatClearCostPer10, steps));
                     options.Add(new RoomOption(RoomActionKind.Bribe, $"Bribe a guard (+{Balance.BribeHeat} Heat)"));
                     break;
+                case RoomKind.Mystery:
+                    var choices = Events.Choices(Room.Event);
+                    for (int i = 0; i < choices.Count; i++)
+                        options.Add(new RoomOption(RoomActionKind.EventChoice, choices[i].label,
+                            choices[i].cost > 0 ? Shop.HeatAdjusted(choices[i].cost, Gambler) : choices[i].cost, i));
+                    break;
                 case RoomKind.HighLimitLounge:
                     var (floor, stage) = NextStage;
                     options.Add(new RoomOption(RoomActionKind.SkipNextTable, $"Skip the {StageLabel(stage, floor)}"));
@@ -651,6 +755,8 @@ namespace HouseEdge.Core
                     return !Room.Used && Gambler.HasFreeViceSlot && ViceCatalog.All.Any(d => d.IsCheater && !d.IsCursed && !OwnedViceIds().Contains(d.Id));
                 case RoomActionKind.SkipNextTable:
                     return !Room.Used;
+                case RoomActionKind.EventChoice:
+                    return !Room.Used && EventChoiceOpen(Room.Event, option.Arg);
                 default:
                     return false;
             }
@@ -728,11 +834,92 @@ namespace HouseEdge.Core
                     Gambler.AddHeat(Balance.BribeHeat);
                     Room.Result = $"The guard hands you {cheat.Name} and winks.";
                     break;
+                case RoomActionKind.EventChoice:
+                    Room.Used = true;
+                    if (option.Cost < 0) Gambler.GainGold(-option.Cost);
+                    Room.Result = PlayEvent(Room.Event, option.Arg);
+                    break;
                 case RoomActionKind.SkipNextTable:
                     Room.Used = true;
                     _skipNextTable = true;
                     Room.Result = "The next table is off. The one after it will be watching you.";
                     break;
+            }
+        }
+
+        // some choices need room for what they give
+        private bool EventChoiceOpen(EventKind kind, int choice) => (kind, choice) switch
+        {
+            (EventKind.LuckyChip, 0) => Gambler.HasFreeViceSlot,
+            (EventKind.BackAlley, 0) => Gambler.HasFreeViceSlot,
+            (EventKind.SpilledTray, 0) => Gambler.HasFreeCocktailSlot,
+            (EventKind.Shredder, 0) => Gambler.Deck.Count - 3 >= Balance.MinDeckSize,
+            _ => true,
+        };
+
+        // what a "?" choice does. returns what to tell the player
+        private string PlayEvent(EventKind kind, int choice)
+        {
+            switch (kind, choice)
+            {
+                case (EventKind.LuckyChip, 0):
+                    var lucky = ViceCatalog.All.Where(d => d.Archetype == Archetype.Lucky && !d.IsCursed && d.Rarity <= Rarity.Rare
+                                                           && !OwnedViceIds().Contains(d.Id)).ToList();
+                    Gambler.AddHeat(20);
+                    if (lucky.Count == 0) return "The chip was a fake. Security noticed you anyway.";
+                    var chip = lucky[Random.Next(lucky.Count)];
+                    Gambler.Vices.Add(chip.Create());
+                    SeenVices.Add(chip.Id);
+                    return $"It's {chip.Name}. Someone saw you take it.";
+                case (EventKind.LuckyChip, _):
+                    return "The pit boss thanks you with 8 gold.";
+                case (EventKind.Hustler, _):
+                    if (Random.Next(2) == 0)
+                    {
+                        Gambler.GainGold(10);
+                        return "Heads. He grumbles and pays you 10 gold.";
+                    }
+                    return "Tails. He pockets your 5 gold and vanishes.";
+                case (EventKind.SpilledTray, 0):
+                    var drink = Cocktails.All[Random.Next(Cocktails.All.Count)];
+                    Gambler.Cocktails.Add(new Cocktail(drink));
+                    return $"A {Cocktails.Name(drink)} survived the fall. It's yours.";
+                case (EventKind.SpilledTray, _):
+                    return "He thanks you with a 3 gold tip.";
+                case (EventKind.BackAlley, _):
+                    var bought = Shop.RollVice(Random, OwnedViceIds(), Rarity.Rare);
+                    Gambler.Deck.Add(Card.Cursed(Curse.DeadCard));
+                    if (bought == null) return "His coat was empty. You got a Dead Card for your trouble.";
+                    Gambler.Vices.Add(bought.Create());
+                    SeenVices.Add(bought.Id);
+                    return $"You got {bought.Name}. And a Dead Card slipped into your deck.";
+                case (EventKind.Shredder, _):
+                    var lowest = Gambler.Deck.Where(c => !c.IsCursed).OrderBy(c => c.Value).Take(3).ToList();
+                    foreach (var card in lowest) Gambler.Deck.Remove(card);
+                    return $"Gone: {string.Join(", ", lowest.Select(c => c.RankLabel))}.";
+                case (EventKind.PhotoBooth, _):
+                    var best = Gambler.Deck.Where(c => !c.IsCursed).OrderByDescending(c => c.Value)
+                        .ThenByDescending(c => c.Enhancement != Enhancement.None).FirstOrDefault();
+                    if (best == null) return "The booth is out of film.";
+                    Gambler.Deck.Add(best.Copy());
+                    return $"A perfect copy of your {best.RankLabel} joins your deck.";
+                case (EventKind.SecuritySweep, 0):
+                    Gambler.CoolDown(25);
+                    return "You keep your head down. Heat -25.";
+                case (EventKind.SecuritySweep, _):
+                    if (Random.Next(2) == 0)
+                    {
+                        Gambler.CoolDown(50);
+                        return "They wave you through. Heat -50.";
+                    }
+                    Gambler.AddHeat(25);
+                    return "They take a long look at you. Heat +25.";
+                case (EventKind.CompTicket, 0):
+                    var combo = Combos.All[Random.Next(Combos.All.Count)];
+                    Gambler.LevelUp(Comps.For(combo));
+                    return $"Your {Combos.Name(combo)} Comp goes up a level.";
+                default:
+                    return "You sell the ticket for 6 gold.";
             }
         }
 
@@ -749,6 +936,7 @@ namespace HouseEdge.Core
                 {
                     _run.BestHand = Math.Max(_run.BestHand, score.Total);
                     if (score.Outcome == Outcome.Blackjack) _run.BestBlackjackMult = Math.Max(_run.BestBlackjackMult, score.Mult);
+                    foreach (var combo in score.Combos) _run.CombosWon[(int)combo]++;
                 }
             }
         }

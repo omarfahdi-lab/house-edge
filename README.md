@@ -26,6 +26,13 @@ The twist: **the dealer draws from your deck too.** Stack it with 10s and you hi
   beats the dealer, plus a win streak. Comps level combos up like Balatro's Planet cards, combo Vices multiply them,
   and your hand shows its combos live, so Hit or Stand becomes "do I chase the Flush?". `Combos.Find` is pure, so the
   rules are tested card by card.
+- **Card packs, Elites and events.** Shops sell Card, Suit, Court and Lucky packs: open one and keep 1 of 3 cards
+  (Suit packs carry a Wild card that counts as any suit, for Flushes). The map also has optional **Elite tables**
+  (a random Pit Boss's rule against the next table's target with fewer Hands: win a Rare Vice, lose half your gold
+  but keep going) and **"?" stops** with eight short events and real trade-offs.
+- **A collection and unlocks.** The profile remembers every Vice seen, boss faced and combo won. Five combo Vices
+  unlock by playing (win with a Flush to unlock Flush Royale), and locked Vices are passed into the run as
+  `RunOptions.LockedVices`, so a run stays a pure function of its seed and options.
 - **Pit Bosses are characters.** Each has a portrait drawn in code, a title, a line, one named ability in plain words
   and a tip, shown in an entrance before their table. Bosses announce their ability when it fires ("Swaps your 7 for
   his Q") through `Table.Announce`, so the rule is never invisible.
@@ -166,7 +173,7 @@ What it found, in order:
    were scaled down to match. The bot plays plain blackjack and never chases a combo, so it's a floor, not an average.
 
 Research targets: Slay the Spire 2's reported overall win rate is about 25%, and 16% at its base difficulty. The bot
-now wins **about 10%** (9.7% on seeds 1-1000, 10.3% on 5001-6000) without ever building for combos, so a player who does
+now wins **about 10%** (10.6% on seeds 1-1000, 9.7% on 5001-6000) without ever building for combos, so a player who does
 should land well above it. Floors 1-2 are forgiving (96-97% of tables) and every Pit Boss is a spike (83-91%).
 
 | Floor | Low win | High win | Boss win | Runs reaching | Deals to clear a table |

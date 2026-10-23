@@ -314,6 +314,7 @@ namespace HouseEdge.Tests
                 case RunPhase.Shop: run.Apply(RunInput.LeaveShop()); break;
                 case RunPhase.RoomChoice: run.Apply(RunInput.ChooseRoom(QuietRoom(run))); break;
                 case RunPhase.InRoom: run.Apply(RunInput.LeaveRoom()); break;
+                case RunPhase.OpeningPack: run.Apply(RunInput.SkipPack()); break;
             }
         }
 
@@ -321,7 +322,7 @@ namespace HouseEdge.Tests
         private static int QuietRoom(Run run)
         {
             for (int i = 0; i < run.RoomChoices.Count; i++)
-                if (run.RoomChoices[i] != RoomKind.HighLimitLounge) return i;
+                if (run.RoomChoices[i] != RoomKind.HighLimitLounge && run.RoomChoices[i] != RoomKind.Elite) return i;
             return 0;
         }
 

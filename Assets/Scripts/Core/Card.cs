@@ -8,7 +8,7 @@ namespace HouseEdge.Core
         Jack, Queen, King, Ace
     }
 
-    public enum Enhancement { None, Gilded, Flex, Fragile, Marked, Ghost, Hot, Heavy }
+    public enum Enhancement { None, Gilded, Flex, Fragile, Marked, Ghost, Hot, Heavy, Wild }
 
     public enum Stamp { None, Red, Blue, Gold, Black }
 

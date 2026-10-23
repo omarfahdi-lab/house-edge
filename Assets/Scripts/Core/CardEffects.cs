@@ -48,6 +48,7 @@ namespace HouseEdge.Core
             Enhancement.Ghost => "Worth 0 but gives +15 Chips. A free hit.",
             Enhancement.Hot => "+1 Mult for every time it's been drawn this table.",
             Enhancement.Heavy => "Counts as 1 higher and gives +20 Chips.",
+            Enhancement.Wild => "Counts as every suit, for Suited and Flush combos.",
             _ => "",
         };
 

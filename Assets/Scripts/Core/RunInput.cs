@@ -25,6 +25,9 @@ namespace HouseEdge.Core
         LeaveRoom,
         // pay the Loan Shark as much as you can
         RepayDebt,
+        // keep card Index from the pack you just opened, or none
+        PickPackCard,
+        SkipPack,
     }
 
     // one player input in a run. a run is its seed plus a list of these
@@ -59,6 +62,8 @@ namespace HouseEdge.Core
         public static RunInput RoomOption(int option, int card = -1) => new RunInput(RunInputKind.RoomOption, index: option, index2: card);
         public static RunInput LeaveRoom() => new RunInput(RunInputKind.LeaveRoom);
         public static RunInput RepayDebt() => new RunInput(RunInputKind.RepayDebt);
+        public static RunInput PickPackCard(int index) => new RunInput(RunInputKind.PickPackCard, index: index);
+        public static RunInput SkipPack() => new RunInput(RunInputKind.SkipPack);
 
         // deck cards picked for a Cocktail, in order
         public IEnumerable<int> CardTargets()

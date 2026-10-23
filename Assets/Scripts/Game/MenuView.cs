@@ -29,7 +29,7 @@ namespace HouseEdge.Game
         private readonly Switch _musicSwitch, _soundSwitch;
 
         public event Action<int, RunOptions> StartClicked;
-        public event Action DailyClicked, ResumeClicked, AbandonClicked;
+        public event Action DailyClicked, ResumeClicked, AbandonClicked, CollectionClicked;
 
         public VisualElement Root => _root;
         public bool IsOpen => _root.style.display == DisplayStyle.Flex;
@@ -78,7 +78,17 @@ namespace HouseEdge.Game
             _newRun = MenuButton(left, "New run", NewRun, ButtonKind.Gold, "Space");
             var daily = MenuButton(left, "Daily Run", () => DailyClicked?.Invoke(), ButtonKind.Primary);
             Ui.Tip(daily, "Daily Run", "Everyone gets the same seed today: same shops, same cards, same bosses. Standard deck, White Chip.");
-            MenuButton(left, "How to play", () => _howTo.Open(), ButtonKind.Normal);
+            // two smaller buttons side by side
+            var pair = Ui.Row(left, 10);
+            var howTo = MenuButton(pair, "How to play", () => _howTo.Open(), ButtonKind.Normal);
+            var collection = MenuButton(pair, "Collection", () => CollectionClicked?.Invoke(), ButtonKind.Normal);
+            foreach (var half in new[] { howTo, collection })
+            {
+                half.style.width = 145;
+                half.style.justifyContent = Justify.Center;
+                half.Q<Label>().style.fontSize = 16;
+            }
+            Ui.Tip(collection, "Collection", "Every Vice, boss and combo you've found, and what unlocks the rest.");
             _abandon = MenuButton(left, "Abandon run", () => AbandonClicked?.Invoke(), ButtonKind.Ghost);
             _daily = Ui.Text(left, "", 13, Ui.Gold, Weight.Medium);
             _daily.style.whiteSpace = WhiteSpace.Normal;

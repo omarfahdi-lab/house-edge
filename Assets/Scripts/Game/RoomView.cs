@@ -130,6 +130,9 @@ namespace HouseEdge.Game
             RoomKind.CardRoom => SuitIcon.Shape.Cards,
             RoomKind.LostAndFound => SuitIcon.Shape.Star,
             RoomKind.SecurityOffice => SuitIcon.Shape.Eye,
+            RoomKind.Elite => SuitIcon.Shape.Flame,
+            RoomKind.Mystery => SuitIcon.Shape.Star,
+            RoomKind.Shop => SuitIcon.Shape.Diamond,
             _ => SuitIcon.Shape.Crown,
         };
     }

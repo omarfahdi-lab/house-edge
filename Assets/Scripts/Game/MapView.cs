@@ -232,7 +232,13 @@ namespace HouseEdge.Game
         {
             _receipt.Clear();
             bool fresh = choosing && run.Here == null;
-            Ui.Show(_receipt, fresh);
+            bool eliteLost = choosing && run.Here?.Kind == RoomKind.Elite && run.EliteResult != null;
+            Ui.Show(_receipt, fresh || eliteLost);
+            if (eliteLost)
+            {
+                Ui.Pill(_receipt, run.EliteResult.ToUpperInvariant(), Ui.Bad, filled: true, size: 12);
+                return;
+            }
             if (!fresh) return;
             var p = run.LastPayout;
             Ui.Pill(_receipt, "TABLE CLEARED", Ui.Good, filled: true, size: 12);
@@ -353,7 +359,8 @@ namespace HouseEdge.Game
             node.style.alignItems = Align.Center;
             node.style.width = 110;
             bool shop = stop.Kind == RoomKind.Shop;
-            var ink = shop ? new Color(0.14f, 0.28f, 0.52f) : InkColor;
+            bool elite = stop.Kind == RoomKind.Elite;
+            var ink = shop ? new Color(0.14f, 0.28f, 0.52f) : elite ? RedInk : InkColor;
             var disc = new VisualElement();
             disc.style.width = disc.style.height = 48;
             disc.style.alignItems = Align.Center;
@@ -361,7 +368,13 @@ namespace HouseEdge.Game
             Ui.Rounded(disc, 24);
             disc.style.backgroundColor = open ? new Color(1f, 0.93f, 0.7f) : new Color(0.97f, 0.92f, 0.8f, 0.85f);
             Ui.Border(disc, open || here ? 3 : 2, open ? Ui.Gold : here ? RedInk : ink);
-            disc.Add(new SuitIcon(StopIcon(stop.Kind), ink, 24));
+            if (stop.Kind == RoomKind.Mystery)
+            {
+                var mark = Ui.Title(disc, "?", 28, ink, glow: false);
+                mark.pickingMode = PickingMode.Ignore;
+            }
+            else disc.Add(new SuitIcon(StopIcon(stop.Kind), ink, 24));
+            if (elite) Ui.Border(disc, 3, RedInk);
             if (stop.Visited) disc.Add(Stamp());
             node.Add(disc);
             var label = Ui.Text(node, Rooms.Name(stop.Kind), 12, open ? RedInk : InkColor, Weight.Bold);

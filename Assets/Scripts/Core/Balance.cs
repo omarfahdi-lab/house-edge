@@ -125,6 +125,14 @@ namespace HouseEdge.Core
 
         // floor map and rooms
         public const int RoomChoices = 2;
+        // packs: cards inside, and how many the shop offers
+        public const int PackCards = 3;
+
+        // Elite tables: the next table's target with a Pit Boss's rule and fewer Hands
+        public const int EliteHandsLess = 2;
+        public const double EliteTargetFactor = 1.0;
+        public const int ShopPackOffers = 1;
+
         // the chance (in 100) that a stop on the map is a Shop. the first row after each table always has one
         public const int PathShopChance = 30;
         public const int BarCocktails = 3;

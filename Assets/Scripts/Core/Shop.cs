@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace HouseEdge.Core
 {
-    public enum OfferKind { Vice, Cocktail, Comp }
+    public enum OfferKind { Vice, Cocktail, Comp, Pack }
 
     public sealed class ShopOffer
     {
@@ -12,12 +12,14 @@ namespace HouseEdge.Core
         public ViceDefinition Vice { get; }
         public CocktailKind Cocktail { get; }
         public Comp Comp { get; }
+        public PackKind Pack { get; }
         // before Heat. see Run.PriceOf
         public int BasePrice { get; }
         public bool Sold { get; internal set; }
 
-        private ShopOffer(OfferKind kind, int basePrice, ViceDefinition vice = null, CocktailKind cocktail = default, Comp comp = default)
+        private ShopOffer(OfferKind kind, int basePrice, ViceDefinition vice = null, CocktailKind cocktail = default, Comp comp = default, PackKind pack = default)
         {
+            Pack = pack;
             Kind = kind;
             BasePrice = basePrice;
             Vice = vice;
@@ -28,11 +30,13 @@ namespace HouseEdge.Core
         public static ShopOffer ForVice(ViceDefinition vice) => new ShopOffer(OfferKind.Vice, Balance.VicePrice(vice.Rarity), vice: vice);
         public static ShopOffer ForCocktail(CocktailKind cocktail) => new ShopOffer(OfferKind.Cocktail, Balance.CocktailPrice, cocktail: cocktail);
         public static ShopOffer ForComp(Comp comp) => new ShopOffer(OfferKind.Comp, Balance.CompPrice, comp: comp);
+        public static ShopOffer ForPack(PackKind pack) => new ShopOffer(OfferKind.Pack, Packs.Price(pack), pack: pack);
 
         public string Name => Kind switch
         {
             OfferKind.Vice => Vice.Name,
             OfferKind.Cocktail => Cocktails.Name(Cocktail),
+            OfferKind.Pack => Packs.Name(Pack),
             _ => Comps.Name(Comp) + " Comp",
         };
 
@@ -40,6 +44,7 @@ namespace HouseEdge.Core
         {
             OfferKind.Vice => Vice.Description,
             OfferKind.Cocktail => Cocktails.Describe(Cocktail),
+            OfferKind.Pack => Packs.Describe(Pack),
             _ => Comps.Describe(Comp),
         };
     }
@@ -52,10 +57,11 @@ namespace HouseEdge.Core
         public IReadOnlyList<ShopOffer> Offers => _offers;
         public int RerollCost { get; private set; } = Balance.RerollBaseCost;
 
-        internal void Stock(Gambler gambler, GameRandom random)
+        internal void Stock(Gambler gambler, GameRandom random, IEnumerable<string> locked = null)
         {
             _offers.Clear();
             var taken = new HashSet<string>(gambler.Vices.Select(v => v.Definition.Id));
+            if (locked != null) taken.UnionWith(locked);
             for (int i = 0; i < Balance.ShopViceOffers; i++)
             {
                 var rarity = Balance.RollShopRarity(random);
@@ -78,6 +84,8 @@ namespace HouseEdge.Core
             }
             for (int i = 0; i < Balance.ShopCompOffers; i++)
                 _offers.Add(ShopOffer.ForComp(Comps.All[random.Next(Comps.All.Count)]));
+            for (int i = 0; i < Balance.ShopPackOffers; i++)
+                _offers.Add(ShopOffer.ForPack(Packs.All[random.Next(Packs.All.Count)]));
         }
 
         internal void Rerolled() => RerollCost++;

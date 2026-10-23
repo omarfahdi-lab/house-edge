@@ -18,8 +18,15 @@ namespace HouseEdge.Core
         public bool Endless;
         // the same seed for everyone today; only the label changes
         public bool Daily;
+        // Vices this player hasn't unlocked yet: they never show up in this run
+        public List<string> LockedVices = new List<string>();
 
-        public RunOptions Clone() => (RunOptions)MemberwiseClone();
+        public RunOptions Clone()
+        {
+            var copy = (RunOptions)MemberwiseClone();
+            copy.LockedVices = new List<string>(LockedVices);
+            return copy;
+        }
     }
 
     public static class Decks

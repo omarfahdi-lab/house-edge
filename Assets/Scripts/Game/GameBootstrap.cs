@@ -24,6 +24,8 @@ namespace HouseEdge.Game
         private RoomView _room;
         private MenuView _menu;
         private MapView _map;
+        private PackView _pack;
+        private CollectionView _collection;
         private BossIntro _bossIntro;
         private Table _introShownFor, _heardTable;
         private int _heardDeal, _heard;
@@ -66,6 +68,7 @@ namespace HouseEdge.Game
             _table = new TableView(root);
             _shop = new ShopView(root);
             _room = new RoomView(root);
+            _pack = new PackView(root);
             _hud = new Hud(root);
             _deck = new DeckView(root);
             _map = new MapView(root);
@@ -73,6 +76,9 @@ namespace HouseEdge.Game
             _runOver = new RunOverView(root);
             _menu = new MenuView(root);
             _bossIntro = new BossIntro(root);
+            _collection = new CollectionView(root);
+            _menu.CollectionClicked += () => _collection.Open(_profile);
+            _pack.InputChosen += TryApply;
             _bossIntro.Closed += () => Listen(force: true);
             _feedback = Feedback.Create(transform, root);
             _feedback.GoldAnchor = () => _hud.GoldAnchor.worldBound.center;
@@ -156,6 +162,7 @@ namespace HouseEdge.Game
             _introShownFor = Run.Table;
             _map.Close();
             string kind = Run.AtEyeInTheSky ? "SECURITY"
+                : Run.AtElite ? "ELITE TABLE  ·  WIN FOR A RARE VICE"
                 : Run.AtEnforcer ? "COLLECTIONS"
                 : Run.Floor == Balance.Floors ? $"FINAL BOSS  ·  FLOOR {Run.Floor}"
                 : $"PIT BOSS  ·  FLOOR {Run.Floor}";
@@ -194,6 +201,8 @@ namespace HouseEdge.Game
             if (Run.FloorBoss != null) _bosses[Run.Floor] = Run.FloorBoss.Name;
         }
 
+        public void ShowCollection() => _collection.Open(_profile);
+
         public void ShowHowTo(int page)
         {
             OpenMenu();
@@ -205,6 +214,9 @@ namespace HouseEdge.Game
             _replay = null;
             _playing = true;
             _unlocks = new List<string>();
+            // Vices you haven't unlocked stay out of this run (the Daily Run is the same for everyone)
+            options = options.Clone();
+            options.LockedVices = options.Daily ? new List<string>() : _profile.LockedVices;
             _bosses.Clear();
             _mapShownFloor = 0;
             Run = new Run(seed, options);
@@ -304,7 +316,7 @@ namespace HouseEdge.Game
             _table.Refresh(Run);
             _table.SetReplay(Replaying);
             bool holding = Holding;
-            bool shop = !holding && (Run.Phase == RunPhase.Shop || Run.Phase == RunPhase.BossReward);
+            bool shop = !holding && (Run.Phase == RunPhase.Shop || Run.Phase == RunPhase.BossReward || Run.Phase == RunPhase.OpeningPack);
             bool backRoom = Run.ActiveTable != Run.Table;
             bool room = !holding && !backRoom && Run.Phase == RunPhase.InRoom;
             // between tables the map is where you pick the next stop
@@ -312,6 +324,7 @@ namespace HouseEdge.Game
             if (choosing) _map.Open(Run, _bosses, choosing: true);
             else if (_map.IsOpen && !_map.Viewing) _map.Close();
             ShowScreen(_table.Root, !shop && !room && !choosing);
+            _pack.Refresh(Run, Packs.Name(Run.OpenPack));
             IntroduceBoss();
             Listen();
             ShowScreen(_shop.Root, shop);
@@ -341,7 +354,7 @@ namespace HouseEdge.Game
             if (_menu.IsOpen && !_playing) return Track.Lounge;
             if (Run.IsOver) return Track.None;
             if (Run.Phase != RunPhase.AtTable || Holding) return Track.Lounge;
-            bool tense = Run.Stage == TableKind.Boss || Run.AtEyeInTheSky || Run.AtEnforcer || Run.ActiveTable != Run.Table;
+            bool tense = Run.Stage == TableKind.Boss || Run.AtElite || Run.AtEyeInTheSky || Run.AtEnforcer || Run.ActiveTable != Run.Table;
             return tense ? Track.Boss : Track.Table;
         }
 
@@ -382,7 +395,8 @@ namespace HouseEdge.Game
 
             if (keyboard.escapeKey.wasPressedThisFrame)
             {
-                if (_bossIntro.IsOpen) _bossIntro.Close();
+                if (_collection.IsOpen) _collection.Close();
+                else if (_bossIntro.IsOpen) _bossIntro.Close();
                 else if (_map.Viewing) _map.Close();
                 else if (_deck.IsOpen) _deck.Close();
                 else if (_menu.HowToOpen) _menu.CloseHowTo();
@@ -404,6 +418,7 @@ namespace HouseEdge.Game
                 SkipPlayback();
                 return;
             }
+            if (_collection.IsOpen) return;
             if (_bossIntro.IsOpen)
             {
                 if (keyboard.spaceKey.wasPressedThisFrame || keyboard.enterKey.wasPressedThisFrame || keyboard.escapeKey.wasPressedThisFrame) _bossIntro.Close();

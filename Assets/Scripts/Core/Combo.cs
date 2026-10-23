@@ -59,7 +59,9 @@ namespace HouseEdge.Core
             else if (pairs >= 2) found.Add(Combo.TwoPair);
             else if (pairs == 1) found.Add(Combo.Pair);
 
-            if (cards.All(c => c.Suit == cards[0].Suit)) found.Add(cards.Count >= 3 ? Combo.Flush : Combo.Suited);
+            // Wild cards fit any suit
+            var suited = cards.Where(c => c.Enhancement != Enhancement.Wild).ToList();
+            if (suited.All(c => c.Suit == (suited.Count > 0 ? suited[0].Suit : c.Suit))) found.Add(cards.Count >= 3 ? Combo.Flush : Combo.Suited);
 
             if (LongestRun(cards) >= 3) found.Add(Combo.Run);
             if (cards.Any(c => c.Rank == Rank.Jack) && cards.Any(c => c.Rank == Rank.Queen) && cards.Any(c => c.Rank == Rank.King))

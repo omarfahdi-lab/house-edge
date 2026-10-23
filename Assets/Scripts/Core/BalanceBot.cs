@@ -39,6 +39,8 @@ namespace HouseEdge.Core
                     return RunInput.ChooseRoom(ChooseRoom(run));
                 case RunPhase.InRoom:
                     return ChooseInRoom(run);
+                case RunPhase.OpeningPack:
+                    return ChoosePackCard(run);
             }
             return RunInput.LeaveShop();
         }
@@ -172,6 +174,11 @@ namespace HouseEdge.Core
                     // early on every Vice helps; later only spend the reserve on good ones
                     if (run.Gambler.Gold - run.PriceOf(offer) < InterestReserve && run.Floor > 2 && ViceValue(offer.Vice) < 7) return 0;
                     return ViceValue(offer.Vice);
+                case OfferKind.Pack:
+                    // the bot never builds toward a combo, so for it a pack is gold not spent on Vices or
+                    // earning interest (the sim fell from ~10% to ~5% when it bought them). it skips packs,
+                    // so the sim measures the game without them
+                    return 0;
                 case OfferKind.Comp:
                     // with gold to spare above the interest reserve. the common outcomes first
                     if (run.Gambler.Gold < run.PriceOf(offer) + InterestReserve) return 0;
@@ -253,9 +260,25 @@ namespace HouseEdge.Core
                 RoomKind.PawnShop => 2,
                 RoomKind.BackRoom => 1,
                 RoomKind.LoanShark => 0.5,
+                // an Elite only with a build to back it up
+                RoomKind.Elite => g.Vices.Count >= 4 && g.Gold >= 8 ? 4.5 : 0,
+                RoomKind.Mystery => 2.5,
                 _ => 0,
             };
         }
+
+        // the best upgraded or stamped high card, or nothing
+        private static RunInput ChoosePackCard(Run run)
+        {
+            int best = 0;
+            for (int i = 1; i < run.PackCards.Count; i++)
+                if (CardWorth(run.PackCards[i]) > CardWorth(run.PackCards[best])) best = i;
+            // a weak card only waters the deck down
+            return CardWorth(run.PackCards[best]) >= 18 ? RunInput.PickPackCard(best) : RunInput.SkipPack();
+        }
+
+        private static int CardWorth(Card card) =>
+            card.Value + (card.Enhancement != Enhancement.None ? 10 : 0) + (card.Stamp != Stamp.None ? 8 : 0);
 
         private static RunInput ChooseInRoom(Run run)
         {
@@ -265,6 +288,9 @@ namespace HouseEdge.Core
 
             switch (run.Room.Kind)
             {
+                case RoomKind.Mystery:
+                    // the first choice it can take, the second if the first isn't open
+                    return Try(0) ?? Try(1) ?? RunInput.LeaveRoom();
                 case RoomKind.LostAndFound:
                     return Try(Find(RoomActionKind.TakeLostVice)) ?? RunInput.LeaveRoom();
                 case RoomKind.Bar:
@@ -295,6 +321,8 @@ namespace HouseEdge.Core
         public readonly double[,] Overshoot = new double[Balance.Floors, 3];
         // each Pit Boss: tables reached and beaten
         public readonly Dictionary<string, (int reached, int beat)> Bosses = new Dictionary<string, (int, int)>();
+        // Elite tables: [0] lost, [1] won
+        public readonly int[] Elites = new int[2];
         public long GoldAtShops;
         public int ShopVisits;
         public int Busted;
@@ -318,7 +346,7 @@ namespace HouseEdge.Core
                 bool counted = false;
                 for (int guard = 0; guard < 5000 && !run.IsOver; guard++)
                 {
-                    if (run.Phase == RunPhase.AtTable && !run.AtEyeInTheSky && !run.AtEnforcer && run.Table.DealsPlayed == 0
+                    if (run.Phase == RunPhase.AtTable && !run.AtEyeInTheSky && !run.AtEnforcer && !run.AtElite && run.Table.DealsPlayed == 0
                         && (!counted || run.Floor != lastFloor || run.Stage != lastStage))
                     {
                         report.Reached[run.Floor - 1, (int)run.Stage]++;
@@ -333,7 +361,13 @@ namespace HouseEdge.Core
                     }
                     var phase = run.Phase;
                     var table = run.Table;
+                    bool elite = run.AtElite;
                     run.Apply(bot.Choose(run));
+                    if (elite)
+                    {
+                        if (!run.AtElite) report.Elites[table.Phase == TablePhase.Won ? 1 : 0]++;
+                        continue;
+                    }
                     if (phase == RunPhase.AtTable && table.Phase == TablePhase.Won && run.Table != table || phase == RunPhase.AtTable && run.Phase != RunPhase.AtTable && table.Phase == TablePhase.Won)
                     {
                         report.Beat[lastFloor - 1, (int)lastStage]++;
@@ -373,6 +407,7 @@ namespace HouseEdge.Core
                 string Cell(int stage) => r.Reached[f, stage] == 0 ? "-" : $"{(double)r.Beat[f, stage] / r.Reached[f, stage]:P0}";
                 lines.Add($"| {f + 1} | {r.Reached[f, 0]} | {Cell(0)} | {r.Reached[f, 1]} | {Cell(1)} | {r.Reached[f, 2]} | {Cell(2)} |");
             }
+            lines.Add($"Elite tables played: {r.Elites[0] + r.Elites[1]}, won {(double)r.Elites[1] / Math.Max(1, r.Elites[0] + r.Elites[1]):P0}.");
             lines.Add("");
             lines.Add("| Pit Boss | Reached | Beaten |");
             lines.Add("| -------- | ------: | -----: |");

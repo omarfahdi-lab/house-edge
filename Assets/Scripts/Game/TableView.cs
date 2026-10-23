@@ -261,9 +261,38 @@ namespace HouseEdge.Game
 
         public void SetReplay(bool replaying) => Ui.Show(_replay, replaying);
 
+        // a fresh table: the shoe's cards fan out and snap back together, with a shuffle sound
+        private void Riffle()
+        {
+            var stack = _shoe.ElementAt(0);
+            int i = 0;
+            foreach (var card in stack.Children())
+            {
+                int n = i++;
+                var c = card;
+                Ui.Transition(c, 0.18f, EasingMode.EaseOutBack, "translate", "rotate");
+                for (int pass = 0; pass < 3; pass++)
+                {
+                    long at = 150 + pass * 260;
+                    c.schedule.Execute(() =>
+                    {
+                        c.style.translate = new Translate((n - 1) * 26, -8);
+                        c.style.rotate = new Rotate((n - 1) * 10);
+                        CardLanded?.Invoke();
+                    }).StartingIn(at);
+                    c.schedule.Execute(() =>
+                    {
+                        c.style.translate = new Translate(0, 0);
+                        c.style.rotate = new Rotate(0);
+                    }).StartingIn(at + 130);
+                }
+            }
+        }
+
         public void Refresh(Run run)
         {
             var table = run.ActiveTable;
+            if (table != _shownTable && table.DealsPlayed == 0) Riffle();
             if (table != _shownTable || table.DealsPlayed != _dealIndex)
             {
                 _shown.Clear();
@@ -327,7 +356,7 @@ namespace HouseEdge.Game
             if (boss)
             {
                 var definition = run.Boss.Definition;
-                _plateTag.text = (run.AtEyeInTheSky ? "SECURITY" : run.AtEnforcer ? "COLLECTIONS" : run.Floor == Balance.Floors ? "FINAL BOSS" : "PIT BOSS")
+                _plateTag.text = (run.AtEyeInTheSky ? "SECURITY" : run.AtElite ? "ELITE" : run.AtEnforcer ? "COLLECTIONS" : run.Floor == Balance.Floors ? "FINAL BOSS" : "PIT BOSS")
                                  + "  ·  " + definition.Ability.ToUpperInvariant();
                 _plateName.text = run.Boss.Name.ToUpperInvariant();
                 string twist = definition.Twist;

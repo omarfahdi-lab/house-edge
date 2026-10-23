@@ -252,6 +252,22 @@ namespace HouseEdge.Game
             Ui.Rounded(face, 7 * scale);
             face.style.overflow = Overflow.Hidden;
             root.Add(face);
+
+            // under the mouse a card lifts and tilts toward the side you're on
+            Ui.Transition(face, 0.15f, "scale", "rotate", "translate");
+            root.RegisterCallback<PointerMoveEvent>(e =>
+            {
+                float side = Mathf.Clamp((e.localPosition.x / Mathf.Max(1, root.layout.width)) * 2 - 1, -1, 1);
+                face.style.rotate = new Rotate(side * 4);
+                face.style.scale = new Scale(new Vector2(1.06f, 1.06f));
+                face.style.translate = new Translate(0, -4);
+            });
+            root.RegisterCallback<PointerLeaveEvent>(_ =>
+            {
+                face.style.rotate = new Rotate(0);
+                face.style.scale = new Scale(Vector2.one);
+                face.style.translate = new Translate(0, 0);
+            });
             return (root, face);
         }
 
