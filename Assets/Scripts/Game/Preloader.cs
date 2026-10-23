@@ -9,23 +9,24 @@ namespace HouseEdge.Game
     {
         private static readonly string[] Backgrounds = { "bar", "slots", "pawn", "vault", "security", "lostfound", "lounge", "backroom", "cardroom", "shop", "mystery" };
         private static readonly string[] Tracks = { "Lobby_Time", "Bossa_Antigua", "Hitman" };
-        private static readonly string[] Layers = { "legL", "legR", "armL", "armR", "torso", "head" };
+        // every character's painting
+        public static readonly string[] Portraits =
+        {
+            "thetwins", "theiceman", "thecheat", "themime", "thetaxman", "thepurist", "theceiling", "thesweeper", "thesilencer",
+            "thecardmechanic", "thehoarder", "thepitboss", "theeyeinthesky", "theenforcer", "thehouse",
+            "rookieray", "silentsofia", "chattychen", "oldpete", "vegasval", "luckylou",
+            "sal", "vinnie", "morty", "finn", "dot", "gus", "officerreyes", "madamerose", "cherry", "mrbig", "slickeddie",
+            "jules", "thecoat", "hank", "flash", "security", "theusher", "zappo", "you",
+        };
 
         public static IEnumerator Run()
         {
             yield return null;
-            foreach (var meta in Resources.LoadAll<TextAsset>("Characters"))
-                foreach (var layer in Layers)
-                {
-                    var request = Resources.LoadAsync<Texture2D>($"Characters/{meta.name}_{layer}");
-                    yield return request;
-                    Puppet.Keep($"{meta.name}_{layer}", request.asset as Texture2D);
-                }
-            foreach (var mouth in new[] { "glad", "happy", "oh", "sad", "straight", "teethLower", "teethUpper" })
+            foreach (var id in Portraits)
             {
-                var request = Resources.LoadAsync<Texture2D>("Characters/mouth_" + mouth);
+                var request = Resources.LoadAsync<Texture2D>("Portraits/" + id);
                 yield return request;
-                Puppet.Keep("mouth_" + mouth, request.asset as Texture2D);
+                Puppet.Keep(id, request.asset as Texture2D);
             }
             foreach (var name in Backgrounds)
             {

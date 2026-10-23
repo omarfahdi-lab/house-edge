@@ -8,16 +8,16 @@ namespace HouseEdge.Editor
     {
         private void OnPreprocessTexture()
         {
-            bool characters = assetPath.Contains("/Resources/Characters/");
+            bool characters = assetPath.Contains("/Resources/Characters/") || assetPath.Contains("/Resources/Portraits/");
             bool backgrounds = assetPath.Contains("/Resources/Backgrounds/");
             if (!characters && !backgrounds) return;
             var importer = (TextureImporter)assetImporter;
             importer.textureType = TextureImporterType.Default;
             importer.mipmapEnabled = false;
-            importer.alphaIsTransparency = characters;
+            importer.alphaIsTransparency = assetPath.Contains("/Resources/Characters/");
             importer.wrapMode = UnityEngine.TextureWrapMode.Clamp;
             importer.npotScale = TextureImporterNPOTScale.None;
-            importer.textureCompression = characters ? TextureImporterCompression.Uncompressed : TextureImporterCompression.CompressedHQ;
+            importer.textureCompression = assetPath.Contains("/Resources/Characters/") ? TextureImporterCompression.Uncompressed : TextureImporterCompression.CompressedHQ;
             importer.maxTextureSize = backgrounds ? 2048 : 1024;
         }
     }

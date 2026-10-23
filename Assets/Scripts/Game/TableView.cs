@@ -744,7 +744,7 @@ namespace HouseEdge.Game
         }
 
         // how much of the opponent shows above the table: the head, the arms and the top of the torso
-        private const float OpponentVisible = 190;
+        private const float OpponentVisible = 196;
 
         private void RefreshOpponent(Run run)
         {
@@ -752,10 +752,10 @@ namespace HouseEdge.Game
             if (who == _opponentFor) return;
             _opponentFor = who;
             _opponentSlot.Clear();
-            _opponent = who != null && Puppet.Has(who) ? new Puppet(who, 250) : null;
+            _opponent = who != null && Puppet.Has(who) ? new Puppet(who, 176) : null;
             if (_opponent == null) return;
-            // room above the head for raised arms; the slot cuts them off at the waist
-            _opponent.style.marginTop = 4;
+            // their portrait stands behind the dealer's cards, the cards resting against its bottom edge
+            _opponent.style.marginTop = 6;
             _opponentSlot.Add(_opponent);
             // they step up to the table
             Ui.Transition(_opponent, 0, "translate", "opacity");

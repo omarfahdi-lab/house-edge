@@ -177,7 +177,7 @@ namespace HouseEdge.Game
                 : TableAt(progress >= 6 ? 6 : progress >= 3 ? 3 : 0);
             _token = Token();
             _token.style.left = _tokenAt.x - 34;
-            _token.style.top = _tokenAt.y - 118;
+            _token.style.top = _tokenAt.y - 100;
             _canvas.Add(_token);
 
             Ui.Show(_root, true);
@@ -318,7 +318,7 @@ namespace HouseEdge.Game
                         var at = Vector2.Lerp(from, to, eased);
                         float hop = Mathf.Abs(Mathf.Sin(t * Mathf.PI * 3)) * 16;
                         token.style.left = at.x - 34;
-                        token.style.top = at.y - 118 - hop * 0.4f;
+                        token.style.top = at.y - 100 - hop * 0.6f;
                         if (frame % 7 == 0) Footstep?.Invoke();
                     }
                     else if (frame == frames + 1)
@@ -348,8 +348,16 @@ namespace HouseEdge.Game
             token.style.width = 68;
             token.style.alignItems = Align.Center;
             token.pickingMode = PickingMode.Ignore;
-            _walker = Puppet.Has("You") ? new Puppet("You", 96) : null;
-            if (_walker != null) token.Add(_walker);
+            // your portrait in a round gold medallion
+            var medal = new VisualElement { pickingMode = PickingMode.Ignore };
+            medal.style.width = medal.style.height = 62;
+            Ui.Rounded(medal, 31);
+            Ui.Border(medal, 3, Ui.Gold);
+            medal.style.overflow = Overflow.Hidden;
+            medal.style.backgroundColor = new Color(0.1f, 0.08f, 0.05f);
+            _walker = Puppet.Has("You") ? new Puppet("You", 56, bust: true) : null;
+            if (_walker != null) medal.Add(_walker);
+            token.Add(medal);
             var tag = Ui.Pill(token, "YOU", Ui.Gold, filled: true, size: 10);
             tag.style.marginTop = -4;
             tag.pickingMode = PickingMode.Ignore;
