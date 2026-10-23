@@ -78,7 +78,7 @@ namespace HouseEdge.Game
         private static AudioClip Load(string name) => Resources.Load<AudioClip>("Music/" + name);
 
         // who made the music, for the menu
-        public const string Credit = "Music: \"Lobby Time\", \"Bossa Antigua\" and \"Hitman\" by Kevin MacLeod (incompetech.com), CC BY 4.0";
+        public const string Credit = "Music: \"Lobby Time\", \"Bossa Antigua\", \"Hitman\" by Kevin MacLeod (incompetech.com), CC BY 4.0  ·  Characters: Kenney (CC0)  ·  Photos: Wikimedia Commons, see docs/CREDITS.md";
 
         // tension: 0 is relaxed, 1 is your last Hand. the band speeds up and a heartbeat comes in
         public void SetTension(float tension)

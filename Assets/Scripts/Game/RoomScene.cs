@@ -47,11 +47,30 @@ namespace HouseEdge.Game
     {
         private readonly RoomKind _kind;
         private readonly Color _wallTop, _wallBottom, _accent;
+        // a photo sits behind: only the counter, the floor and the light are drawn over it
+        private readonly bool _photo;
         private float _time;
 
-        public RoomScene(RoomKind kind)
+        // the photo backdrop for a room, if there is one
+        public static Texture2D Photo(RoomKind kind) => Resources.Load<Texture2D>("Backgrounds/" + kind switch
+        {
+            RoomKind.Bar => "bar",
+            RoomKind.Slots => "slots",
+            RoomKind.PawnShop => "pawn",
+            RoomKind.LoanShark => "vault",
+            RoomKind.SecurityOffice => "security",
+            RoomKind.LostAndFound => "lostfound",
+            RoomKind.HighLimitLounge => "lounge",
+            RoomKind.BackRoom => "backroom",
+            RoomKind.CardRoom => "cardroom",
+            RoomKind.Shop => "shop",
+            _ => "mystery",
+        });
+
+        public RoomScene(RoomKind kind, bool photo = false)
         {
             _kind = kind;
+            _photo = photo;
             (_wallTop, _wallBottom, _accent) = Palette(kind);
             Ui.Fill(this);
             pickingMode = PickingMode.Ignore;
@@ -85,16 +104,18 @@ namespace HouseEdge.Game
             var p = context.painter2D;
             float floorY = h * 0.88f;
 
-            // the wall, darkening toward the floor, with faint wallpaper stripes
-            for (int i = 0; i < 14; i++)
+            if (!_photo)
             {
-                p.fillColor = Color.Lerp(_wallTop, _wallBottom, i / 13f);
-                Box(p, 0, floorY * i / 14, w, floorY / 14 + 1);
+                // the wall, darkening toward the floor, with faint wallpaper stripes
+                for (int i = 0; i < 14; i++)
+                {
+                    p.fillColor = Color.Lerp(_wallTop, _wallBottom, i / 13f);
+                    Box(p, 0, floorY * i / 14, w, floorY / 14 + 1);
+                }
+                p.fillColor = new Color(1, 1, 1, 0.025f);
+                for (float x = 20; x < w; x += 46) Box(p, x, 0, 14, floorY);
+                Props(p, w, h);
             }
-            p.fillColor = new Color(1, 1, 1, 0.025f);
-            for (float x = 20; x < w; x += 46) Box(p, x, 0, 14, floorY);
-
-            Props(p, w, h);
 
             // the counter everything sits on, then the floor
             p.fillColor = new Color(0.22f, 0.12f, 0.06f);

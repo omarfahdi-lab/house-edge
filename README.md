@@ -69,6 +69,10 @@ The twist: **the dealer draws from your deck too.** Stack it with 10s and you hi
   (`FloorMap`, generated from the run's seed so replays still match). You see the whole floor and plan a route; paths
   never cross, the first row after a table always has a Shop, and the lounge only appears right before a table. The bot
   plans paths too, and the win rate held at about 21%.
+- **Animated characters.** Every boss, dealer and host is a puppet assembled from Kenney's CC0 Modular Characters
+  (`Tools/Art/bake.py` bakes legs, arms, torso and head as separate layers with pivots, recolours outfits and draws
+  hats, shades and cigars to match). In game they breathe, walk, talk with their hands and react: your dealer cheers
+  when you bust and slumps when you win, a boss throws a fit in phase two, and you walk the map as your own gambler.
 - **Rooms are scenes, not menus.** Every stop on the map is a drawn room (bottle shelves at the Bar, flickering
   monitors in the Security Office, a swinging lamp over the Loan Shark's safe, chasing bulbs in the slot hall) with
   its own host, drawn from the same parts as the bosses, who greets you in a typed speech bubble and reacts to what
@@ -286,7 +290,9 @@ screenshot and quits (`Bot:N` lets the balance bot play N whole runs through the
 
 ## Credits
 
-Cards, suits, icons, UI and sounds are generated in code.
+Cards, suits, icons, UI and sounds are generated in code. Characters are built from Kenney's
+[Modular Characters](https://kenney.nl/assets/modular-characters) (CC0), and room backdrops are graded photos and
+paintings from Wikimedia Commons. Full list with authors and licenses: [docs/CREDITS.md](docs/CREDITS.md).
 
 Music: "Lobby Time", "Bossa Antigua" and "Hitman" by Kevin MacLeod ([incompetech.com](https://incompetech.com)),
 licensed under [Creative Commons: By Attribution 4.0](https://creativecommons.org/licenses/by/4.0/).

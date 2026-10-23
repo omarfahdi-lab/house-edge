@@ -76,6 +76,8 @@ namespace HouseEdge.Game
         };
 
         private readonly Look _look;
+        // the animated character, when there's art for them; the drawing is the fallback
+        private readonly bool _puppet;
 
         public BossPortrait(string boss, float size)
         {
@@ -86,6 +88,8 @@ namespace HouseEdge.Game
             Ui.Rounded(this, size * 0.16f);
             style.overflow = Overflow.Hidden;
             generateVisualContent += Draw;
+            _puppet = Puppet.Has(boss);
+            if (_puppet) Add(new Puppet(boss, size, bust: true));
         }
 
         private void Draw(MeshGenerationContext context)
@@ -101,6 +105,7 @@ namespace HouseEdge.Game
             Rect(p, At(0, 0), At(1, 1));
             p.fillColor = Color.Lerp(look.Backdrop, Color.white, 0.12f);
             Disc(p, At(0.5f, 0.42f), 0.42f * s);
+            if (_puppet) return;
 
             if (look.Extra == Extra.GiantEye)
             {

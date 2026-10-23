@@ -68,6 +68,10 @@ namespace HouseEdge.Game
         public event Action<int> TrickChosen;
 
         private readonly CountMeter _count;
+        // who you're playing against, standing at the table: the dealer, or the boss
+        private readonly VisualElement _opponentSlot;
+        private Puppet _opponent;
+        private string _opponentFor;
         private readonly VisualElement _tricks, _trickCards;
         private readonly Button _raise;
         // a card just landed on the felt, for the sound
@@ -146,11 +150,17 @@ namespace HouseEdge.Game
             _plateName = Ui.Title(plateTop, "", 20, Ui.Gold);
             _plateText = Ui.Body(plateText, "", 13, Ui.Cream, center: true);
 
-            // what the boss says when their ability goes off
+            _opponentSlot = new VisualElement { pickingMode = PickingMode.Ignore };
+            _opponentSlot.style.position = Position.Absolute;
+            _opponentSlot.style.left = 70;
+            _opponentSlot.style.top = 74;
+            _root.Add(_opponentSlot);
+
+            // what the boss (or the dealer) says, next to their head
             _bubble = Ui.Row(_root, 8);
             _bubble.style.position = Position.Absolute;
-            _bubble.style.top = 70;
-            _bubble.style.left = Length.Percent(58);
+            _bubble.style.top = 92;
+            _bubble.style.left = 236;
             _bubble.style.backgroundColor = new Color(0.98f, 0.95f, 0.87f);
             Ui.Rounded(_bubble, 14);
             Ui.Padding(_bubble, 8, 14);
@@ -381,6 +391,7 @@ namespace HouseEdge.Game
             _count.Set(table.Count);
             RefreshTricks(run, table);
             RefreshPlate(run);
+            RefreshOpponent(run);
             if (run.Boss == null || table != run.Table) Ui.Show(_bubble, false);
             // your cards first, then the dealer plays
             RefreshPlayer(table);
@@ -720,9 +731,34 @@ namespace HouseEdge.Game
             }
         }
 
+        private void RefreshOpponent(Run run)
+        {
+            string who = run.ActiveTable != run.Table ? "Vinnie" : run.Boss?.Name ?? run.Dealer?.Name;
+            if (who == _opponentFor) return;
+            _opponentFor = who;
+            _opponentSlot.Clear();
+            _opponent = who != null && Puppet.Has(who) ? new Puppet(who, 220) : null;
+            if (_opponent == null) return;
+            _opponentSlot.Add(_opponent);
+            // they stroll in from the side
+            _opponent.Walking = true;
+            Ui.Transition(_opponentSlot, 0, "translate", "opacity");
+            _opponentSlot.style.translate = new Translate(-160, 0);
+            _opponentSlot.style.opacity = 0;
+            var walker = _opponent;
+            _opponentSlot.schedule.Execute(() =>
+            {
+                Ui.Transition(_opponentSlot, 0.9f, EasingMode.EaseOutSine, "translate", "opacity");
+                _opponentSlot.style.translate = new Translate(0, 0);
+                _opponentSlot.style.opacity = 1;
+            }).StartingIn(30);
+            _opponentSlot.schedule.Execute(() => walker.Walking = false).StartingIn(950);
+        }
+
         // the boss's second phase: the nameplate shakes and stays red-hot
         public void Enrage()
         {
+            _opponent?.React(Puppet.Mood.Angry, 3f);
             Shake(_plate, 0);
             Ui.Pop(_plateFace, 1.35f);
         }
@@ -736,6 +772,7 @@ namespace HouseEdge.Game
             _bubble.style.opacity = 1;
             Ui.Pop(_bubble, 1.25f);
             Ui.Pop(_plateFace, 1.2f);
+            _opponent?.Talk(2.2f);
             string said = text;
             _bubble.schedule.Execute(() =>
             {
@@ -815,6 +852,16 @@ namespace HouseEdge.Game
                     Slump(cards, animate, delay);
                     if (animate) Shake(group, delay + 200);
                 }
+            }
+            // the person across the table takes it personally
+            if (animate && _opponent != null)
+            {
+                bool natural = table.LastScores.Any(sc => sc.Outcome == Outcome.Blackjack || sc.Outcome == Outcome.Charlie);
+                var mood = natural ? Puppet.Mood.Shocked
+                    : anyWin && !anyLoss ? (table == _resultTable && _opponentFor != null && _opponentFor.StartsWith("The") ? Puppet.Mood.Angry : Puppet.Mood.Sad)
+                    : anyLoss && !anyWin ? Puppet.Mood.Happy
+                    : Puppet.Mood.Idle;
+                if (mood != Puppet.Mood.Idle) _opponent.React(mood, 1.8f);
             }
             var dealer = table.DealerValue;
             if (dealer.IsBust) Tumble(_dealerViews, animate, delay);

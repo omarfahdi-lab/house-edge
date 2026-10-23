@@ -21,6 +21,7 @@ namespace HouseEdge.Game
         private string _typing = "";
         private int _typed;
         private bool _busy;
+        private Puppet _host;
 
         public event Action<RunInput> InputChosen;
         // a room option that works on a card: (option index, label)
@@ -62,9 +63,6 @@ namespace HouseEdge.Game
             var host = Ui.Column(talk, 4);
             host.style.alignItems = Align.Center;
             _hostFrame = new VisualElement();
-            Ui.Border(_hostFrame, 4, Ui.Gold);
-            Ui.Rounded(_hostFrame, 20);
-            _hostFrame.style.backgroundColor = Ui.Gold;
             host.Add(_hostFrame);
             _hostName = Ui.Text(host, "", 15, Ui.Cream, Weight.Heavy);
             _hostRole = Ui.Caption(host, "", Ui.Gold);
@@ -160,10 +158,39 @@ namespace HouseEdge.Game
         {
             var host = Host.For(room);
             _sceneSlot.Clear();
-            _sceneSlot.Add(new RoomScene(room.Kind));
+            // a real photo behind, when there is one, with the counter and light drawn over it
+            var photo = RoomScene.Photo(room.Kind);
+            if (photo != null)
+            {
+                var image = new VisualElement { pickingMode = PickingMode.Ignore };
+                Ui.Fill(image);
+                image.style.backgroundImage = photo;
+                image.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Cover);
+                _sceneSlot.Add(image);
+                // a slow push in, so the room feels alive
+                if (!Settings.ReducedMotion)
+                {
+                    image.style.scale = new Scale(new Vector2(1.08f, 1.08f));
+                    image.schedule.Execute(() =>
+                    {
+                        Ui.Transition(image, 12f, EasingMode.EaseOutSine, "scale");
+                        image.style.scale = new Scale(Vector2.one);
+                    }).StartingIn(30);
+                }
+            }
+            _sceneSlot.Add(new RoomScene(room.Kind, photo != null));
             _sign.text = room.Name.ToUpperInvariant();
             _hostFrame.Clear();
-            _hostFrame.Add(new BossPortrait(host.Name, room.Kind == RoomKind.Slots ? 104 : 150));
+            float height = room.Kind == RoomKind.Slots ? 170 : 230;
+            _host = Puppet.Has(host.Name) ? new Puppet(host.Name, height) : null;
+            if (_host != null)
+            {
+                _hostFrame.Add(_host);
+                _host.Walking = true;
+                var walker = _host;
+                walker.schedule.Execute(() => walker.Walking = false).StartingIn(520);
+            }
+            else _hostFrame.Add(new BossPortrait(host.Name, 150));
             _hostName.text = host.Name;
             _hostRole.text = host.Role.ToUpperInvariant();
             _info.text = room.Kind == RoomKind.Mystery ? "" : Ui.Rich(Rooms.Describe(room.Kind));
@@ -193,6 +220,7 @@ namespace HouseEdge.Game
             if (string.IsNullOrEmpty(text)) return;
             _said = text;
             _typing = text;
+            _host?.Talk(Mathf.Clamp(text.Length * 0.035f, 1.2f, 4f));
             _typed = Settings.ReducedMotion ? text.Length : 0;
             _speech.text = Settings.ReducedMotion ? Ui.Rich(text) : "";
         }
@@ -283,6 +311,7 @@ namespace HouseEdge.Game
                 return;
             }
             _busy = true;
+            _host?.React(Puppet.Mood.Shocked, 0.9f);
             long ms = Play(moment, options[index]);
             _root.schedule.Execute(() =>
             {

@@ -196,7 +196,10 @@ namespace HouseEdge.Game
             var credit = Ui.Text(_root, Music.Credit, 10, new Color(1, 1, 1, 0.4f));
             credit.style.position = Position.Absolute;
             credit.style.right = 60;
-            credit.style.bottom = 9;
+            credit.style.bottom = 6;
+            credit.style.maxWidth = 600;
+            credit.style.whiteSpace = WhiteSpace.Normal;
+            credit.style.unityTextAlign = TextAnchor.LowerRight;
 
             _howTo = new HowToView(_root);
 

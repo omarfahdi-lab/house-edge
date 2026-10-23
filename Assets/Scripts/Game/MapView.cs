@@ -176,8 +176,8 @@ namespace HouseEdge.Game
             _tokenAt = run.Here != null ? At(run.Here.Section * 3 + 1 + run.Here.Row, run.Here.Lane)
                 : TableAt(progress >= 6 ? 6 : progress >= 3 ? 3 : 0);
             _token = Token();
-            _token.style.left = _tokenAt.x - 25;
-            _token.style.top = _tokenAt.y - 86;
+            _token.style.left = _tokenAt.x - 34;
+            _token.style.top = _tokenAt.y - 118;
             _canvas.Add(_token);
 
             Ui.Show(_root, true);
@@ -302,7 +302,8 @@ namespace HouseEdge.Game
             _walking = true;
             var from = _tokenAt;
             var token = _token;
-            const int frames = 22;
+            if (_walker != null) _walker.Walking = true;
+            const int frames = 40;
             Ui.Transition(token, 0, "left", "top");
             for (int f = 1; f <= frames + 6; f++)
             {
@@ -316,11 +317,15 @@ namespace HouseEdge.Game
                         float eased = t * t * (3 - 2 * t);
                         var at = Vector2.Lerp(from, to, eased);
                         float hop = Mathf.Abs(Mathf.Sin(t * Mathf.PI * 3)) * 16;
-                        token.style.left = at.x - 25;
-                        token.style.top = at.y - 86 - hop;
+                        token.style.left = at.x - 34;
+                        token.style.top = at.y - 118 - hop * 0.4f;
                         if (frame % 7 == 0) Footstep?.Invoke();
                     }
-                    else if (frame == frames + 1) Ui.Pop(token, 1.3f);
+                    else if (frame == frames + 1)
+                    {
+                        if (_walker != null) _walker.Walking = false;
+                        Ui.Pop(token, 1.15f);
+                    }
                     else if (frame == frames + 6)
                     {
                         _walking = false;
@@ -333,34 +338,21 @@ namespace HouseEdge.Game
         // a footstep while the token walks, for the sound
         public event Action Footstep;
 
-        // you on the map: a gold chip on a pin, bobbing gently
-        private static VisualElement Token()
+        private Puppet _walker;
+
+        // you on the map: your gambler, standing over the stop you're at, with a little name tag
+        private VisualElement Token()
         {
             var token = Ui.Column(null);
             token.style.position = Position.Absolute;
-            token.style.width = 50;
+            token.style.width = 68;
             token.style.alignItems = Align.Center;
             token.pickingMode = PickingMode.Ignore;
-            var chip = new PokerChip(new Color(0.85f, 0.12f, 0.16f), Ui.Gold, 48);
-            chip.pickingMode = PickingMode.Ignore;
-            token.Add(chip);
-            var you = Ui.Text(chip, "YOU", 10, Ui.Cream, Weight.Heavy);
-            you.style.position = Position.Absolute;
-            you.style.left = you.style.right = 0;
-            you.style.top = 17;
-            you.style.unityTextAlign = TextAnchor.MiddleCenter;
-            var pin = new VisualElement { pickingMode = PickingMode.Ignore };
-            pin.style.width = 3;
-            pin.style.height = 22;
-            pin.style.backgroundColor = new Color(0.25f, 0.15f, 0.1f);
-            token.Add(pin);
-            float t = 0;
-            chip.schedule.Execute(() =>
-            {
-                if (Settings.ReducedMotion) return;
-                t += 0.05f;
-                chip.style.translate = new Translate(0, Mathf.Sin(t * 2.4f) * 2.5f);
-            }).Every(50);
+            _walker = Puppet.Has("You") ? new Puppet("You", 96) : null;
+            if (_walker != null) token.Add(_walker);
+            var tag = Ui.Pill(token, "YOU", Ui.Gold, filled: true, size: 10);
+            tag.style.marginTop = -4;
+            tag.pickingMode = PickingMode.Ignore;
             return token;
         }
 

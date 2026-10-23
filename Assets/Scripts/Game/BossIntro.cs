@@ -99,7 +99,31 @@ namespace HouseEdge.Game
         public void Show(BossDefinition boss, string kind)
         {
             _portraitSlot.Clear();
-            _portraitSlot.Add(new BossPortrait(boss.Name, 280));
+            // the boss in full, walking into a spotlight; the drawn portrait if there's no art
+            bool puppet = Puppet.Has(boss.Name);
+            _frame.style.backgroundColor = puppet ? Color.clear : Ui.Gold;
+            Ui.Border(_frame, puppet ? 0 : 5, Ui.Gold);
+            if (puppet)
+            {
+                var spot = new VisualElement { pickingMode = PickingMode.Ignore };
+                spot.style.position = Position.Absolute;
+                spot.style.left = -40;
+                spot.style.right = -40;
+                spot.style.bottom = -6;
+                spot.style.height = 50;
+                spot.style.backgroundColor = new Color(1f, 0.9f, 0.6f, 0.18f);
+                Ui.Rounded(spot, 120);
+                _portraitSlot.Add(spot);
+                var figure = new Puppet(boss.Name, 360);
+                _portraitSlot.Add(figure);
+                figure.Walking = true;
+                figure.schedule.Execute(() =>
+                {
+                    figure.Walking = false;
+                    figure.Talk(2.6f);
+                }).StartingIn(600);
+            }
+            else _portraitSlot.Add(new BossPortrait(boss.Name, 280));
             _kind.text = kind;
             _name.text = boss.Name.ToUpperInvariant();
             _title.text = boss.Title;
@@ -117,14 +141,14 @@ namespace HouseEdge.Game
             Ui.Enter(_root, 0, 0, 0.25f);
             // the portrait swings in, the name stamps down, then the rules slide up
             Ui.Transition(_frame, 0, "translate", "rotate", "opacity");
-            _frame.style.translate = new Translate(-260, 30);
-            _frame.style.rotate = new Rotate(-14);
+            _frame.style.translate = new Translate(-260, 0);
+            _frame.style.rotate = new Rotate(puppet ? 0 : -14);
             _frame.style.opacity = 0;
             _frame.schedule.Execute(() =>
             {
                 Ui.Transition(_frame, 0.55f, EasingMode.EaseOutBack, "translate", "rotate", "opacity");
                 _frame.style.translate = new Translate(0, 0);
-                _frame.style.rotate = new Rotate(-3);
+                _frame.style.rotate = new Rotate(puppet ? 0 : -3);
                 _frame.style.opacity = 1;
             }).StartingIn(60);
             Ui.Pop(_name, 1.7f, 320);

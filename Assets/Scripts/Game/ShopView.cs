@@ -26,6 +26,19 @@ namespace HouseEdge.Game
             Ui.Padding(_root, 16, 28);
             _root.style.alignItems = Align.Center;
             _root.style.backgroundColor = new Color(0.01f, 0.05f, 0.035f, 0.82f);
+            // the casino floor behind the counter, when the photo is there
+            var photo = RoomScene.Photo(Core.RoomKind.Shop);
+            if (photo != null)
+            {
+                _root.style.backgroundColor = new Color(0.02f, 0.02f, 0.03f);
+                var image = new VisualElement { pickingMode = PickingMode.Ignore };
+                Ui.Fill(image);
+                image.style.backgroundImage = photo;
+                image.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Cover);
+                image.style.opacity = 0.85f;
+                _root.Add(image);
+                _root.Add(new Ambience());
+            }
 
             // a beaten boss, stamped
             _beaten = new VisualElement();
