@@ -432,4 +432,110 @@ namespace HouseEdge.Game
             }
         }
     }
+    // a warm lamp over the felt, dark corners, and slow wisps of smoke drifting up through the light
+    public sealed class Ambience : VisualElement
+    {
+        private sealed class Wisp
+        {
+            public Vector2 Position;
+            public float Speed, Size, Phase;
+        }
+
+        private readonly List<Wisp> _wisps = new List<Wisp>();
+        private float _time;
+
+        public Ambience()
+        {
+            Ui.Fill(this);
+            pickingMode = PickingMode.Ignore;
+            var random = new System.Random(11);
+            for (int i = 0; i < 7; i++)
+                _wisps.Add(new Wisp
+                {
+                    Position = new Vector2((float)random.NextDouble(), (float)random.NextDouble()),
+                    Speed = 0.006f + (float)random.NextDouble() * 0.008f,
+                    Size = 60 + (float)random.NextDouble() * 90,
+                    Phase = (float)random.NextDouble() * 6.28f,
+                });
+            generateVisualContent += Draw;
+            schedule.Execute(() =>
+            {
+                if (Settings.ReducedMotion || resolvedStyle.display == DisplayStyle.None) return;
+                _time += 0.05f;
+                foreach (var wisp in _wisps)
+                {
+                    wisp.Position.y -= wisp.Speed * 0.05f;
+                    if (wisp.Position.y < -0.2f) wisp.Position.y = 1.15f;
+                }
+                MarkDirtyRepaint();
+            }).Every(50);
+        }
+
+        private void Draw(MeshGenerationContext context)
+        {
+            float w = contentRect.width, h = contentRect.height;
+            if (w <= 0) return;
+            var p = context.painter2D;
+
+            // the lamp: many faint ellipses stacked, so the light builds toward the middle without visible rings
+            var center = new Vector2(w * 0.5f, h * 0.42f);
+            for (int i = 0; i < 18; i++)
+            {
+                float k = 1 - i / 18f;
+                p.fillColor = new Color(1f, 0.85f, 0.55f, 0.0045f);
+                Ellipse(p, center, w * 0.48f * k, h * 0.46f * k);
+            }
+
+            // dark edges, so the eye goes to the cards
+            for (int i = 0; i < 6; i++)
+            {
+                float inset = i * 10;
+                p.strokeColor = new Color(0, 0, 0, 0.05f);
+                p.lineWidth = 22;
+                p.BeginPath();
+                p.MoveTo(new Vector2(inset, inset));
+                p.LineTo(new Vector2(w - inset, inset));
+                p.LineTo(new Vector2(w - inset, h - inset));
+                p.LineTo(new Vector2(inset, h - inset));
+                p.ClosePath();
+                p.Stroke();
+            }
+
+            // smoke: a few overlapping puffs per wisp that sway as they rise
+            foreach (var wisp in _wisps)
+            {
+                float sway = Mathf.Sin(_time * 0.6f + wisp.Phase) * 40;
+                var at = new Vector2(wisp.Position.x * w + sway, wisp.Position.y * h);
+                // fade near the top and bottom so they don't pop in
+                float fade = Mathf.Clamp01(Mathf.Min(wisp.Position.y + 0.2f, 1.15f - wisp.Position.y) * 3);
+                for (int j = 0; j < 3; j++)
+                {
+                    float r = wisp.Size * (0.45f + j * 0.18f);
+                    var offset = new Vector2(Mathf.Sin(wisp.Phase + j * 1.7f + _time * 0.3f) * r * 0.5f, -j * r * 0.35f);
+                    // each puff fades out toward its edge
+                    for (int ring = 0; ring < 4; ring++)
+                    {
+                        float k = 1 - ring * 0.22f;
+                        p.fillColor = new Color(0.85f, 0.88f, 0.84f, 0.0035f * fade);
+                        Ellipse(p, at + offset, r * k, r * 0.7f * k);
+                    }
+                }
+            }
+        }
+
+        private static void Ellipse(Painter2D p, Vector2 center, float rx, float ry)
+        {
+            p.BeginPath();
+            const int steps = 36;
+            for (int i = 0; i <= steps; i++)
+            {
+                float a = i * Mathf.PI * 2 / steps;
+                var point = center + new Vector2(Mathf.Cos(a) * rx, Mathf.Sin(a) * ry);
+                if (i == 0) p.MoveTo(point);
+                else p.LineTo(point);
+            }
+            p.ClosePath();
+            p.Fill();
+        }
+    }
 }

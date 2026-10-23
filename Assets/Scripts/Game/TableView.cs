@@ -88,6 +88,8 @@ namespace HouseEdge.Game
             _markings = new TableMarkings();
             Ui.Fill(_markings);
             _root.Add(_markings);
+            // a lamp over the table and cigar smoke drifting through it
+            _root.Add(new Ambience());
             _replay = Ui.Pill(_root, "REPLAY", Ui.Bad, filled: true, size: 13);
             _replay.style.position = Position.Absolute;
             _replay.style.left = 20;
@@ -102,16 +104,8 @@ namespace HouseEdge.Game
             var stack = new VisualElement();
             stack.style.width = CardView.Width * 0.6f + 8;
             stack.style.height = CardView.Height * 0.6f + 8;
-            for (int i = 0; i < 3; i++)
-            {
-                var back = CardView.CreateFaceDown(0.6f);
-                back.style.position = Position.Absolute;
-                back.style.left = 8 - i * 4;
-                back.style.top = 8 - i * 4;
-                back.pickingMode = PickingMode.Ignore;
-                stack.Add(back);
-            }
             _shoe.Add(stack);
+            FillShoe();
             _shoeCount = Ui.Caption(_shoe, "");
             Ui.Tip(_shoe, "The shoe", "Your deck, shuffled at the start of each table. You AND the dealer draw from it, so the cards you add change what the dealer gets too.");
 
@@ -261,6 +255,22 @@ namespace HouseEdge.Game
 
         public void SetReplay(bool replaying) => Ui.Show(_replay, replaying);
 
+        // three card backs, redone when the starting deck (and so the back) changes
+        private void FillShoe()
+        {
+            var stack = _shoe.ElementAt(0);
+            stack.Clear();
+            for (int i = 0; i < 3; i++)
+            {
+                var back = CardView.CreateFaceDown(0.6f);
+                back.style.position = Position.Absolute;
+                back.style.left = 8 - i * 4;
+                back.style.top = 8 - i * 4;
+                back.pickingMode = PickingMode.Ignore;
+                stack.Add(back);
+            }
+        }
+
         // a fresh table: the shoe's cards fan out and snap back together, with a shuffle sound
         private void Riffle()
         {
@@ -292,6 +302,11 @@ namespace HouseEdge.Game
         public void Refresh(Run run)
         {
             var table = run.ActiveTable;
+            if (run.Options.Deck != CardView.BackStyle)
+            {
+                CardView.BackStyle = run.Options.Deck;
+                FillShoe();
+            }
             if (table != _shownTable && table.DealsPlayed == 0) Riffle();
             if (table != _shownTable || table.DealsPlayed != _dealIndex)
             {
@@ -802,6 +817,7 @@ namespace HouseEdge.Game
 
         private static void Shake(VisualElement e, long delay)
         {
+            if (Settings.ReducedMotion) return;
             float[] steps = { -9, 8, -6, 5, -3, 0 };
             for (int i = 0; i < steps.Length; i++)
             {

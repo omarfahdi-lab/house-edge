@@ -156,3 +156,19 @@ Sofia never has one.
 - **Run codes:** base-34 seed, deck, stake and an `E` for Endless, e.g. `3F7K2-21E`. A finished run can be replayed
   from its recorded inputs.
 - **Endless:** after The House, targets double every floor and Pit Bosses are picked at random.
+
+## Presentation and accessibility
+
+- **Recorded music over synthesized loops.** The code-made loops worked but sounded thin next to the rest of the polish.
+  Three Kevin MacLeod tracks (CC BY 4.0) replace them: "Lobby Time" between tables, "Bossa Antigua" at tables and
+  "Hitman" for bosses. Credit is in the README and on the menu. Tension only raises the pitch 3% now (it was 6%),
+  because recorded music sounds sped up past that. The synth loops stay as a fallback and the heartbeat is still synthesized.
+- **Court cards are drawn, not lettered.** Kings, Queens and Jacks are Painter2D royals mirrored head to toe, so a
+  Royal Court combo is easy to spot.
+- **Card backs follow the starting deck**, so the shoe tells you which deck you're playing.
+- **Four-color deck and Reduced motion** are menu options saved in PlayerPrefs. They only change presentation, never
+  Core, so replays and run codes are unaffected.
+- **Dealer quips are UI only.** They use UnityEngine.Random in the Game layer, so they never touch the run's RNG.
+  Blackjacks and big hands always get a line; other hands get one 40% of the time, so it stays fun and not noisy.
+- **Run history** (`Run.History`) records each finished table's score and target for the end-of-run graph. A test
+  checks that it adds up to `TotalScore`.

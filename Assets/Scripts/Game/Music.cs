@@ -6,10 +6,11 @@ namespace HouseEdge.Game
 {
     public enum Track { None, Lounge, Table, Boss }
 
-    // background music: two loops synthesized at startup and crossfaded, so the game ships without audio files
+    // background music: three recorded tracks by Kevin MacLeod (incompetech.com, CC BY 4.0) crossfaded by
+    // situation, with a heartbeat on your last Hand. if a track is missing, the synthesized loops stand in
     public sealed class Music : MonoBehaviour
     {
-        private const float Volume = 0.42f;
+        private const float Volume = 0.34f;
         private const float FadeSeconds = 1.2f;
 
         private AudioSource _a, _b, _heart;
@@ -59,14 +60,14 @@ namespace HouseEdge.Game
             if (track == Track.None) return;
             var clip = track switch
             {
-                Track.Boss => _boss ??= MusicSynth.Boss(),
-                Track.Table => _table ??= MusicSynth.Table(),
-                _ => _lounge ??= MusicSynth.Lounge(),
+                Track.Boss => _boss ??= Load("Hitman") ?? MusicSynth.Boss(),
+                Track.Table => _table ??= Load("Bossa_Antigua") ?? MusicSynth.Table(),
+                _ => _lounge ??= Load("Lobby_Time") ?? MusicSynth.Lounge(),
             };
             // the quiet source takes the new track and fades up while the other fades out
             var (incoming, outgoing) = _a.volume <= _b.volume ? (_a, _b) : (_b, _a);
+            // setting the clip rewinds it. reading or setting time before a WebGL clip has loaded only warns
             incoming.clip = clip;
-            incoming.time = 0;
             incoming.Play();
             _incoming = incoming;
             _outgoing = outgoing;
@@ -74,10 +75,16 @@ namespace HouseEdge.Game
 
         private AudioSource _incoming, _outgoing;
 
+        private static AudioClip Load(string name) => Resources.Load<AudioClip>("Music/" + name);
+
+        // who made the music, for the menu
+        public const string Credit = "Music: \"Lobby Time\", \"Bossa Antigua\" and \"Hitman\" by Kevin MacLeod (incompetech.com), CC BY 4.0";
+
         // tension: 0 is relaxed, 1 is your last Hand. the band speeds up and a heartbeat comes in
         public void SetTension(float tension)
         {
-            _pitch = 1 + 0.06f * tension;
+            // recorded music only leans in a little before it sounds sped up
+            _pitch = 1 + 0.03f * tension;
             _heartTarget = tension >= 1 ? 0.55f : 0;
             if (_heartTarget > 0 && !_heart.isPlaying)
             {

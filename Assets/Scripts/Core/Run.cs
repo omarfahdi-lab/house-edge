@@ -6,6 +6,25 @@ namespace HouseEdge.Core
 {
     public enum TableKind { Low, High, Boss }
 
+    // one finished table, for the score graph at the end of a run
+    public readonly struct TableRecord
+    {
+        public readonly int Floor;
+        public readonly TableKind Stage;
+        public readonly bool Elite, Won;
+        public readonly long Score, Target;
+
+        public TableRecord(int floor, TableKind stage, bool elite, bool won, long score, long target)
+        {
+            Floor = floor;
+            Stage = stage;
+            Elite = elite;
+            Won = won;
+            Score = score;
+            Target = target;
+        }
+    }
+
     public enum RunPhase
     {
         // playing blackjack at Run.Table
@@ -61,6 +80,8 @@ namespace HouseEdge.Core
         // records for the run-over screen and the profile
         public long TotalScore { get; private set; }
         public long BestHand { get; private set; }
+        public IReadOnlyList<TableRecord> History => _history;
+        private readonly List<TableRecord> _history = new List<TableRecord>();
         public double BestBlackjackMult { get; private set; }
         public bool WasBusted { get; private set; }
         public bool BeatTheHouse { get; private set; }
@@ -401,6 +422,7 @@ namespace HouseEdge.Core
                 return;
             }
             TotalScore += Table.Score;
+            Record(false);
             if (Table.Phase == TablePhase.Lost)
             {
                 Phase = RunPhase.Lost;
@@ -514,11 +536,15 @@ namespace HouseEdge.Core
             StartTable();
         }
 
+        private void Record(bool elite) =>
+            _history.Add(new TableRecord(Floor, Stage, elite, Table.Phase != TablePhase.Lost, Table.Score, Table.Target));
+
         // win: paid like a High Table, then pick a Rare Vice. lose: the run goes on, but half your gold is gone
         private void FinishElite()
         {
             AtElite = false;
             TotalScore += Table.Score;
+            Record(true);
             LastFreeVice = null;
             if (Table.Phase == TablePhase.Lost)
             {

@@ -14,8 +14,30 @@ namespace HouseEdge.Game
         private static readonly Color FaceEdge = new Color(0.82f, 0.79f, 0.72f);
         private static readonly Color RedInk = new Color(0.8f, 0.1f, 0.14f);
         private static readonly Color BlackInk = new Color(0.1f, 0.1f, 0.13f);
-        private static readonly Color Back = new Color(0.5f, 0.07f, 0.11f);
+        private static readonly Color BlueInk = new Color(0.1f, 0.33f, 0.78f);
+        private static readonly Color GreenInk = new Color(0.08f, 0.5f, 0.22f);
         private static readonly Color BackTrim = new Color(0.98f, 0.79f, 0.32f, 0.85f);
+
+        // the back of every card, which changes with the starting deck
+        public static StartingDeck BackStyle = StartingDeck.Standard;
+
+        private static (Color light, Color dark, Color trim, SuitIcon.Shape? mark) BackOf(StartingDeck deck) => deck switch
+        {
+            StartingDeck.ShortDeck => (new Color(0.2f, 0.32f, 0.7f), new Color(0.07f, 0.12f, 0.33f), new Color(0.85f, 0.88f, 0.95f, 0.85f), SuitIcon.Shape.Spade),
+            StartingDeck.AceHigh => (new Color(0.2f, 0.18f, 0.16f), new Color(0.05f, 0.04f, 0.04f), BackTrim, SuitIcon.Shape.Crown),
+            StartingDeck.Lowball => (new Color(0.12f, 0.5f, 0.3f), new Color(0.03f, 0.22f, 0.12f), new Color(0.95f, 0.92f, 0.8f, 0.85f), SuitIcon.Shape.Club),
+            StartingDeck.MarkedDeck => (new Color(0.45f, 0.2f, 0.6f), new Color(0.18f, 0.06f, 0.26f), new Color(0.85f, 0.7f, 1f, 0.85f), SuitIcon.Shape.Eye),
+            StartingDeck.DealersDeck => (new Color(0.1f, 0.5f, 0.55f), new Color(0.02f, 0.2f, 0.24f), BackTrim, SuitIcon.Shape.Coin),
+            _ => (new Color(0.66f, 0.11f, 0.15f), new Color(0.38f, 0.04f, 0.08f), BackTrim, null),
+        };
+
+        // red and black, or four colors when that option is on
+        public static Color InkOf(Card card)
+        {
+            if (Settings.FourColor && card.Suit == Suit.Diamonds) return BlueInk;
+            if (Settings.FourColor && card.Suit == Suit.Clubs) return GreenInk;
+            return card.IsRed ? RedInk : BlackInk;
+        }
         private static readonly Color CurseFace = new Color(0.15f, 0.08f, 0.2f);
         private static readonly Color CurseInk = new Color(0.8f, 0.62f, 1f);
 
@@ -53,7 +75,7 @@ namespace HouseEdge.Game
             bool enhanced = card.Enhancement != Enhancement.None;
             Ui.Border(face, enhanced ? 3.5f * scale : 1, enhanced ? EnhancementColor(card.Enhancement) : FaceEdge);
             if (card.Enhancement == Enhancement.Ghost) face.style.opacity = 0.72f;
-            var ink = card.IsRed ? RedInk : BlackInk;
+            var ink = InkOf(card);
             var suit = SuitIcon.For(card);
 
             Corner(face, card.RankLabel, suit, ink, scale, flipped: false);
@@ -61,7 +83,7 @@ namespace HouseEdge.Game
 
             if (card.IsFace)
             {
-                // a framed court card: the letter in the display face over its suit
+                // a framed court card with its royal drawn twice, head to toe
                 var frame = Ui.Column(face);
                 frame.style.position = Position.Absolute;
                 frame.style.left = 23 * scale;
@@ -70,12 +92,18 @@ namespace HouseEdge.Game
                 frame.style.bottom = 25 * scale;
                 frame.style.alignItems = Align.Center;
                 frame.style.justifyContent = Justify.Center;
-                frame.style.backgroundColor = card.IsRed ? new Color(0.98f, 0.88f, 0.84f) : new Color(0.88f, 0.9f, 0.95f);
+                frame.style.backgroundColor = Color.Lerp(ink, Color.white, 0.86f);
                 Ui.Border(frame, 1.5f * scale, new Color(ink.r, ink.g, ink.b, 0.5f));
                 Ui.Rounded(frame, 4 * scale);
-                var letter = Ui.Text(frame, card.RankLabel, (int)(28 * scale), ink);
-                letter.style.unityFontDefinition = Ui.DisplayFont;
-                Ui.Add(frame, new SuitIcon(suit, ink, 16 * scale));
+                frame.style.overflow = Overflow.Hidden;
+                var art = new CourtArt(card.Rank, ink);
+                Ui.Fill(art);
+                frame.Add(art);
+                var pip = new SuitIcon(suit, ink, 10 * scale);
+                pip.style.position = Position.Absolute;
+                pip.style.left = 2 * scale;
+                pip.style.top = 2 * scale;
+                frame.Add(pip);
             }
             else
             {
@@ -184,15 +212,16 @@ namespace HouseEdge.Game
         public static VisualElement CreateFaceDown(float scale = 1f)
         {
             var (root, face) = Shell(scale);
-            face.style.backgroundColor = Back;
-            face.style.backgroundImage = Ui.Gradient(new Color(0.66f, 0.11f, 0.15f), new Color(0.38f, 0.04f, 0.08f));
+            var (light, dark, trim, shape) = BackOf(BackStyle);
+            face.style.backgroundColor = dark;
+            face.style.backgroundImage = Ui.Gradient(light, dark);
             face.style.backgroundSize = new BackgroundSize(Length.Percent(100), Length.Percent(100));
             Ui.Border(face, 4 * scale, Face);
 
-            var pattern = new Lattice();
+            var pattern = new Lattice(trim);
             Ui.Fill(pattern);
             pattern.style.left = pattern.style.right = pattern.style.top = pattern.style.bottom = 5 * scale;
-            Ui.Border(pattern, 1.5f * scale, BackTrim);
+            Ui.Border(pattern, 1.5f * scale, trim);
             Ui.Rounded(pattern, 4 * scale);
             pattern.style.alignItems = Align.Center;
             pattern.style.justifyContent = Justify.Center;
@@ -201,14 +230,14 @@ namespace HouseEdge.Game
             var badge = new VisualElement();
             badge.style.width = 40 * scale;
             badge.style.height = 40 * scale;
-            badge.style.backgroundColor = new Color(0.35f, 0.03f, 0.07f);
+            badge.style.backgroundColor = Color.Lerp(dark, Color.black, 0.15f);
             Ui.Rounded(badge, 20 * scale);
-            Ui.Border(badge, 1.5f * scale, BackTrim);
+            Ui.Border(badge, 1.5f * scale, trim);
             badge.style.alignItems = Align.Center;
             badge.style.justifyContent = Justify.Center;
             pattern.Add(badge);
-            var mark = Ui.Text(badge, "HE", (int)(17 * scale), BackTrim);
-            mark.style.unityFontDefinition = Ui.DisplayFont;
+            if (shape is SuitIcon.Shape mark) Ui.Add(badge, new SuitIcon(mark, trim, 22 * scale));
+            else Ui.Text(badge, "HE", (int)(17 * scale), trim).style.unityFontDefinition = Ui.DisplayFont;
             return root;
         }
 
@@ -257,6 +286,7 @@ namespace HouseEdge.Game
             Ui.Transition(face, 0.15f, "scale", "rotate", "translate");
             root.RegisterCallback<PointerMoveEvent>(e =>
             {
+                if (Settings.ReducedMotion) return;
                 float side = Mathf.Clamp((e.localPosition.x / Mathf.Max(1, root.layout.width)) * 2 - 1, -1, 1);
                 face.style.rotate = new Rotate(side * 4);
                 face.style.scale = new Scale(new Vector2(1.06f, 1.06f));
@@ -274,8 +304,11 @@ namespace HouseEdge.Game
         // the diamond lattice on the card back
         private sealed class Lattice : VisualElement
         {
-            public Lattice()
+            private readonly Color _color;
+
+            public Lattice(Color trim)
             {
+                _color = new Color(trim.r, trim.g, trim.b, 0.22f);
                 pickingMode = PickingMode.Ignore;
                 generateVisualContent += Draw;
             }
@@ -285,7 +318,7 @@ namespace HouseEdge.Game
                 float w = contentRect.width, h = contentRect.height;
                 if (w <= 0) return;
                 var p = context.painter2D;
-                p.strokeColor = new Color(0.98f, 0.79f, 0.32f, 0.22f);
+                p.strokeColor = _color;
                 p.lineWidth = 1;
                 float step = w / 5;
                 p.BeginPath();

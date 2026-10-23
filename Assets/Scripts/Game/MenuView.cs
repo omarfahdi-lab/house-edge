@@ -26,7 +26,7 @@ namespace HouseEdge.Game
         public Func<float> SpeedOf;
         public Action<float> SetSpeed;
         private readonly VisualElement _speeds;
-        private readonly Switch _musicSwitch, _soundSwitch;
+        private readonly Switch _musicSwitch, _soundSwitch, _fourColorSwitch, _motionSwitch;
 
         public event Action<int, RunOptions> StartClicked;
         public event Action DailyClicked, ResumeClicked, AbandonClicked, CollectionClicked;
@@ -64,9 +64,9 @@ namespace HouseEdge.Game
             var suits = Ui.Row(_logo, 8);
             foreach (var shape in new[] { SuitIcon.Shape.Spade, SuitIcon.Shape.Heart, SuitIcon.Shape.Club, SuitIcon.Shape.Diamond })
                 Ui.Add(suits, new SuitIcon(shape, shape == SuitIcon.Shape.Heart || shape == SuitIcon.Shape.Diamond ? Ui.Mult : Ui.Cream, 18));
-            var house = Ui.Title(_logo, "HOUSE", 86, Ui.Gold);
+            var house = Ui.Title(_logo, "HOUSE", 76, Ui.Gold);
             house.style.marginTop = 4;
-            var edge = Ui.Title(_logo, "EDGE", 86, Ui.Gold);
+            var edge = Ui.Title(_logo, "EDGE", 76, Ui.Gold);
             edge.style.marginTop = -18;
             foreach (var line in new[] { house, edge })
                 line.style.textShadow = new TextShadow { offset = new Vector2(0, 5), blurRadius = 20, color = new Color(0, 0, 0, 0.9f) };
@@ -97,13 +97,19 @@ namespace HouseEdge.Game
             _stats = Ui.Text(left, "", 12, Ui.Dim);
 
             var audio = Ui.Row(left, 18);
-            audio.style.marginTop = 10;
+            audio.style.marginTop = 6;
             _musicSwitch = AudioSwitch(audio, "Music", () => { ToggleMusic?.Invoke(); Rebuild(); });
             _soundSwitch = AudioSwitch(audio, "Sounds", () => { ToggleSound?.Invoke(); Rebuild(); });
-            Ui.Text(audio, "M mutes both", 11, Ui.Dim);
+            Ui.Tip(audio, "Audio", "Press M anywhere to mute both.");
+
+            var access = Ui.Row(left, 18);
+            _fourColorSwitch = AudioSwitch(access, "Four-color deck", () => { Settings.FourColor = !Settings.FourColor; Rebuild(); });
+            _motionSwitch = AudioSwitch(access, "Reduced motion", () => { Settings.ReducedMotion = !Settings.ReducedMotion; Rebuild(); });
+            Ui.Tip(_fourColorSwitch.parent, "Four-color deck", "Diamonds turn blue and clubs green, so every suit has its own color. Handy for Flushes.");
+            Ui.Tip(_motionSwitch.parent, "Reduced motion", "No screen shake, flashes, card wobble or drifting smoke.");
 
             var speedRow = Ui.Row(left, 8);
-            speedRow.style.marginTop = 8;
+            speedRow.style.marginTop = 4;
             var speedLabel = Ui.Text(speedRow, "Scoring speed", 13, Ui.Cream, Weight.Bold);
             speedLabel.style.marginRight = 4;
             Ui.Tip(speedLabel, "Scoring speed", "How fast the dealer draws and each hand's scoring plays out. Click or press Space during scoring to skip it.");
@@ -180,6 +186,12 @@ namespace HouseEdge.Game
             Ui.Padding(summaryBox, 8, 12);
             Ui.Add(summaryBox, new SuitIcon(SuitIcon.Shape.Check, Ui.Gold, 16));
             _summary = Ui.Text(summaryBox, "", 14, Ui.Cream, Weight.Medium);
+
+            // the music's license asks for credit
+            var credit = Ui.Text(_root, Music.Credit, 10, new Color(1, 1, 1, 0.4f));
+            credit.style.position = Position.Absolute;
+            credit.style.right = 60;
+            credit.style.bottom = 9;
 
             _howTo = new HowToView(_root);
 
@@ -294,6 +306,8 @@ namespace HouseEdge.Game
                 button.Q<Label>().style.fontSize = 13;
             }
             _soundSwitch.Set(SoundOn?.Invoke() ?? true);
+            _fourColorSwitch.Set(Settings.FourColor);
+            _motionSwitch.Set(Settings.ReducedMotion);
             _summary.text = $"You'll play:  {Decks.Name(_deck)} deck  ·  {Stakes.Name(_stake)}  ·  Endless {(_endlessOn ? "on" : "off")}";
         }
 

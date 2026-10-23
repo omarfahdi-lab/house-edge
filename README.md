@@ -20,7 +20,7 @@ The twist: **the dealer draws from your deck too.** Stack it with 10s and you hi
 
 - **Engine-free, deterministic rules.** Every rule lives in `HouseEdge.Core`, a plain C# assembly with no UnityEngine
   reference. One seeded RNG drives a whole run, so a run is just a seed plus a list of inputs: run codes, the Daily Run
-  and full replays all come from that. **285 NUnit tests** run on plain `dotnet test` in CI, no Unity license needed.
+  and full replays all come from that. **400 NUnit tests** run on plain `dotnet test` in CI, no Unity license needed.
 - **Combos, so winning isn't enough.** A plain win scores little. The big numbers come from poker patterns inside a
   blackjack hand (Pair, Two Pair, Three of a Kind, Suited, Flush, Run, Royal Court, Low Ball) that pay only when the hand
   beats the dealer, plus a win streak. Comps level combos up like Balatro's Planet cards, combo Vices multiply them,
@@ -36,7 +36,7 @@ The twist: **the dealer draws from your deck too.** Stack it with 10s and you hi
 - **Pit Bosses are characters.** Each has a portrait drawn in code, a title, a line, one named ability in plain words
   and a tip, shown in an entrance before their table. Bosses announce their ability when it fires ("Swaps your 7 for
   his Q") through `Table.Announce`, so the rule is never invisible.
-- **Effects are small classes on hooks.** 65 Vices, 15 bosses, 6 dealers, 7 enhancements, 4 stamps and 4 curse cards
+- **Effects are small classes on hooks.** 78 Vices, 15 bosses, 6 dealers, 7 enhancements, 4 stamps and 4 curse cards
   each override only the hooks they need (`OnCardDrawn`, `OnHit`, `OnStand`, `OnBust`, `OnHandScored`, ...). Adding a
   new one never touches the table's loop.
 - **Balance tuned with a bot.** A headless bot plays the real `Run` API: 1,000 full runs in about a second. It showed
@@ -44,9 +44,11 @@ The twist: **the dealer draws from your deck too.** Stack it with 10s and you hi
 - **Everything from the design doc:** 8 floors with a floor map of 8 room types, 12 Pit Bosses plus The Eye in the Sky,
   The Enforcer and a 3-phase House, Heat and casino security, side bets, Cocktails, Comps, archetype set bonuses,
   6 starting decks, 10 stakes, unlocks, the Daily Run, run codes and Endless.
-- **Built entirely in code.** One bootstrap method builds the camera, a UI Toolkit interface, and synthesized sound and music.
-  Cards, suits, icons, poker chips and the table's felt are drawn in code (`Painter2D` vector shapes and generated
-  textures, so they work on WebGL with no font fallback). The only assets are two open-source fonts.
+- **Built entirely in code.** One bootstrap method builds the camera, a UI Toolkit interface and synthesized sound.
+  Cards, suits, icons, poker chips, boss portraits and the table's felt are drawn in code (`Painter2D` vector shapes and
+  generated textures, so they work on WebGL with no font fallback). Kings, Queens and Jacks are illustrated royals,
+  mirrored head to toe like a real deck, and each starting deck has its own card back. A lamp lights the felt and
+  cigar smoke drifts through it. The only assets are two open-source fonts and three music tracks.
 - **Balatro-style scoring playback.** The dealer draws one card at a time, then each hand scores beat by beat: your
   cards count in, every Vice, Comp and card upgrade that fires shows its "+4 Mult" or "x3 Mult" where it came from, the
   Chips and Mult boxes tick up with a rising pitch, and the total lands in the score. Core records each step
@@ -59,10 +61,14 @@ The twist: **the dealer draws from your deck too.** Stack it with 10s and you hi
   cards hop and glow while the chips slide over to you, losing cards slump, busts tumble off the felt, and scoring
   hands pop a Chips x Mult breakdown over a turning sunburst. Losing the run rains cards and a sad trombone; winning it
   sets off fireworks.
-- **Music made in code.** Three loops (lounge jazz between tables, a brisk minor swing at the tables, a driving
-  minor-key track for Pit Bosses and security) are synthesized from walking bass, FM electric piano, vibraphone and
-  drums, and crossfade as you move through the casino. On your last Hand the band speeds up and a heartbeat comes in. Every control explains itself on hover: UI Toolkit's own tooltips only show in the editor, so the game has
-  a small tooltip system of its own.
+- **Music that follows you.** Lounge jazz between tables, bossa nova at the tables and a spy-thriller track for Pit
+  Bosses and security crossfade as you move through the casino. On your last Hand the band leans in and a synthesized
+  heartbeat comes in. If a track is missing, synthesized loops stand in.
+- **Dealers with a voice, and a run you can read.** Each named dealer comments on hands in their own way (Silent Sofia
+  just raises an eyebrow), and the end screen graphs every table's score against its target.
+- **Accessibility.** A four-color deck (blue diamonds, green clubs) keeps Flushes readable at a glance, and Reduced
+  motion turns off screen shake, flashes, card wobble and the smoke. Every control explains itself on hover: UI
+  Toolkit's own tooltips only show in the editor, so the game has a small tooltip system of its own.
 
 **Tech:** Unity 6.6 · C# · URP 2D · UI Toolkit · Input System · NUnit · WebGL · GitHub Actions
 
@@ -130,13 +136,15 @@ Assets/
       Table.cs        one blackjack table: a state machine driven by LegalActions() / Apply(action)
       Run.cs          8 floors: tables, shop, floor map, rooms, debt, Heat, bosses. Apply(RunInput)
       TableEffect.cs  the hooks. Vices, bosses, dealers and card effects all derive from it
-      Vices/          65 Vices, one small class each; ViceCatalog lists them
+      Vices/          78 Vices, one small class each; ViceCatalog lists them
       CardEffects.cs  enhancements, stamps and curses, run card by card before the Vices
       Balance.cs      every tunable number
       BalanceBot.cs   the bot and BalanceSimulation
     Game/    HouseEdge.Game   - GameBootstrap, UI Toolkit views, input, Feedback (sound, particles, juice)
       Ui.cs           fonts, colors, buttons, tweens, keyword coloring and the tooltip system
-      Visuals.cs      Painter2D poker chips, felt markings, the menu backdrop and particles
+      Visuals.cs      Painter2D poker chips, felt markings, table lighting and smoke, the menu backdrop and particles
+      CourtArt.cs     the illustrated Kings, Queens and Jacks
+      Music.cs        recorded tracks crossfaded by situation, with a synthesized fallback and heartbeat
     Editor/  HouseEdge.Editor - command-line builds
   Tests/
     EditMode/ HouseEdge.Tests - NUnit tests for Core
@@ -261,6 +269,11 @@ screenshot and quits (`Bot:N` lets the balance bot play N whole runs through the
 
 ## Credits
 
-Cards, suits, icons, UI, sounds and music are generated in code. Fonts: [Limelight](https://fonts.google.com/specimen/Limelight)
+Cards, suits, icons, UI and sounds are generated in code.
+
+Music: "Lobby Time", "Bossa Antigua" and "Hitman" by Kevin MacLeod ([incompetech.com](https://incompetech.com)),
+licensed under [Creative Commons: By Attribution 4.0](https://creativecommons.org/licenses/by/4.0/).
+
+Fonts: [Limelight](https://fonts.google.com/specimen/Limelight)
 by Sorkin Type and [Fira Sans](https://fonts.google.com/specimen/Fira+Sans) by Mozilla, both under the
 SIL Open Font License (license files in `Assets/Resources/Fonts`).

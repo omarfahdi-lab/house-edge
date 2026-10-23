@@ -540,6 +540,7 @@ namespace HouseEdge.Game
 
         private void Flash(Color color, float seconds, float strength, bool pulse = false)
         {
+            if (Settings.ReducedMotion) return;
             _flashColor = color;
             _flashTime = seconds;
             _flashStrength = strength;
@@ -594,6 +595,7 @@ namespace HouseEdge.Game
                 _rays.style.rotate = new Rotate(Time.time * 25);
             }
 
+            if (_shake > 0 && Settings.ReducedMotion) _shake = 0;
             if (_shake > 0)
             {
                 _shake -= Time.deltaTime;

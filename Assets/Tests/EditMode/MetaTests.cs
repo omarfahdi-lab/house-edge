@@ -212,6 +212,20 @@ namespace HouseEdge.Tests
                 Assert.That(run.IsOver, Is.True, $"seed {seed} got stuck in {run.Phase}");
             }
         }
+
+        [Test]
+        public void TheHistory_HasEveryTableAndAddsUpToTheTotal()
+        {
+            var bot = new BalanceBot();
+            for (int seed = 1; seed <= 20; seed++)
+            {
+                var run = new Run(seed);
+                bot.Play(run);
+                Assert.That(run.History.Sum(r => r.Score), Is.EqualTo(run.TotalScore), $"seed {seed}");
+                Assert.That(run.History.Count(r => r.Won), Is.EqualTo(run.TablesBeaten), $"seed {seed}");
+                if (run.Phase == RunPhase.Lost) Assert.That(run.History.Last().Won, Is.False);
+            }
+        }
     }
 }
 

@@ -88,7 +88,13 @@ namespace HouseEdge.Game
             _feedback.CardAnchor = _table.CardCenter;
             _feedback.HandIndex = _table.HandIndex;
             _feedback.ViceRow = _hud.FocusVice;
-            _feedback.ActOut = _table.ActOut;
+            _feedback.ActOut = () =>
+            {
+                _table.ActOut();
+                if (Replaying) return;
+                string quip = DealerQuips.For(Run);
+                if (quip != null) _table.Say(quip);
+            };
             _feedback.CommitScore = () =>
             {
                 if (_hud.FrozenScore == null) return;
