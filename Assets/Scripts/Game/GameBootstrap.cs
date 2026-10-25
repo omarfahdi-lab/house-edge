@@ -32,7 +32,8 @@ namespace HouseEdge.Game
         private int _heardDeal, _heard;
         // each floor's boss, for the climb strip on the map
         private readonly Dictionary<int, string> _bosses = new Dictionary<int, string>();
-        private int _mapShownFloor;
+        // the table the map was last shown before, so each table you walk up to opens with the map once
+        private Table _mapShownTable;
         private Feedback _feedback;
         private Music _music;
         private Profile _profile;
@@ -76,6 +77,8 @@ namespace HouseEdge.Game
             _map = new MapView(root);
             _map.InputChosen += TryApply;
             _map.Footstep += () => _feedback.CardSound();
+            // a boss waits for you to leave the map before walking in
+            _map.Closed += IntroduceBoss;
             _coach = new Coach(root, _table);
             _coach.Finished += () =>
             {
@@ -177,8 +180,18 @@ namespace HouseEdge.Game
         // the boss walks in before their table's first deal
         private void IntroduceBoss()
         {
-            if (!_playing || Replaying || DevCapture.Requested || Holding || _menu.IsOpen || _bossIntro.IsOpen) return;
-            if (Run.Phase != RunPhase.AtTable || Run.Boss == null || Run.Table.DealsPlayed > 0 || _introShownFor == Run.Table) return;
+            if (!_playing || Replaying || DevCapture.Requested || Holding || _menu.IsOpen || _bossIntro.IsOpen || _map.Viewing) return;
+            if (Run.Phase != RunPhase.AtTable || Run.Table.DealsPlayed > 0 || _introShownFor == Run.Table) return;
+            if (Run.Boss == null && Run.Dealer is Rival rival)
+            {
+                // the rival gets an entrance too, one that remembers your last meeting
+                _introShownFor = Run.Table;
+                _map.Close();
+                _bossIntro.Show(RivalLines.Intro(Run, rival), RivalLines.Kind(rival));
+                _feedback.BossSting();
+                return;
+            }
+            if (Run.Boss == null) return;
             _introShownFor = Run.Table;
             _map.Close();
             string kind = Run.AtEyeInTheSky ? "SECURITY"
@@ -246,7 +259,7 @@ namespace HouseEdge.Game
             }
             options.LockedVices = options.Daily ? new List<string>() : _profile.LockedVices;
             _bosses.Clear();
-            _mapShownFloor = 0;
+            _mapShownTable = null;
             // a fresh set of paintings to play the dealers, hosts and you
             Gallery.Deal(seed);
             Run = new Run(seed, options);
@@ -298,8 +311,11 @@ namespace HouseEdge.Game
             // the score waits for the playback to count it in
             _hud.FrozenScore = before.ScoredBy(Run) && Run.Table == before.Table ? before.Score : (long?)null;
             bool leftTable = before.Phase == RunPhase.AtTable && Run.Phase != RunPhase.AtTable;
-            // the hand that clears (or loses) a table stays on screen before the shop or the end screen
-            if (leftTable && !Replaying && !DevCapture.Requested) _holdUntil = float.MaxValue;
+            // a Back Room hand is played inside the room, so ending it doesn't leave the table phase. it holds too
+            bool backRoomEnded = Run.Phase == RunPhase.InRoom && before.Table != before.MainTable && Run.ActiveTable != before.Table;
+            if (backRoomEnded && !Replaying && !DevCapture.Requested) TableOnScreen.HeldBackRoom = before.Table;
+            // the hand that clears (or loses) a table stays on screen before the shop, the room or the end screen
+            if ((leftTable || backRoomEnded) && !Replaying && !DevCapture.Requested) _holdUntil = float.MaxValue;
             Refresh();
             _feedback.After(before, Run, _table.SettleSeconds);
             if (_holdUntil == float.MaxValue) _holdUntil = Time.time + _feedback.RemainingSeconds + ResultHoldSeconds;
@@ -335,11 +351,15 @@ namespace HouseEdge.Game
 
         private void Refresh()
         {
+            // the held Back Room result has been seen: back to the room
+            if (!Holding) TableOnScreen.HeldBackRoom = null;
             Remember();
-            // each new floor opens with the map
-            if (_playing && !Replaying && !DevCapture.Requested && !Holding && !_menu.IsOpen && Run.Phase == RunPhase.AtTable && Run.Floor != _mapShownFloor)
+            // each table you walk up to opens with the map, so leaving the last stop shows where you're headed
+            // (an Elite was just picked on the map; security and the Enforcer are surprises)
+            if (_playing && !Replaying && !DevCapture.Requested && !Holding && !_menu.IsOpen && Run.Phase == RunPhase.AtTable
+                && Run.Table.DealsPlayed == 0 && Run.Table != _mapShownTable && !Run.AtElite && !Run.AtEyeInTheSky && !Run.AtEnforcer)
             {
-                _mapShownFloor = Run.Floor;
+                _mapShownTable = Run.Table;
                 ShowMap();
             }
             _hud.Refresh(Run);
@@ -492,6 +512,12 @@ namespace HouseEdge.Game
                 if (keyboard.digit3Key.wasPressedThisFrame) _map.Choose(2);
             }
             if (keyboard.xKey.wasPressedThisFrame) TryTable(PlayerAction.Raise);
+            if (Run.ActiveTable.Phase == TablePhase.Choosing)
+            {
+                if (keyboard.digit1Key.wasPressedThisFrame) TryTable(PlayerAction.GiveFirst);
+                if (keyboard.digit2Key.wasPressedThisFrame) TryTable(PlayerAction.GiveSecond);
+                if (keyboard.digit3Key.wasPressedThisFrame) TryTable(PlayerAction.GiveThird);
+            }
             if (Run.Phase == RunPhase.AtTable && Run.Table.Phase == TablePhase.PlayerTurn)
             {
                 if (keyboard.digit1Key.wasPressedThisFrame) _table.UseTrickSlot(0);

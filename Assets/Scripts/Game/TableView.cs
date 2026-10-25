@@ -7,6 +7,16 @@ using UnityEngine.UIElements;
 
 namespace HouseEdge.Game
 {
+    // the table on screen: the live one, or a Back Room hand that just ended and is holding to show its result.
+    // presentation only; the rules always use Run.ActiveTable
+    public static class TableOnScreen
+    {
+        internal static Table HeldBackRoom;
+
+        public static Table Shown(this Run run) =>
+            HeldBackRoom != null && run.Phase == RunPhase.InRoom && run.Room?.BackRoomTable == HeldBackRoom ? HeldBackRoom : run.ActiveTable;
+    }
+
     // the blackjack table in the main area. reads a Table and turns button presses into PlayerActions
     public sealed class TableView
     {
@@ -389,7 +399,7 @@ namespace HouseEdge.Game
 
         public void Refresh(Run run)
         {
-            var table = run.ActiveTable;
+            var table = run.Shown();
             if (run.Options.Deck != CardView.BackStyle)
             {
                 CardView.BackStyle = run.Options.Deck;
@@ -428,7 +438,7 @@ namespace HouseEdge.Game
                     PlayerAction.TakeInsurance or PlayerAction.DeclineInsurance => table.Phase == TablePhase.InsuranceOffer,
                     PlayerAction.LetDealerDraw or PlayerAction.StopDealer => table.Phase == TablePhase.DealerDecision,
                     PlayerAction.SwapWithDealer => legal.Contains(PlayerAction.SwapWithDealer),
-                    _ => table.Phase != TablePhase.InsuranceOffer && table.Phase != TablePhase.DealerDecision,
+                    _ => table.Phase != TablePhase.InsuranceOffer && table.Phase != TablePhase.DealerDecision && table.Phase != TablePhase.Choosing,
                 };
                 Ui.Show(pair.Value.parent, show);
                 Ui.SetEnabled(pair.Value, legal.Contains(pair.Key));
@@ -441,7 +451,7 @@ namespace HouseEdge.Game
 
         private void RefreshPlate(Run run)
         {
-            bool backRoom = run.ActiveTable != run.Table;
+            bool backRoom = run.Shown() != run.Table;
             bool boss = !backRoom && run.Boss != null;
             Ui.Show(_plate, backRoom || boss || run.Dealer != null);
             var red = new Color(0.5f, 0.05f, 0.08f, 0.85f);
@@ -481,6 +491,16 @@ namespace HouseEdge.Game
                 Ui.Tip(_plate, $"{run.Boss.Name}: {definition.Ability}", $"{twist}\nHow to beat them: {definition.Tip}");
                 return;
             }
+            if (run.Dealer is Rival rival)
+            {
+                // the rival gets a dark plate, between a dealer's and a boss's
+                _plate.style.backgroundColor = new Color(0.22f, 0.08f, 0.3f, 0.9f);
+                Ui.BorderColor(_plate, new Color(0.78f, 0.55f, 1f, 0.6f));
+                _plateTag.text = $"YOUR RIVAL  ·  MEETING {rival.Meeting}";
+                _plateName.text = rival.Name.ToUpperInvariant();
+                _plateText.text = Ui.Rich(rival.Style);
+                return;
+            }
             _plateTag.text = "YOUR DEALER";
             _plateName.text = run.Dealer?.Name.ToUpperInvariant();
             _plateText.text = Ui.Rich(run.Dealer?.Style);
@@ -507,7 +527,7 @@ namespace HouseEdge.Game
             if (table.DealerCards.Count > 0)
             {
                 var value = table.HoleCardHidden ? table.DealerVisibleValue : table.DealerValue;
-                string text = table.HoleCardHidden ? $"SHOWS {value.Total}" : value.IsBust ? $"BUST  {value.Total}" : $"DEALER  {value.Total}";
+                string text = table.HoleCardHidden ? $"SHOWS {value.Total}" : value.IsBust ? $"BUST  {value.Total}" : $"{(table.Rules.DealerChasesPlayer ? "RIVAL" : "DEALER")}  {value.Total}";
                 Badge(_dealerBadgeSlot, text, value.IsBust && !table.HoleCardHidden ? Ui.Good : Ui.Cream);
                 // the total only shows once the last card is down
                 if (_cursor > startCursor) Ui.Enter(_dealerBadgeSlot, 6, (long)(_cursor / Speed) + 250, 0.2f);
@@ -617,6 +637,11 @@ namespace HouseEdge.Game
         {
             _playerHands.Clear();
             _handViews.Clear();
+            if (table.Phase == TablePhase.Choosing)
+            {
+                RefreshOffer(table);
+                return;
+            }
             if (table.PlayerHands.Count == 0)
             {
                 var empty = Ui.Column(_playerHands, 8);
@@ -682,6 +707,43 @@ namespace HouseEdge.Game
             }
         }
 
+        // Keep 2 of 3: your three cards, each with what you'd keep and what the dealer would have if you gave it away
+        private void RefreshOffer(Table table)
+        {
+            var offered = table.OfferedCards;
+            for (int i = 0; i < offered.Count; i++)
+            {
+                int index = i;
+                var card = offered[i];
+                bool can = table.CanGive(i);
+                var column = Ui.Column(_playerHands, 6);
+                column.style.alignItems = Align.Center;
+                Ui.Padding(column, 8, 10);
+                Ui.Rounded(column, 12);
+                Ui.Border(column, 2, new Color(0, 0, 0, 0));
+                column.style.backgroundColor = new Color(0, 0, 0, 0.18f);
+                var view = Animate(CardView.Create(card), card, false);
+                column.Add(view);
+
+                var (kept, his) = table.PreviewGive(index);
+                string mine = kept.IsTwoCard21 ? "BLACKJACK" : kept.IsSoft ? $"SOFT {kept.Total}" : kept.Total.ToString();
+                Ui.Text(column, $"You keep  {mine}", 13, kept.IsTwoCard21 ? Ui.Gold : Ui.Cream, Weight.Bold);
+                var (dealerText, dealerColor) = his.IsTwoCard21 ? ("Dealer: BLACKJACK", Ui.Bad)
+                    : his.Total >= table.Rules.DealerStandsOn ? ($"Dealer: {his.Total}, stands", his.Total >= 19 ? Ui.Bad : Ui.Cream)
+                    : ($"Dealer: {his.Total}, must draw", his.Total >= 12 ? Ui.Good : Ui.Cream);
+                Ui.Text(column, dealerText, 12, dealerColor, Weight.Bold);
+
+                var give = Ui.Button(column, can ? "Give" : "Can't give", () => ActionChosen?.Invoke(Table.GiveAction(index)), ButtonKind.Gold, (i + 1).ToString());
+                give.style.height = 34;
+                Ui.SetEnabled(give, can);
+                if (!can) Ui.Tip(give, "Black Stamp", "The dealer never takes a Black Stamp card.");
+                if (!can) continue;
+                view.RegisterCallback<ClickEvent>(_ => ActionChosen?.Invoke(Table.GiveAction(index)));
+                column.RegisterCallback<PointerEnterEvent>(_ => Ui.BorderColor(column, Ui.Gold));
+                column.RegisterCallback<PointerLeaveEvent>(_ => Ui.BorderColor(column, new Color(0, 0, 0, 0)));
+            }
+        }
+
         private static (string, Color) Describe(PlayerHand hand, Table table)
         {
             var value = hand.Value;
@@ -704,6 +766,11 @@ namespace HouseEdge.Game
                 message = "THE DEALER SHOWS AN ACE";
                 breakdown = "";
             }
+            else if (table.Phase == TablePhase.Choosing)
+            {
+                message = "KEEP 2 OF 3";
+                breakdown = "Give one card to the dealer. It becomes his hole card, and you play the other two.";
+            }
             else if (table.Phase == TablePhase.DealerDecision)
             {
                 message = "YOUR CALL";
@@ -718,7 +785,7 @@ namespace HouseEdge.Game
             {
                 long total = table.LastScores.Sum(s => s.Total);
                 var best = table.LastScores.OrderByDescending(s => s.Total).First();
-                message = table.LastScores.Count > 1 ? $"SPLIT HANDS: {total:N0}" : Headline(best);
+                message = table.LastScores.Count > 1 ? $"SPLIT HANDS: {total:N0}" : Headline(best, table.Rules.DealerChasesPlayer ? "RIVAL" : "DEALER");
                 color = total > 0 ? Ui.Gold : best.Outcome == Outcome.Push ? Ui.Cream : Ui.Bad;
 
                 var lines = table.LastScores.Select(Breakdown).Where(l => l.Length > 0).ToList();
@@ -727,6 +794,7 @@ namespace HouseEdge.Game
                 if (table.AnteLost) lines.Add(Ui.Colored($"Ante lost: -{Balance.AnteUpLoss}g", Ui.Bad));
                 if (table.RaiseHandsLost > 0) lines.Add(Ui.Colored($"Lost the raise: -{table.RaiseHandsLost} Hand{(table.RaiseHandsLost == 1 ? "" : "s")}", Ui.Bad));
                 foreach (var feat in table.LastScores.SelectMany(s => s.Feats)) lines.Add(Ui.Colored($"{Feats.Name(feat)}! x{Feats.Factor(feat):0.#} Mult", Ui.Cocktail));
+                foreach (var note in table.Notes) lines.Add(Ui.Colored(note, Ui.Cream));
                 breakdown = string.Join("\n", lines);
             }
             _message.text = message;
@@ -758,11 +826,11 @@ namespace HouseEdge.Game
 
         private void RefreshOpponent(Run run)
         {
-            string who = run.ActiveTable != run.Table ? "Vinnie" : run.Boss?.Name ?? run.Dealer?.Name;
+            string who = run.Shown() != run.Table ? "Vinnie" : run.Boss?.Name ?? run.Dealer?.Name;
             if (who == _opponentFor) return;
             _opponentFor = who;
             _opponentSlot.Clear();
-            _opponent = who != null && Puppet.Has(who) ? new Puppet(who, 176) : null;
+            _opponent = who != null && Puppet.Has(who) ? new Puppet(who, 176, plaque: false) : null;
             if (_opponent == null) return;
             // their portrait stands behind the dealer's cards, the cards resting against its bottom edge
             _opponent.style.marginTop = 6;
@@ -884,7 +952,7 @@ namespace HouseEdge.Game
             {
                 bool natural = table.LastScores.Any(sc => sc.Outcome == Outcome.Blackjack || sc.Outcome == Outcome.Charlie);
                 var mood = natural ? Puppet.Mood.Shocked
-                    : anyWin && !anyLoss ? (table == _resultTable && _opponentFor != null && _opponentFor.StartsWith("The") ? Puppet.Mood.Angry : Puppet.Mood.Sad)
+                    : anyWin && !anyLoss ? (table == _resultTable && _opponentFor != null && (_opponentFor.StartsWith("The") || _run?.Dealer is Rival) ? Puppet.Mood.Angry : Puppet.Mood.Sad)
                     : anyLoss && !anyWin ? Puppet.Mood.Happy
                     : Puppet.Mood.Idle;
                 if (mood != Puppet.Mood.Idle) _opponent.React(mood, 1.8f);
@@ -1008,12 +1076,24 @@ namespace HouseEdge.Game
                             + (!table.PalmUsed && hand.LastCardWasHit ? " Or drag the card into your sleeve to palm it, when the camera looks away." : "");
                     else if (table.PlayerHands.Count > 1)
                         hint = $"Playing hand {table.ActiveHandIndex + 1} of {table.PlayerHands.Count}. Hit to take a card, Stand to keep {value.Total}.";
+                    else if (HouseCards.FuseSpent(hand.Cards))
+                        hint = $"The Fuse has burned down: no more cards this hand. Stand on {value.Total}.";
+                    else if (HouseCards.Has(hand.Cards, HouseCard.Fuse))
+                        hint = $"You have {value.Total} and a lit Fuse: you can take just 1 more card.";
+                    else if (table.Rules.DealerChasesPlayer)
+                        hint = $"You have {value.Total}, he has {table.DealerValue.Total}. Your rival sees your hand and draws until beating it, so a low Stand rarely holds up.";
+                    else if (HouseCards.Has(table.DealerCards, HouseCard.Fuse) && !table.HoleCardHidden)
+                        hint = $"You have {value.Total}. The dealer's Fuse stops him at {table.DealerValue.Total}: just beat it.";
                     else
                         hint = $"You have {value.Total}. Hit to take a card, or Stand to keep it. The dealer must draw to 17.";
+                    if (table.Notes.Count > 0) hint += " " + string.Join(" ", table.Notes);
                     if (table.Rules.HitCost > 0) hint += $" Every Hit costs {table.Rules.HitCost} gold.";
                     break;
                 case TablePhase.DealerDecision:
                     hint = "Cold Read lets you choose whether the dealer draws.";
+                    break;
+                case TablePhase.Choosing:
+                    hint = "Click a card or press 1, 2 or 3 to give it away. A 12 to 16 makes the dealer draw and maybe bust. A 10 or an Ace makes him strong.";
                     break;
             }
             _hint.text = Ui.Rich(hint);
@@ -1103,16 +1183,16 @@ namespace HouseEdge.Game
             }
         }
 
-        private static string Headline(HandScore score) => score.Outcome switch
+        private static string Headline(HandScore score, string them) => score.Outcome switch
         {
             Outcome.Blackjack => "BLACKJACK!",
             Outcome.Charlie => score.Hand.Cards.Count switch { 4 => "FOUR-CARD CHARLIE!", 5 => "FIVE-CARD CHARLIE!", 6 => "SIX-CARD CHARLIE!", _ => "CHARLIE!" },
             Outcome.TwentyOne => "TWENTY-ONE!",
-            Outcome.Win => score.DealerBusted ? "DEALER BUSTS!" : "YOU WIN",
+            Outcome.Win => score.DealerBusted ? $"{them} BUSTS!" : "YOU WIN",
             Outcome.Push => "PUSH",
             Outcome.Bust => "BUST",
             Outcome.Surrender => "SURRENDERED",
-            _ => "DEALER WINS",
+            _ => $"{them} WINS",
         };
 
         private static string Breakdown(HandScore score)

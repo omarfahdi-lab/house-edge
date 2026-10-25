@@ -27,8 +27,8 @@ namespace HouseEdge.Core
             _create = create;
         }
 
-        // what the boss does once you're past half the target (null if nothing)
-        public string Rage => _create().RageText;
+        // what the boss does once you're past half the target (null if nothing, or for an entrance with no boss behind it)
+        public string Rage => _create?.Invoke().RageText;
 
         public Boss Create()
         {

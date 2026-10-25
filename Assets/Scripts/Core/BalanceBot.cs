@@ -55,6 +55,7 @@ namespace HouseEdge.Core
                 return PlayerAction.Raise;
             if (legal.Contains(PlayerAction.Deal)) return PlayerAction.Deal;
             if (legal.Contains(PlayerAction.DeclineInsurance)) return PlayerAction.DeclineInsurance;
+            if (table.Phase == TablePhase.Choosing) return ChooseGift(table, legal);
             if (table.Phase == TablePhase.DealerDecision)
             {
                 var next = table.NextCardPreview;
@@ -65,6 +66,14 @@ namespace HouseEdge.Core
             var hand = table.ActiveHand;
             var value = hand.Value;
             if (value.IsBust) return legal.Contains(PlayerAction.Burn) ? PlayerAction.Burn : PlayerAction.Stand;
+
+            // a Fuse in the dealer's hand means he stands where he is: just beat what he shows
+            if (!table.HoleCardHidden && HouseCards.Has(table.DealerCards, HouseCard.Fuse) && !table.DealerValue.IsBust)
+            {
+                bool behind = value.Total <= table.DealerValue.Total;
+                if (behind && legal.Contains(PlayerAction.Hit)) return PlayerAction.Hit;
+                if (legal.Contains(PlayerAction.Stand)) return PlayerAction.Stand;
+            }
 
             int limit = table.Rules.PlayerBustLimit;
             int up = table.DealerUpCard.Value;
@@ -108,6 +117,99 @@ namespace HouseEdge.Core
 
             if (hit && legal.Contains(PlayerAction.Hit)) return PlayerAction.Hit;
             return legal.Contains(PlayerAction.Stand) ? PlayerAction.Stand : legal[0];
+        }
+
+        // Keep 2 of 3: give away the card that leaves the best chance of beating the dealer
+        private static PlayerAction ChooseGift(Table table, List<PlayerAction> legal)
+        {
+            var offered = table.OfferedCards;
+            var rules = table.Rules;
+            var best = legal[0];
+            double bestOdds = double.MinValue;
+            for (int i = 0; i < offered.Count; i++)
+            {
+                var give = Table.GiveAction(i);
+                if (!legal.Contains(give)) continue;
+                var (mine, his) = table.PreviewGive(i);
+                double odds = WinOdds(mine, his, rules);
+                if (odds > bestOdds)
+                {
+                    bestOdds = odds;
+                    best = give;
+                }
+            }
+            return best;
+        }
+
+        // a rough chance of winning: the better of standing and taking one card, against the dealer
+        // drawing to 17 from an infinite deck
+        private static double WinOdds(HandValue mine, HandValue his, TableRules rules)
+        {
+            if (his.IsTwoCard21) return 0;
+            var dealer = DealerFinals(his.Total, his.IsSoft, rules);
+            double stand = BeatOdds(mine.Total, dealer);
+            double hit = 0;
+            for (int card = 1; card <= 10; card++)
+            {
+                double p = card == 10 ? 4 / 13.0 : 1 / 13.0;
+                var (total, _) = Add(mine.Total, mine.IsSoft, card);
+                hit += total > rules.PlayerBustLimit ? 0 : p * BeatOdds(total, dealer);
+            }
+            return Math.Max(stand, hit);
+        }
+
+        private static double BeatOdds(int total, double[] dealer)
+        {
+            // dealer[0] is a bust, dealer[t] the chance he ends on t
+            double odds = dealer[0];
+            for (int t = 1; t < dealer.Length; t++)
+                if (total > t) odds += dealer[t];
+                else if (total == t) odds += dealer[t] / 2;
+            return odds;
+        }
+
+        private static double[] DealerFinals(int total, bool soft, TableRules rules)
+        {
+            var finals = new double[Balance.BustLimit + 1];
+            Draw(total, soft, 1, finals, rules);
+            return finals;
+        }
+
+        private static void Draw(int total, bool soft, double p, double[] finals, TableRules rules)
+        {
+            if (total > Balance.BustLimit)
+            {
+                finals[0] += p;
+                return;
+            }
+            bool hits = total < rules.DealerStandsOn || total == rules.DealerStandsOn && soft && rules.DealerHitsSoft17;
+            if (!hits || p < 1e-4)
+            {
+                finals[total] += p;
+                return;
+            }
+            for (int card = 1; card <= 10; card++)
+            {
+                var (next, nextSoft) = Add(total, soft, card);
+                Draw(next, nextSoft, p * (card == 10 ? 4 / 13.0 : 1 / 13.0), finals, rules);
+            }
+        }
+
+        // a card's value onto a total; 1 is an Ace
+        private static (int total, bool soft) Add(int total, bool soft, int card)
+        {
+            total += card;
+            if (card == 1 && total + 10 <= Balance.BustLimit)
+            {
+                total += 10;
+                soft = true;
+            }
+            if (total > Balance.BustLimit && soft)
+            {
+                total -= 10;
+                soft = false;
+            }
+            return (total, soft);
         }
 
         // between tables

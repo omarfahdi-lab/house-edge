@@ -35,6 +35,11 @@ namespace HouseEdge.Core
         // slide your last card up your sleeve, once a table: while the camera looks away, or caught by it
         PalmClean,
         PalmSeen,
+
+        // Keep 2 of 3: the card you give away becomes the dealer's hole card, and you keep the other two
+        GiveFirst,
+        GiveSecond,
+        GiveThird,
     }
 
     public enum TablePhase
@@ -46,5 +51,7 @@ namespace HouseEdge.Core
         DealerDecision,
         Won,
         Lost,
+        // Keep 2 of 3: three cards dealt to you, one has to go to the dealer
+        Choosing,
     }
 }

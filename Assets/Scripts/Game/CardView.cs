@@ -50,7 +50,20 @@ namespace HouseEdge.Game
             Enhancement.Ghost => new Color(0.68f, 0.68f, 0.82f),
             Enhancement.Hot => new Color(1f, 0.48f, 0.12f),
             Enhancement.Heavy => new Color(0.42f, 0.42f, 0.48f),
+            Enhancement.Wild => new Color(0.76f, 0.34f, 0.92f),
             _ => new Color(0, 0, 0, 0.25f),
+        };
+
+        // the casino's own cards: dark, loud colors, so they never pass for one of your upgrades
+        public static Color HouseColor(HouseCard house) => house switch
+        {
+            HouseCard.Bounty => new Color(0.86f, 0.62f, 0.1f),
+            HouseCard.Mirror => new Color(0.55f, 0.72f, 0.82f),
+            HouseCard.Fuse => new Color(0.95f, 0.32f, 0.1f),
+            HouseCard.LoadedDie => new Color(0.2f, 0.62f, 0.38f),
+            HouseCard.Snitch => new Color(0.85f, 0.18f, 0.5f),
+            HouseCard.Leech => new Color(0.5f, 0.2f, 0.75f),
+            _ => Color.black,
         };
 
         public static Color StampColor(Stamp stamp) => stamp switch
@@ -72,8 +85,18 @@ namespace HouseEdge.Game
             }
 
             face.style.backgroundColor = Face;
-            bool enhanced = card.Enhancement != Enhancement.None;
-            Ui.Border(face, enhanced ? 3.5f * scale : 1, enhanced ? EnhancementColor(card.Enhancement) : FaceEdge);
+            bool enhanced = card.Enhancement != Enhancement.None || card.IsHouse;
+            if (enhanced)
+            {
+                // the whole face takes the enhancement's color, so a special card reads at a glance
+                var tint = card.IsHouse ? HouseColor(card.House) : EnhancementColor(card.Enhancement);
+                face.style.backgroundImage = Ui.Gradient(Color.Lerp(Face, tint, 0.4f), Color.Lerp(Face, tint, 0.12f));
+                face.style.backgroundSize = new BackgroundSize(Length.Percent(100), Length.Percent(100));
+            }
+            if (card.IsHouse) Ui.Border(face, 4.5f * scale, Color.Lerp(HouseColor(card.House), Color.black, 0.35f));
+            else if (enhanced) Ui.Border(face, 4.5f * scale, EnhancementColor(card.Enhancement));
+            else if (card.Stamp != Stamp.None) Ui.Border(face, 3 * scale, StampColor(card.Stamp));
+            else Ui.Border(face, 1, FaceEdge);
             if (card.Enhancement == Enhancement.Ghost) face.style.opacity = 0.72f;
             var ink = InkOf(card);
             var suit = SuitIcon.For(card);
@@ -115,14 +138,27 @@ namespace HouseEdge.Game
                 face.Add(center);
             }
 
-            if (enhanced)
+            if (card.IsHouse)
             {
-                var color = EnhancementColor(card.Enhancement);
-                var tag = Ui.Text(face, card.Enhancement.ToString().ToUpperInvariant(), (int)(10 * scale), Color.white, Weight.Heavy);
+                // a black HOUSE band with the card's name, like a casino chip's edge
+                var color = HouseColor(card.House);
+                var tag = Ui.Text(face, "HOUSE  " + HouseCards.Name(card.House).ToUpperInvariant(), (int)(10 * scale), color, Weight.Heavy);
                 tag.style.position = Position.Absolute;
                 tag.style.left = tag.style.right = 0;
                 tag.style.bottom = 0;
-                tag.style.height = 15 * scale;
+                tag.style.height = 17 * scale;
+                tag.style.unityTextAlign = TextAnchor.MiddleCenter;
+                tag.style.whiteSpace = WhiteSpace.NoWrap;
+                tag.style.backgroundColor = new Color(0.06f, 0.05f, 0.05f);
+            }
+            else if (enhanced)
+            {
+                var color = EnhancementColor(card.Enhancement);
+                var tag = Ui.Text(face, card.Enhancement.ToString().ToUpperInvariant(), (int)(11 * scale), Color.white, Weight.Heavy);
+                tag.style.position = Position.Absolute;
+                tag.style.left = tag.style.right = 0;
+                tag.style.bottom = 0;
+                tag.style.height = 17 * scale;
                 tag.style.letterSpacing = 1;
                 tag.style.unityTextAlign = TextAnchor.MiddleCenter;
                 tag.style.backgroundColor = color;
@@ -131,15 +167,21 @@ namespace HouseEdge.Game
 
             if (card.Stamp != Stamp.None)
             {
-                // a wax seal in the top right
+                // a wax seal in the top right, with a pressed ring so it reads as a stamp, not a dot
                 var seal = new VisualElement();
                 seal.style.position = Position.Absolute;
-                seal.style.right = 5 * scale;
-                seal.style.top = 5 * scale;
-                seal.style.width = seal.style.height = 16 * scale;
+                seal.style.right = 4 * scale;
+                seal.style.top = 4 * scale;
+                seal.style.width = seal.style.height = 24 * scale;
                 seal.style.backgroundColor = StampColor(card.Stamp);
-                Ui.Rounded(seal, 8 * scale);
-                Ui.Border(seal, 2 * scale, Color.Lerp(StampColor(card.Stamp), Color.black, 0.35f));
+                Ui.Rounded(seal, 12 * scale);
+                Ui.Border(seal, 2.5f * scale, Color.Lerp(StampColor(card.Stamp), Color.black, 0.4f));
+                var ring = new VisualElement();
+                ring.style.position = Position.Absolute;
+                ring.style.left = ring.style.right = ring.style.top = ring.style.bottom = 3 * scale;
+                Ui.Rounded(ring, 8 * scale);
+                Ui.Border(ring, 1.5f * scale, new Color(1, 1, 1, 0.55f));
+                seal.Add(ring);
                 face.Add(seal);
             }
 
@@ -213,7 +255,7 @@ namespace HouseEdge.Game
         // plain words for what's special about a card
         public static string Explain(Card card)
         {
-            string text = "";
+            string text = card.IsHouse ? $"House card, {HouseCards.Name(card.House)}: {HouseCards.Describe(card.House)}" : "";
             if (card.Enhancement != Enhancement.None) text += $"{card.Enhancement}: {CardEffects.Describe(card.Enhancement)}";
             if (card.Stamp != Stamp.None) text += (text.Length > 0 ? "\n" : "") + $"{card.Stamp} Stamp: {CardEffects.Describe(card.Stamp)}";
             return text.Length > 0 ? text : null;

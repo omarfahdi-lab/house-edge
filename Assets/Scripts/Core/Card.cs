@@ -15,6 +15,9 @@ namespace HouseEdge.Core
     // bad cards bosses and cursed effects shuffle into your deck
     public enum Curse { None, DeadCard, SnakeEyes, TaxCard, Jinx }
 
+    // cards the casino shuffles into the shoe for one table. good in one hand, bad in the other
+    public enum HouseCard { None, Bounty, Mirror, Fuse, LoadedDie, Snitch, Leech }
+
     // a class, not a struct: each physical card carries its own enhancement, stamp and counters
     public sealed class Card
     {
@@ -23,6 +26,8 @@ namespace HouseEdge.Core
         public Curse Curse { get; }
         public Enhancement Enhancement { get; set; }
         public Stamp Stamp { get; set; }
+        public HouseCard House { get; internal set; }
+        public bool IsHouse => House != HouseCard.None;
 
         // winning hands a Fragile card has been in
         public int FragileWins { get; internal set; }
@@ -45,6 +50,9 @@ namespace HouseEdge.Core
         }
 
         public static Card Cursed(Curse curse) => new Card(curse);
+
+        // one of the casino's cards. made fresh for a table (or a picture of one), never part of your deck
+        public static Card OfHouse(Rank rank, Suit suit, HouseCard house) => new Card(rank, suit) { House = house };
 
         // a fresh copy for Martini or Pickpocket. counters start over
         public Card Copy()

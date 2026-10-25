@@ -18,13 +18,34 @@ namespace HouseEdge.Editor
             Build(BuildTarget.WebGL, "Builds/WebGL");
         }
 
+        // a development build that turns crashes like "function signature mismatch" into C# stack traces
+        [MenuItem("House Edge/Build WebGL (debug)")]
+        public static void WebGLDebug()
+        {
+            var exceptions = PlayerSettings.WebGL.exceptionSupport;
+            var symbols = PlayerSettings.WebGL.debugSymbolMode;
+            try
+            {
+                PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.FullWithStacktrace;
+                PlayerSettings.WebGL.debugSymbolMode = WebGLDebugSymbolMode.Embedded;
+                PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
+                PlayerSettings.WebGL.decompressionFallback = true;
+                Build(BuildTarget.WebGL, "Builds/WebGL-debug", BuildOptions.Development);
+            }
+            finally
+            {
+                PlayerSettings.WebGL.exceptionSupport = exceptions;
+                PlayerSettings.WebGL.debugSymbolMode = symbols;
+            }
+        }
+
         [MenuItem("House Edge/Build macOS")]
         public static void MacOS() => Build(BuildTarget.StandaloneOSX, "Builds/macOS/HouseEdge.app");
 
-        private static void Build(BuildTarget target, string path)
+        private static void Build(BuildTarget target, string path, BuildOptions options = BuildOptions.None)
         {
             var scenes = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
-            var report = BuildPipeline.BuildPlayer(scenes, path, target, BuildOptions.None);
+            var report = BuildPipeline.BuildPlayer(scenes, path, target, options);
             Debug.Log($"Build {target}: {report.summary.result}, {report.summary.totalSize / 1024} KB, {report.summary.totalErrors} errors");
             if (Application.isBatchMode && report.summary.result != BuildResult.Succeeded) EditorApplication.Exit(1);
         }

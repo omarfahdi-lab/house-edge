@@ -16,6 +16,7 @@ namespace HouseEdge.Core
         private readonly List<HandScore> _lastScores = new List<HandScore>();
         private readonly List<PlayerAction> _inputs = new List<PlayerAction>();
         private readonly List<Vice> _jinxed = new List<Vice>();
+        private readonly List<Card> _offered = new List<Card>();
 
         private bool _endTurnAfterCard;
         private bool _swapUsedThisDeal;
@@ -40,6 +41,8 @@ namespace HouseEdge.Core
         public PlayerHand ActiveHand => Phase == TablePhase.PlayerTurn ? _hands[ActiveHandIndex] : null;
 
         public IReadOnlyList<Card> DealerCards => _dealerCards;
+        // Keep 2 of 3: the three cards waiting for you to give one away
+        public IReadOnlyList<Card> OfferedCards => _offered;
         // the Twins' second hand, empty otherwise
         public IReadOnlyList<Card> SecondDealerCards => _secondDealerCards;
         public bool HoleCardHidden { get; private set; }
@@ -231,6 +234,10 @@ namespace HouseEdge.Core
                     actions.Add(PlayerAction.LetDealerDraw);
                     actions.Add(PlayerAction.StopDealer);
                     break;
+                case TablePhase.Choosing:
+                    for (int i = 0; i < _offered.Count; i++)
+                        if (CanGive(i)) actions.Add(GiveAction(i));
+                    break;
                 case TablePhase.PlayerTurn:
                     var hand = ActiveHand;
                     if (ChipOnTable) actions.Add(PlayerAction.CatchChip);
@@ -246,7 +253,7 @@ namespace HouseEdge.Core
                         actions.Add(PlayerAction.Stand);
                         break;
                     }
-                    if (Gambler.CanAfford(Rules.HitCost)) actions.Add(PlayerAction.Hit);
+                    if (Gambler.CanAfford(Rules.HitCost) && !HouseCards.FuseSpent(hand.Cards)) actions.Add(PlayerAction.Hit);
                     // Bad Habit: you have to hit at least once (unless you can't)
                     bool mustHit = !hand.HasActed && HasActiveVice(v => v.MustHitEveryHand) && actions.Contains(PlayerAction.Hit);
                     if (!mustHit) actions.Add(PlayerAction.Stand);
@@ -310,11 +317,16 @@ namespace HouseEdge.Core
                     _dealerStopped = true;
                     PlayDealer();
                     break;
+                case PlayerAction.GiveFirst:
+                case PlayerAction.GiveSecond:
+                case PlayerAction.GiveThird:
+                    Give(action - PlayerAction.GiveFirst);
+                    break;
             }
         }
 
         private bool CanDoubleDown(PlayerHand hand) =>
-            !hand.IsDoubled && (hand.Cards.Count == 2 && !hand.HasActed || Rules.DoubleAfterHit && hand.Cards.Count >= 2);
+            !hand.IsDoubled && !HouseCards.FuseSpent(hand.Cards) && (hand.Cards.Count == 2 && !hand.HasActed || Rules.DoubleAfterHit && hand.Cards.Count >= 2);
 
         private bool CanSplit(PlayerHand hand) =>
             hand.Cards.Count == 2 && !hand.HasActed && _hands.Count <= Balance.MaxSplitsPerHand
@@ -348,12 +360,21 @@ namespace HouseEdge.Core
 
         public void Announce(string text) => _announcements.Add(text);
 
+        // what the House cards did this deal, for the game to show
+        public IReadOnlyList<string> Notes => _notes;
+        private readonly List<string> _notes = new List<string>();
+        public void Note(string text) => _notes.Add(text);
+
+        // a Snitch in the dealer's hand turns his hole card over
+        public void RevealHoleCard() => HoleCardHidden = false;
+
         private void Deal()
         {
             // a big raise into a hot shoe is exactly what security watches for
             if (BetLevel > 1 && Count >= Balance.HotCount) AddHeat(Balance.RaiseHeatWhenHot * (BetLevel - 1));
             ClearTable();
             _announcements.Clear();
+            _notes.Clear();
             _dealerRedrawUsed = false;
             foreach (var effect in ActiveEffects()) effect.OnBeforeDeal(this);
             if (Rules.ReshuffleEveryDeals > 0 && DealsPlayed > 0 && DealsPlayed % Rules.ReshuffleEveryDeals == 0)
@@ -363,10 +384,60 @@ namespace HouseEdge.Core
             _hands.Add(hand);
             HoleCardHidden = !Rules.HoleCardFaceUp;
 
+            // Keep 2 of 3 deals the same cards in the same order, except the dealer's hole card is your third card
+            if (Rules.KeepTwoOfThree)
+            {
+                _offered.Add(_shoe.Draw());
+                DrawForDealer();
+                _offered.Add(_shoe.Draw());
+                _offered.Add(_shoe.Draw());
+                HoleCardHidden = false;
+                Phase = TablePhase.Choosing;
+                return;
+            }
             DrawFor(hand);
             DrawForDealer();
             DrawFor(hand);
             DrawForDealer();
+            AfterDeal();
+        }
+
+        public static PlayerAction GiveAction(int card) => PlayerAction.GiveFirst + card;
+
+        // what you'd keep and what the dealer would have if you gave this card away, with Mirrors already copying
+        public (HandValue mine, HandValue his) PreviewGive(int card)
+        {
+            var kept = _offered.Where((_, j) => j != card).ToList();
+            static Card Copying(Card c, Card target) =>
+                c.House == HouseCard.Mirror && target != null && target != c && !target.IsCursed ? new Card(target.Rank, c.Suit) : c;
+            var up = Copying(DealerUpCard, kept[0]);
+            var mine = kept.Select(c => Copying(c, up)).ToList();
+            var his = new List<Card> { up, Copying(_offered[card], kept[0]) };
+            return (HandValue.Of(mine, Rules.PlayerBustLimit, Rules.AcesAlwaysOne), HandValue.Of(his));
+        }
+
+        // the dealer never takes a Black Stamp, so it can't be given to him (unless there's nothing else to give)
+        public bool CanGive(int card) =>
+            Phase == TablePhase.Choosing && card >= 0 && card < _offered.Count
+            && (_offered[card].Stamp != Stamp.Black || _offered.All(c => c.Stamp == Stamp.Black));
+
+        // the given card is the dealer's hole card, face up since you chose it. the other two are your hand,
+        // and the effects see the cards drawn in deal order
+        private void Give(int card)
+        {
+            var hand = _hands[0];
+            for (int i = 0; i < _offered.Count; i++)
+                if (i != card) Take(hand, _offered[i]);
+            var given = _offered[card];
+            _offered.Clear();
+            _dealerCards.Add(given);
+            foreach (var effect in ActiveEffects()) effect.OnCardDrawn(this, given, true);
+            AfterDeal();
+        }
+
+        private void AfterDeal()
+        {
+            var hand = _hands[0];
             // about one deal in four a lucky chip rolls by. worked out from the table, so it costs no random draws
             ChipOnTable = (DealsPlayed * 31 + (int)(Target % 97) + _dealerCards[0].LowValue) % 4 == 0;
 
@@ -375,7 +446,8 @@ namespace HouseEdge.Core
             if (SideBet != SideBet.None && SideBet != SideBet.BustIt && SideBet != SideBet.HotHand)
                 PaySideBet(SideBets.SettleOnDeal(SideBet, hand.Cards, DealerUpCard));
 
-            if (DealerUpCard.IsAce && Gambler.CanAfford(Balance.InsuranceCost))
+            // you already know the hole card when you gave it to him
+            if (DealerUpCard.IsAce && !Rules.KeepTwoOfThree && Gambler.CanAfford(Balance.InsuranceCost))
             {
                 Phase = TablePhase.InsuranceOffer;
                 return;
@@ -394,6 +466,8 @@ namespace HouseEdge.Core
             foreach (var hand in _hands) Discard(hand.Cards);
             Discard(_dealerCards);
             Discard(_secondDealerCards);
+            Discard(_offered);
+            _offered.Clear();
             _hands.Clear();
             _dealerCards.Clear();
             _secondDealerCards.Clear();
@@ -591,7 +665,11 @@ namespace HouseEdge.Core
 
         private bool DealerShouldHit()
         {
+            // a Fuse in his hand stops him where he is
+            if (HouseCards.Has(_dealerCards, HouseCard.Fuse)) return false;
             var value = DealerValue;
+            if (Rules.DealerChasesPlayer && BestStandingTotal() is int best)
+                return value.Total < best || Rules.DealerHitsOnTies && value.Total == best && value.Total < Balance.BustLimit;
             if (DealerRules.ShouldHit(value, Rules)) return true;
             // Rookie Ray sometimes hits a hard 17 by mistake
             return Rules.DealerMistakeOneIn > 0 && value.Total == Balance.DealerStandsOn && !value.IsSoft
@@ -616,6 +694,20 @@ namespace HouseEdge.Core
             }
             Phase = TablePhase.DealerDecision;
             return true;
+        }
+
+        // the best total he has to beat at the showdown, or null when every hand is already settled
+        private int? BestStandingTotal()
+        {
+            int? best = null;
+            foreach (var hand in _hands)
+            {
+                var value = hand.Value;
+                if (value.IsBust || hand.RescuedAsPush) continue;
+                int total = HouseCards.ShowdownTotal(hand.Cards, value.Total, Rules.PlayerBustLimit);
+                if (best == null || total > best) best = total;
+            }
+            return best;
         }
 
         // busts, blackjacks and Charlies are settled without the dealer drawing
@@ -714,10 +806,11 @@ namespace HouseEdge.Core
             if (hand.IsBlackjack) return Outcome.Blackjack;
 
             var winAs = value.Total == Balance.BustLimit && value.CardCount >= 3 ? Outcome.TwentyOne : Outcome.Win;
-            var result = Compare(value, DealerValue);
+            int mine = HouseCards.ShowdownTotal(hand.Cards, value.Total, Rules.PlayerBustLimit);
+            var result = Compare(mine, _dealerCards);
             if (Rules.DealerPlaysTwoHands)
             {
-                var second = Compare(value, SecondDealerValue);
+                var second = Compare(mine, _secondDealerCards);
                 // you have to beat both: the worse result counts
                 if (second < result) result = second;
             }
@@ -729,11 +822,13 @@ namespace HouseEdge.Core
             };
         }
 
-        // 1 = player wins, 0 = tie, -1 = dealer wins
-        private static int Compare(HandValue player, HandValue dealer)
+        // 1 = player wins, 0 = tie, -1 = dealer wins. a Loaded Die pushes his total up one, past 21 too
+        private static int Compare(int player, IReadOnlyList<Card> dealerCards)
         {
-            if (dealer.IsBust || player.Total > dealer.Total) return 1;
-            return player.Total == dealer.Total ? 0 : -1;
+            var dealer = HandValue.Of(dealerCards);
+            int total = HouseCards.Has(dealerCards, HouseCard.LoadedDie) ? dealer.Total + 1 : dealer.Total;
+            if (dealer.IsBust || total > Balance.BustLimit || player > total) return 1;
+            return player == total ? 0 : -1;
         }
 
         private Outcome ApplyPushRule(Outcome push, Outcome win) => Rules.Pushes switch
@@ -912,6 +1007,7 @@ namespace HouseEdge.Core
                 case Vice vice: score.Mark(ScoreSource.Vice, vice.Name, vice); break;
                 case Boss boss: score.Mark(ScoreSource.Boss, boss.Name, boss); break;
                 case Dealer dealer: score.Mark(ScoreSource.Dealer, dealer.Name, dealer); break;
+                case HouseRules house: score.Mark(ScoreSource.Rule, "House cards", house); break;
                 default: score.Mark(ScoreSource.Rule, "House rules", effect); break;
             }
         }
@@ -961,9 +1057,10 @@ namespace HouseEdge.Core
             _jinxed.Add(vice);
         }
 
-        private void DrawFor(PlayerHand hand)
+        private void DrawFor(PlayerHand hand) => Take(hand, _shoe.Draw());
+
+        private void Take(PlayerHand hand, Card card)
         {
-            var card = _shoe.Draw();
             hand.Add(card);
             foreach (var effect in ActiveEffects()) effect.OnCardDrawn(this, card, false);
         }

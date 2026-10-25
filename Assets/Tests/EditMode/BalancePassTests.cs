@@ -442,9 +442,9 @@ namespace HouseEdge.Tests
         {
             Assert.That(Stakes.TargetFactor(Stake.Orange), Is.EqualTo(1.21).Within(1e-9));
             Assert.That(Stakes.TargetFactor(Stake.Platinum), Is.EqualTo(1.21).Within(1e-9));
-            // 85 x 1.21 = 102.85
+            // 130 x 1.21 = 157.3
             Assert.That(At(Stake.Orange).Table.Target, Is.EqualTo(Rounded(Balance.Target(1, TableKind.Low) * 1.1 * 1.1)));
-            Assert.That(At(Stake.Orange).Table.Target, Is.EqualTo(103));
+            Assert.That(At(Stake.Orange).Table.Target, Is.EqualTo(157));
         }
 
         [Test]

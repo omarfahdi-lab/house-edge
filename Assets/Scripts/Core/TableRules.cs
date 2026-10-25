@@ -37,6 +37,13 @@ namespace HouseEdge.Core
         // The Cheat: once a deal, a card that busts the dealer goes back and he draws again
         public bool DealerRedrawsFirstBust;
 
+        // Keep 2 of 3: you're dealt three cards and give one to the dealer as his hole card
+        public bool KeepTwoOfThree;
+
+        // the Rival: the dealer draws until he beats your best hand, and maybe on a tie too
+        public bool DealerChasesPlayer;
+        public bool DealerHitsOnTies;
+
         public TableRules Clone() => (TableRules)MemberwiseClone();
 
         public void CopyFrom(TableRules other)
@@ -60,6 +67,9 @@ namespace HouseEdge.Core
             ReshuffleAfterDealerBust = other.ReshuffleAfterDealerBust;
             DealerMistakeOneIn = other.DealerMistakeOneIn;
             DealerRedrawsFirstBust = other.DealerRedrawsFirstBust;
+            KeepTwoOfThree = other.KeepTwoOfThree;
+            DealerChasesPlayer = other.DealerChasesPlayer;
+            DealerHitsOnTies = other.DealerHitsOnTies;
         }
     }
 }

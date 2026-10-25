@@ -11,11 +11,15 @@ namespace HouseEdge.Game
     {
         private readonly VisualElement _root, _logo, _decks, _stakes;
         private readonly Label _deckName, _deckText, _deckLock, _stakeName, _stakeText, _summary, _stats, _daily, _codeError;
-        private readonly Switch _endless;
+        private readonly Switch _endless, _keep, _house, _rival;
         private readonly TextField _code;
         private readonly Button _resume, _newRun, _abandon;
         private readonly HowToView _howTo;
         private bool _endlessOn;
+        // a prototype rule, remembered between sessions while it's being tried out
+        private bool _keepOn = PlayerPrefs.GetInt("keepTwoOfThree", 0) == 1;
+        private bool _houseOn = PlayerPrefs.GetInt("houseCards", 0) == 1;
+        private bool _rivalOn = PlayerPrefs.GetInt("rival", 0) == 1;
         private Profile _profile;
         private StartingDeck _deck = StartingDeck.Standard, _deckShown = StartingDeck.Standard;
         private Stake _stake = Stake.White, _stakeShown = Stake.White;
@@ -167,6 +171,17 @@ namespace HouseEdge.Game
             var endlessText = Ui.Column(endlessRow, 1);
             Ui.Text(endlessText, "Endless mode", 15, Ui.Cream, Weight.Bold);
             Ui.Text(endlessText, "Keep climbing after you beat The House. Targets double every floor.", 12, Ui.Dim);
+
+            // the prototype rules on one line, each explained on hover, so the panel doesn't overflow
+            Ui.Caption(setup, "PROTOTYPES  ·  HOVER FOR WHAT THEY DO");
+            var prototypes = Ui.Row(setup, 16);
+            prototypes.style.flexWrap = Wrap.Wrap;
+            _keep = PrototypeSwitch(prototypes, "Keep 2 of 3", () => _keepOn = !_keepOn,
+                $"Every deal gives you 3 cards. The one you give away is the dealer's hole card, face up. {Balance.KeepTwoOfThreeHandsLess} fewer Hands per table.");
+            _house = PrototypeSwitch(prototypes, "House cards", () => _houseOn = !_houseOn,
+                "The casino shuffles its own cards into the shoe, more on every floor. Each one helps whoever holds it and hurts the other side. Hover one at the table to see what it does.");
+            _rival = PrototypeSwitch(prototypes, "Rival", () => _rivalOn = !_rivalOn,
+                "A rival gambler takes the dealer's seat at the High Table every other floor. Both hands are face up, the rival draws until beating yours, and comes back with a new trick each time you win.");
 
             var codeRow = Ui.Row(setup, 8);
             codeRow.style.marginTop = 4;
@@ -323,6 +338,12 @@ namespace HouseEdge.Game
                               (stakeLocked ? " Win a run on the chip before it to unlock." : ""));
 
             _endless.Set(_endlessOn);
+            _keep.Set(_keepOn);
+            _house.Set(_houseOn);
+            _rival.Set(_rivalOn);
+            PlayerPrefs.SetInt("keepTwoOfThree", _keepOn ? 1 : 0);
+            PlayerPrefs.SetInt("houseCards", _houseOn ? 1 : 0);
+            PlayerPrefs.SetInt("rival", _rivalOn ? 1 : 0);
             _musicSwitch.Set(MusicOn?.Invoke() ?? true);
             _speeds.Clear();
             float speed = SpeedOf?.Invoke() ?? 1;
@@ -339,7 +360,7 @@ namespace HouseEdge.Game
             _soundSwitch.Set(SoundOn?.Invoke() ?? true);
             _fourColorSwitch.Set(Settings.FourColor);
             _motionSwitch.Set(Settings.ReducedMotion);
-            _summary.text = $"You'll play:  {Decks.Name(_deck)} deck  ·  {Stakes.Name(_stake)}  ·  Endless {(_endlessOn ? "on" : "off")}";
+            _summary.text = $"You'll play:  {Decks.Name(_deck)} deck  ·  {Stakes.Name(_stake)}  ·  Endless {(_endlessOn ? "on" : "off")}" + (_keepOn ? "  ·  Keep 2 of 3" : "") + (_houseOn ? "  ·  House cards" : "") + (_rivalOn ? "  ·  Rival" : "");
         }
 
         private VisualElement DeckTile(StartingDeck deck)
@@ -432,11 +453,30 @@ namespace HouseEdge.Game
             return column;
         }
 
+        private Switch PrototypeSwitch(VisualElement row, string title, Action toggle, string tip)
+        {
+            var item = Ui.Row(row, 8);
+            var toggleSwitch = new Switch(() =>
+            {
+                toggle();
+                Rebuild();
+            });
+            Ui.Add(item, toggleSwitch);
+            // the title says it all here, so no ON/OFF beside the switch
+            var state = toggleSwitch.Q<Label>();
+            if (state != null) state.style.display = DisplayStyle.None;
+            var label = Ui.Text(item, title, 14, Ui.Cream, Weight.Bold);
+            label.style.whiteSpace = WhiteSpace.NoWrap;
+            item.style.flexShrink = 0;
+            Ui.Tip(item, title + "  (prototype)", tip);
+            return toggleSwitch;
+        }
+
         public void NewRun()
         {
             // a brand-new player's first run is the guided one
             bool first = _profile.Runs == 0 && PlayerPrefs.GetInt("tutorialDone", 0) == 0;
-            var options = new RunOptions { Deck = _deck, Stake = _stake, Endless = _endlessOn, Tutorial = first };
+            var options = new RunOptions { Deck = _deck, Stake = _stake, Endless = _endlessOn, Tutorial = first, KeepTwoOfThree = _keepOn, HouseCards = _houseOn, Rival = _rivalOn };
             StartClicked?.Invoke(System.Environment.TickCount, options);
         }
 

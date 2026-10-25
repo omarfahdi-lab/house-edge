@@ -212,6 +212,7 @@ namespace HouseEdge.Game
                 if (legal.Contains(PlayerAction.Deal)) action = PlayerAction.Deal;
                 else if (legal.Contains(PlayerAction.DeclineInsurance)) action = PlayerAction.DeclineInsurance;
                 else if (legal.Contains(PlayerAction.LetDealerDraw)) action = PlayerAction.LetDealerDraw;
+                else if (table.Phase == TablePhase.Choosing) action = BalanceBot.ChooseAction(table, game.Run.Gambler);
                 else if (legal.Contains(PlayerAction.Burn) && table.ActiveHand.Value.IsBust) action = PlayerAction.Burn;
                 else if (table.ActiveHand.Value.Total < 17 && legal.Contains(PlayerAction.Hit)) action = PlayerAction.Hit;
                 else action = PlayerAction.Stand;

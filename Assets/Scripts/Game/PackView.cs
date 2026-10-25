@@ -59,6 +59,27 @@ namespace HouseEdge.Game
                 slot.style.width = CardView.Width * 1.5f;
                 slot.style.height = CardView.Height * 1.5f;
                 column.Add(slot);
+                long at = 450 + 380 * i;
+                // an upgraded or stamped card glows in its color, so you see what's special before reading
+                bool special = card.Enhancement != Enhancement.None || card.Stamp != Stamp.None;
+                var glowColor = card.Enhancement != Enhancement.None ? CardView.EnhancementColor(card.Enhancement) : CardView.StampColor(card.Stamp);
+                if (special)
+                {
+                    var glow = new VisualElement { pickingMode = PickingMode.Ignore };
+                    glow.style.position = Position.Absolute;
+                    glow.style.left = glow.style.right = glow.style.top = glow.style.bottom = -10;
+                    Ui.Rounded(glow, 16);
+                    glow.style.backgroundColor = new Color(glowColor.r, glowColor.g, glowColor.b, 0.3f);
+                    Ui.Border(glow, 2, new Color(glowColor.r, glowColor.g, glowColor.b, 0.85f));
+                    glow.style.opacity = 0;
+                    slot.Add(glow);
+                    // it lights up as the card flips face up
+                    glow.schedule.Execute(() =>
+                    {
+                        Ui.Transition(glow, 0.3f, "opacity");
+                        glow.style.opacity = 1;
+                    }).StartingIn(at + 140);
+                }
                 var back = CardView.CreateFaceDown(1.5f);
                 back.style.position = Position.Absolute;
                 slot.Add(back);
@@ -66,7 +87,6 @@ namespace HouseEdge.Game
                 face.style.position = Position.Absolute;
                 face.style.scale = new Scale(new Vector2(0.02f, 1));
                 slot.Add(face);
-                long at = 450 + 380 * i;
                 back.schedule.Execute(() =>
                 {
                     Ui.Transition(back, 0.14f, "scale");
@@ -78,10 +98,10 @@ namespace HouseEdge.Game
                     face.style.scale = new Scale(Vector2.one);
                 }).StartingIn(at + 140);
 
-                var name = Ui.Text(column, CardView.Name(card), 15, Ui.Cream, Weight.Bold);
+                var name = Ui.Text(column, CardView.Name(card), 15, special ? Color.Lerp(glowColor, Color.white, 0.35f) : Ui.Cream, Weight.Bold);
                 name.style.unityTextAlign = TextAnchor.MiddleCenter;
                 string extra = CardView.Explain(card);
-                var text = Ui.Body(column, extra ?? "A plain card.", 12, Ui.Dim, center: true);
+                var text = Ui.Body(column, extra ?? "A plain card.", 12, special ? Ui.Cream : Ui.Dim, center: true);
                 text.style.minHeight = 34;
                 var keep = Ui.Button(column, "Keep", () => InputChosen?.Invoke(RunInput.PickPackCard(index)), ButtonKind.Gold);
                 keep.style.width = 130;

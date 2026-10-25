@@ -43,6 +43,8 @@ namespace HouseEdge.Game
         private Run _run;
 
         public event Action<RunInput> InputChosen;
+        // the player closed the map, e.g. to sit down at the table it was showing
+        public event Action Closed;
 
         // you, as a chip on the map, and whether it's walking to a stop right now
         private VisualElement _token;
@@ -139,7 +141,9 @@ namespace HouseEdge.Game
             _title.text = choosing ? "PICK YOUR PATH" : "THE MAP";
             _subtitle.text = Ui.Rich(choosing
                 ? $"Choose your next stop. Paths only go forward, so plan your route. Every path ends at the {Hud.StageName(next.stage, next.floor)}. Hover a stop to see where it leads."
-                : "Shops and rooms sit on branching paths between the tables. After each table you pick where to go.");
+                : run.Phase == RunPhase.AtTable && run.Table.DealsPlayed == 0
+                    ? $"Up next: the {Hud.StageName(run.Stage, run.Floor)}. Continue when you're ready to sit down."
+                    : "Shops and rooms sit on branching paths between the tables. After each table you pick where to go.");
             _floorName.text = $"FLOOR {run.Floor}  ·  {theme.name.ToUpperInvariant()}";
             _floorName.style.color = theme.accent;
             Ui.Stretch(_scroll, Parchment(theme.paper));
@@ -420,12 +424,16 @@ namespace HouseEdge.Game
             if (done) holder.Add(Stamp());
             string name = kind == TableKind.Boss
                 ? run.Floor == Balance.Floors ? "The House" : bosses.TryGetValue(run.Floor, out var boss) ? boss : "Pit Boss"
+                : run.RivalSitsAt(kind) ? $"Rival: {run.RivalName}"
                 : Hud.StageName(kind, run.Floor);
             var label = Ui.Text(node, name, 13, now ? RedInk : InkColor, Weight.Heavy);
             label.style.unityTextAlign = TextAnchor.UpperCenter;
-            long target = run.Stage == kind ? run.CurrentTarget : run.TargetFor(kind);
+            long target = run.Stage == kind ? run.CurrentTarget : run.MapTarget(kind);
             Ui.Text(node, $"target {target:N0}", 11, new Color(0.35f, 0.25f, 0.15f), Weight.Medium);
             string tip = $"Score {target:N0} to clear it.";
+            if (run.RivalSitsAt(kind))
+                tip = $"{run.RivalName} takes the dealer's seat. Both hands are face up, and the rival draws until beating you. " +
+                      $"Beat the table for +{Balance.RivalBeatenGold} gold.\n{tip}";
             if (kind == TableKind.Boss && run.FloorBoss != null)
                 tip = $"{run.FloorBoss.Ability}: {run.FloorBoss.Twist}\n{tip} Beat them for a Rare Vice, then a Shop.";
             Ui.Tip(node, name, tip);
@@ -500,9 +508,11 @@ namespace HouseEdge.Game
 
         public void Close()
         {
+            bool was = IsOpen;
             Tooltip.HideAll();
             _shownKey = null;
             Ui.Show(_root, false);
+            if (was) Closed?.Invoke();
         }
 
         // old paper: warm grain, darker edges and a few stains, tinted per floor

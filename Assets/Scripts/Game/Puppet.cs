@@ -42,8 +42,9 @@ namespace HouseEdge.Game
             if (texture != null) Textures[id] = texture;
         }
 
-        // height of the framed painting; a bust fills a square of that size with just the painting
-        public Puppet(string name, float height, bool bust = false)
+        // height of the framed painting; a bust fills a square of that size with just the painting.
+        // plaque: false where there's no room under the frame, like the dealer's spot at the table
+        public Puppet(string name, float height, bool bust = false, bool plaque = true)
         {
             _bust = bust;
             pickingMode = PickingMode.Ignore;
@@ -92,20 +93,22 @@ namespace HouseEdge.Game
 
             // a museum label under bigger paintings: what it is and who painted it
             string label = painting?.Label ?? SignatureLabel(Id(name));
-            if (!bust && height >= 150 && label != null)
+            if (plaque && !bust && height >= 150 && label != null)
             {
-                var plaque = Ui.Text(this, label, 10, new Color(0.25f, 0.17f, 0.06f), Weight.Bold);
-                plaque.style.position = Position.Absolute;
-                plaque.style.top = height + 8;
-                plaque.style.left = -30;
-                plaque.style.right = -30;
-                plaque.style.unityTextAlign = TextAnchor.MiddleCenter;
-                plaque.style.whiteSpace = WhiteSpace.Normal;
-                plaque.style.backgroundImage = Ui.Gradient(new Color(0.98f, 0.86f, 0.5f), new Color(0.78f, 0.6f, 0.26f));
-                plaque.style.backgroundSize = new BackgroundSize(Length.Percent(100), Length.Percent(100));
-                Ui.Rounded(plaque, 3);
-                Ui.Padding(plaque, 2, 6);
-                plaque.pickingMode = PickingMode.Ignore;
+                var tag = Ui.Text(this, label, 10, new Color(0.25f, 0.17f, 0.06f), Weight.Bold);
+                tag.style.position = Position.Absolute;
+                tag.style.top = height + 8;
+                tag.style.left = -30;
+                tag.style.right = -30;
+                tag.style.unityTextAlign = TextAnchor.MiddleCenter;
+                tag.style.whiteSpace = WhiteSpace.Normal;
+                tag.style.backgroundImage = Ui.Gradient(new Color(0.98f, 0.86f, 0.5f), new Color(0.78f, 0.6f, 0.26f));
+                tag.style.backgroundSize = new BackgroundSize(Length.Percent(100), Length.Percent(100));
+                Ui.Rounded(tag, 3);
+                Ui.Padding(tag, 2, 6);
+                tag.pickingMode = PickingMode.Ignore;
+                // the plaque hangs below the frame, so make room for it or a name under the painting lands on top
+                tag.RegisterCallback<GeometryChangedEvent>(_ => style.marginBottom = tag.layout.height + 12);
             }
 
             _emote = Ui.Text(this, "", (int)Mathf.Clamp(height * 0.11f, 12, 30), Ui.Ink, Weight.Heavy);

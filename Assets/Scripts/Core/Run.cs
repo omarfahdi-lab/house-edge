@@ -73,6 +73,9 @@ namespace HouseEdge.Core
         private double _nextTargetFactor = 1;
 
         public int Seed { get; }
+        // the gambler who keeps turning up at the High Table, and how many times you've sat down with him
+        public string RivalName => Core.Rival.NameFor(Seed);
+        public int RivalMeetings { get; private set; }
         public RunOptions Options { get; }
         public GameRandom Random { get; }
         public Gambler Gambler { get; }
@@ -177,6 +180,10 @@ namespace HouseEdge.Core
         public long TargetFor(TableKind stage) =>
             (long)Math.Round(Balance.Target(Floor, stage) * Stakes.TargetFactor(Options.Stake) * Modifiers.TargetFactor(Options.Modifier));
         public long CurrentTarget => Table?.Target ?? TargetFor(Stage);
+
+        // the Rival's seat on this floor, and that table's target with his factor, for the map
+        public bool RivalSitsAt(TableKind stage) => Options.Rival && Core.Rival.SitsAt(Floor, stage);
+        public long MapTarget(TableKind stage) => RivalSitsAt(stage) ? (long)Math.Round(TargetFor(stage) * Balance.RivalTargetFactor) : TargetFor(stage);
 
         public int PriceOf(ShopOffer offer) => Priced(offer.BasePrice);
         public int RerollCost => Priced(Shop.RerollCost);
@@ -432,10 +439,15 @@ namespace HouseEdge.Core
             if (Boss != null) BossesFaced.Add(Boss.Name);
             // the tutorial table gets a dealer with no rule changes
             bool tutorial = IsTutorialTable;
-            Dealer = Boss == null ? tutorial ? new ChattyChen() : Dealers.Random(Random) : null;
+            bool rival = Boss == null && !tutorial && RivalSitsAt(Stage);
+            Dealer = Boss != null ? null
+                : tutorial ? new ChattyChen()
+                : rival ? new Rival(RivalName, ++RivalMeetings)
+                : Dealers.Random(Random);
             if (Boss != null) effects.Add(Boss);
             if (Dealer != null) effects.Add(Dealer);
             effects.Add(new RunRules(Options));
+            if (Options.HouseCards && !tutorial) effects.Add(new HouseRules(Balance.HouseCards(Floor, Boss != null)));
             if (Options.Modifier != Modifier.None) effects.Add(new ModifierRules(Options.Modifier));
             effects.AddRange(Gambler.Vices);
             effects.Add(new RunStats(this));
@@ -443,12 +455,19 @@ namespace HouseEdge.Core
             // an Elite plays for the next table's target
             var stage = AtElite ? NextStage.stage : Stage;
             double bossFactor = Boss != null && (AtElite || Stage == TableKind.Boss) ? Stakes.BossFactor(Options.Stake) : 1;
-            long target = (long)Math.Round(TargetFor(stage) * (Boss?.TargetFactor ?? 1) * bossFactor * (AtElite ? Balance.EliteTargetFactor : _nextTargetFactor));
+            double rivalFactor = rival ? Balance.RivalTargetFactor : 1;
+            long target = (long)Math.Round(TargetFor(stage) * (Boss?.TargetFactor ?? 1) * bossFactor * rivalFactor * (AtElite ? Balance.EliteTargetFactor : _nextTargetFactor));
             if (!AtElite) _nextTargetFactor = 1;
             Table = tutorial
                 ? new Table(Gambler, Core.Tutorial.Shoe(Gambler.Deck, Random), Random, target, effects)
                 : new Table(Gambler, Random, target, effects);
             if (AtElite) Table.AddHands(-Balance.EliteHandsLess);
+            // the tutorial's stacked shoe teaches the normal deal, with the normal Hands
+            if (tutorial && Table.Rules.KeepTwoOfThree)
+            {
+                Table.Rules.KeepTwoOfThree = false;
+                Table.AddHands(Balance.KeepTwoOfThreeHandsLess);
+            }
             Phase = RunPhase.AtTable;
         }
 

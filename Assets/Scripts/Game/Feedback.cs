@@ -11,6 +11,8 @@ namespace HouseEdge.Game
     public readonly struct Snapshot
     {
         public readonly Table Table;
+        // the run's own table; Table differs from it during a Back Room hand
+        public readonly Table MainTable;
         public readonly int Deals;
         public readonly int Scored;
         public readonly int Gold;
@@ -23,6 +25,7 @@ namespace HouseEdge.Game
         private Snapshot(Run run)
         {
             Table = run.ActiveTable;
+            MainTable = run.Table;
             Deals = Table.DealsPlayed;
             Scored = Table.LastScores.Count;
             Gold = run.Gambler.Gold;
@@ -38,7 +41,7 @@ namespace HouseEdge.Game
         // a hand (or split hands) was just settled between this snapshot and now
         public bool ScoredBy(Run run)
         {
-            var table = run.ActiveTable;
+            var table = run.Shown();
             return table.LastScores.Count > 0 && (table != Table || table.DealsPlayed != Deals || Scored == 0);
         }
     }
@@ -197,7 +200,7 @@ namespace HouseEdge.Game
         {
             Skip();
             _clock = 0;
-            var table = run.ActiveTable;
+            var table = run.Shown();
             if (run.Phase != RunPhase.AtTable && table == run.Table && before.Phase != RunPhase.AtTable) HidePopup(true);
 
             bool scored = before.ScoredBy(run) && table.LastScores.Any(s => s.Outcome != Outcome.Surrender);
@@ -345,7 +348,7 @@ namespace HouseEdge.Game
                         Flash(new Color(0.9f, 0.1f, 0.1f), 0.3f, 0.07f);
                     }
                 }
-                if (DealerAnchor == null || PlayerAnchor == null || run.ActiveTable != table) return;
+                if (DealerAnchor == null || PlayerAnchor == null || run.Shown() != table) return;
                 var dealer = _root.WorldToLocal(DealerAnchor());
                 var player = _root.WorldToLocal(PlayerAnchor());
                 var chipColor = new[] { new Color(0.8f, 0.14f, 0.16f), new Color(0.13f, 0.5f, 0.3f), new Color(0.13f, 0.13f, 0.15f) };

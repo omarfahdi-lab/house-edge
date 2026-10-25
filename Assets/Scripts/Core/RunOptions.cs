@@ -24,6 +24,12 @@ namespace HouseEdge.Core
         public Modifier Modifier = Modifier.None;
         // Vices this player hasn't unlocked yet: they never show up in this run
         public List<string> LockedVices = new List<string>();
+        // a prototype rule: every deal gives you three cards, and the one you give away is the dealer's hole card
+        public bool KeepTwoOfThree;
+        // a prototype rule: the casino shuffles House cards into the shoe, more on every floor
+        public bool HouseCards;
+        // a prototype rule: a rival gambler takes the dealer's seat at the High Table every other floor
+        public bool Rival;
 
         public RunOptions Clone()
         {
@@ -137,10 +143,15 @@ namespace HouseEdge.Core
             if (_options.Stake >= Stake.Gold) table.Rules.DealerHitsSoft17 = true;
             if (_options.Stake >= Stake.Blue) table.AddBurns(-1);
             if (_options.Stake >= Stake.Platinum) table.AddHands(-1);
+            if (_options.KeepTwoOfThree)
+            {
+                table.Rules.KeepTwoOfThree = true;
+                table.AddHands(-Balance.KeepTwoOfThreeHandsLess);
+            }
         }
     }
 
-    // a short code that sets up the same run on any machine: seed, deck and stake
+    // a short code that sets up the same run on any machine: seed, deck, stake and the rules toggled on
     public static class RunCodes
     {
         private const string Digits = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -155,7 +166,7 @@ namespace HouseEdge.Core
                 value /= (uint)Digits.Length;
             } while (value > 0);
             chars.Reverse();
-            return $"{new string(chars.ToArray())}-{(int)options.Deck}{(int)options.Stake}{(options.Endless ? "E" : "")}{(options.Tutorial ? "T" : "")}{(options.Modifier != Modifier.None ? "M" + (int)options.Modifier : "")}";
+            return $"{new string(chars.ToArray())}-{(int)options.Deck}{(int)options.Stake}{(options.Endless ? "E" : "")}{(options.Tutorial ? "T" : "")}{(options.Modifier != Modifier.None ? "M" + (int)options.Modifier : "")}{(options.KeepTwoOfThree ? "K" : "")}{(options.HouseCards ? "H" : "")}{(options.Rival ? "R" : "")}";
         }
 
         public static bool TryDecode(string code, out int seed, out RunOptions options)
@@ -179,7 +190,8 @@ namespace HouseEdge.Core
             if (deck < 0 || deck >= Decks.All.Count || stake < 0 || stake >= Stakes.All.Count) return false;
 
             seed = unchecked((int)(uint)value);
-            options = new RunOptions { Deck = (StartingDeck)deck, Stake = (Stake)stake, Endless = parts[1].Contains("E"), Tutorial = parts[1].Contains("T") };
+            options = new RunOptions { Deck = (StartingDeck)deck, Stake = (Stake)stake, Endless = parts[1].Contains("E"), Tutorial = parts[1].Contains("T"),
+                KeepTwoOfThree = parts[1].Contains("K"), HouseCards = parts[1].Contains("H"), Rival = parts[1].Contains("R") };
             int m = parts[1].IndexOf('M');
             if (m >= 0)
             {

@@ -82,6 +82,7 @@ namespace HouseEdge.Game
         {
             var table = run.ActiveTable;
             if (run.Boss != null || table != run.Table || table.LastScores.Count == 0) return null;
+            if (run.Dealer is Rival rival) return RivalLines.AfterHand(run, rival);
             var scores = table.LastScores;
             long total = scores.Sum(s => s.Total);
             Moment moment;

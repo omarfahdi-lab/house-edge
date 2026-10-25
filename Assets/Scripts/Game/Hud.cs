@@ -323,7 +323,7 @@ namespace HouseEdge.Game
             }
 
             string special = run.AtEyeInTheSky ? "SECURITY: The Eye in the Sky"
-                : run.ActiveTable != run.Table ? "IN THE BACK ROOM"
+                : run.Shown() != run.Table ? "IN THE BACK ROOM"
                 : run.Stage == TableKind.Boss && run.Boss != null && run.Phase == RunPhase.AtTable && run.Boss.Name != null ? $"vs {run.Boss.Name}"
                 : null;
             // the Daily Run's twist, when nothing more urgent needs the line

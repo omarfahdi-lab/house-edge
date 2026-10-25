@@ -16,8 +16,28 @@ namespace HouseEdge.Core
         // that needs several wins is a coin flip with few Hands. 7 Hands lets targets ask for ~3 deals
         // without bad luck deciding the run. see README "Balance"
         public const int StartingHands = 7;
+        // Keep 2 of 3 hands you a choice every deal, so it plays with fewer Hands
+        public const int KeepTwoOfThreeHandsLess = 2;
+
+        // House cards: how many the casino shuffles into the shoe at each table, more every floor
+        public const int HouseCardsBase = 1;
+        public const int HouseCardsPerFloor = 1;
+        public const int HouseCardsAtBoss = 2;
+        public static int HouseCards(int floor, bool boss) => HouseCardsBase + HouseCardsPerFloor * (floor - 1) + (boss ? HouseCardsAtBoss : 0);
+        public const int BountyGold = 5;
+        public const double BountyMult = 2;
+        public const int BountyHandsLost = 1;
+        public const int BountyDealerGold = 3;
+        public const int SnitchHeat = 8;
+        public const int LeechMult = 3;
+
+        // the Rival sits at the High Table on every 2nd floor
+        public const int RivalEveryFloors = 2;
+        public const int RivalBeatenGold = 8;
+        public const int RivalFinalHandsLess = 1;
+        public const double RivalTargetFactor = 1.7;
         public const int StartingBurns = 3;
-        public const long FirstTableTarget = 85;
+        public const long FirstTableTarget = 130;
 
         // run
         public const int StartingGold = 4;
@@ -30,9 +50,11 @@ namespace HouseEdge.Core
         // better. see README "Balance"
         private static readonly long[][] TableTargets =
         {
-            new long[] { 85, 125, 170 },
-            new long[] { 155, 230, 310 },
-            new long[] { 250, 370, 500 },
+            // floors 1-3 were raised x1.5, x1.3 and x1.15: their tables were cleared 96-97% of the time,
+            // so the first floors never asked anything of you
+            new long[] { 130, 190, 255 },
+            new long[] { 200, 300, 405 },
+            new long[] { 290, 425, 575 },
             new long[] { 420, 630, 850 },
             new long[] { 730, 1100, 1500 },
             new long[] { 1250, 1880, 2650 },

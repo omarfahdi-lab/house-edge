@@ -198,7 +198,8 @@ namespace HouseEdge.Tests
         {
             var report = BalanceSimulation.Run(300, 1);
             Assert.That(report.WinRate, Is.InRange(0.07, 0.25), $"bot won {report.WinRate:P1}");
-            Assert.That((double)report.Reached[1, 0] / report.Runs, Is.GreaterThan(0.8), "floor 1 should be forgiving");
+            // floor 1 asks something of you now (the bot used to clear it 9 runs in 10), but it shouldn't end most runs
+            Assert.That((double)report.Reached[1, 0] / report.Runs, Is.GreaterThan(0.65), "floor 1 should be fair");
         }
 
         [Test]

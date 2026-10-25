@@ -56,14 +56,16 @@ namespace HouseEdge.Game
             Ui.Pill(head, "TUTORIAL", Ui.Gold, filled: true, size: 11);
             _count = Ui.Caption(head, "");
             _count.style.flexGrow = 1;
-            _gotIt = Ui.Button(head, "Got it", Dismiss, ButtonKind.Gold, "Enter");
-            _gotIt.style.height = 30;
             var skip = Ui.Button(head, "Skip tutorial", Skip, ButtonKind.Ghost);
             skip.style.height = 26;
             Ui.Padding(skip, 0, 10);
             skip.Q<Label>().style.fontSize = 12;
 
             _text = Ui.Body(_panel, "", 16, Ui.Cream);
+            // under the tip, not in the header: squeezed in beside Skip it clipped to "ot"
+            _gotIt = Ui.Button(_panel, "Got it", Dismiss, ButtonKind.Gold, "Enter");
+            _gotIt.style.alignSelf = Align.FlexEnd;
+            _gotIt.style.flexShrink = 0;
             Ui.Show(_root, false);
         }
 

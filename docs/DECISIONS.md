@@ -166,6 +166,13 @@ Sofia never has one.
 - **Court cards are drawn, not lettered.** Kings, Queens and Jacks are Painter2D royals mirrored head to toe, so a
   Royal Court combo is easy to spot.
 - **Card backs follow the starting deck**, so the shoe tells you which deck you're playing.
+- **The map comes out before every table**, not just each new floor. Leaving the last stop on a path (often an Elite)
+  used to drop you straight into the next table, so the Pit Boss felt like it came out of nowhere. Now the map shows
+  where you're headed and the table (and a boss's entrance) waits until you press Continue. Elite, Eye in the Sky and
+  Enforcer tables skip it. UI only: Core and replays are unchanged.
+- **Special cards look special.** An enhanced card's whole face is tinted in its enhancement's color (Wild is violet),
+  with a thick border and a label strip; a stamp is a large wax seal in the top right. When a pack opens, upgraded or
+  stamped cards glow in their color and their names are colored, so you see what's special before reading.
 - **Four-color deck and Reduced motion** are menu options saved in PlayerPrefs. They only change presentation, never
   Core, so replays and run codes are unaffected.
 - **Dealer quips are UI only.** They use UnityEngine.Random in the Game layer, so they never touch the run's RNG.
@@ -205,3 +212,94 @@ Sofia never has one.
 - **Balance after all of it:** the bot (which raises into hot shoes and plays the obvious tricks) wins 9.6% and 9.3%
   of White Chip runs on two seed ranges, against about 10% before. The player gets stronger, the bosses fight back.
 - **Daily twists** come from the Daily seed, so everyone gets the same one, and they ride in the run code as `M<n>`.
+
+## Prototype: Keep 2 of 3 (off by default)
+
+Not in DESIGN.md yet. It's a menu switch so it can be playtested before anyone decides whether it belongs in the design.
+
+- **The rule.** Each deal gives you three cards and the dealer one face-up card. You give one of your three to the
+  dealer as his hole card and play the other two. Cards come out of the shoe in the usual order, so the third card is
+  the one that would have been his hole card.
+- **The hole card is face up,** since you chose it. No insurance is offered for the same reason. Give a 10 to an Ace
+  and he has blackjack.
+- **The dealer can't take a Black Stamp,** so a Black Stamp can't be given away, unless all three cards have one.
+- **Effects see the cards in deal order** once you choose: your two cards, then his hole card. Nothing fires while the
+  three cards are still on offer.
+- **2 fewer Hands per table** (`Balance.KeepTwoOfThreeHandsLess`). Without the cut, the bot's win rate goes from 10% to
+  45%. With it, over 1,000 White Chip runs:
+
+  | How the bot gives cards away | Runs won |
+  | --- | ---: |
+  | Normal game, rule off | 10.0% |
+  | Best choice | 11.4% |
+  | Random | 1.3% |
+  | Worst choice | 0.4% |
+
+  A good player ends up with about today's difficulty, but the choice now decides much more of the outcome.
+- **The tutorial table** keeps the normal deal and its normal Hands. Its stacked shoe teaches the two-card game.
+- **The run code** marks the rule with `K`.
+
+## Prototype: House cards (off by default)
+
+Not in DESIGN.md yet. It's a menu switch so it can be playtested before anyone decides whether it belongs in the design.
+
+- **The casino shuffles its own cards into the shoe** at every table: 1 on floor 1, 1 more on each floor after that,
+  and 2 extra at boss tables (`Balance.HouseCards`). Each one is a normal card with a random rank and suit, plus a
+  House effect. They're made fresh for each table and never enter your deck. The tutorial table has none.
+- **Each one is good in one hand and bad in the other:**
+
+  | Card | In your hand | In the dealer's hand |
+  | --- | --- | --- |
+  | Bounty | Win: +5 gold and x2 Mult. Lose: 1 extra Hand lost | +3 gold for each hand that beats him |
+  | Mirror | Copies the dealer's face-up card | Copies your first card |
+  | Fuse | Only 1 more card after it (no Double once it's spent) | He stops drawing, even below 17 |
+  | Loaded Die | Your showdown total +1, never past 21 | His total +1, so a 21 becomes a bust |
+  | Snitch | +8 Heat | His hole card turns face up |
+  | Leech | +3 Mult on a win | Steals 1 of your Burns |
+
+- **A Mirror copies at draw time** and again once the opening cards are all out, since your first card is dealt
+  before the dealer's face-up card. Keep 2 of 3's preview already counts a Mirror as what it will copy.
+- **The Loaded Die only counts at the showdown.** It never changes when the dealer stops drawing.
+- **The table code has a few hooks for them:** Hit and Double legality (Fuse), the dealer's draw (Fuse) and the
+  showdown comparison (Loaded Die). Everything else is in one `HouseRules` effect.
+- **Difficulty:** they cut both ways, so they add decisions, not difficulty. Over 1,000 bot runs each, the win rate
+  was 10.0% without them and 10.2% with them. With Keep 2 of 3 too, it was 13.4%, because Keep 2 of 3 lets you
+  steer a House card to whichever side it helps you on. Raising floor 1–3 targets is the lever that would make early
+  floors harder. At x2, floors 1–2 tables drop from about 97% won to about 85%, and whole runs drop to 3–6%. That
+  hasn't been applied.
+
+## Harder first floors
+
+- **Floors 1-3 targets went up x1.5, x1.3 and x1.15** (Low/High/Boss: 130/190/255, 200/300/405, 290/425/575). The bot
+  used to clear floor 1-2 tables 96-97% of the time, in about 2 deals, so early play never mattered. Now the floor 1
+  Low/High/Boss tables are won 92/90/85% of the time, and about 1 run in 4 ends on floor 1. Floors 4-8 are unchanged.
+- **The bot now wins 6.8% and 5.7%** on two seed ranges, down from about 10%. It never builds combos or buys packs,
+  so a real player lands above it. The balance guard test now allows 7-25% wins over its 300 seeds, and requires that
+  more than 65% of runs reach floor 2 (it was 80%).
+- **Tried and rejected:** x1.8/x1.5/x1.2 ended 40% of the bot's runs on floor 1. A run that dies before the first
+  shop matters too often isn't fun.
+- **With the prototypes:** Keep 2 of 3 wins 8.0%, House cards 6.2%, and both together 11.0%.
+
+## Prototype: the Rival (off by default)
+
+Not in DESIGN.md yet. It's a menu switch so it can be playtested.
+
+- **One rival per run,** picked from the seed (no random draw), takes the dealer's seat at the High Table on floors 2, 4,
+  6 and 8. The gallery gives the rival a painting like any other character, so the rival's text avoids pronouns.
+- **The duel:** both hands are face up, and the rival draws until beating your best standing hand, past 17 or
+  standing on 13 to beat your 12. A Fuse still stops the draw, and a Loaded Die counts.
+- **Each win against the rival brings back a new trick:** meeting 2 also hits on ties, meeting 3 also palms the first
+  card that would bust (like The Cheat), and meeting 4 costs you 1 Hand. Beating a rival table pays +8 gold.
+- **The target is x1.7.** Chasing past 17 busts the rival often enough that at x1 the tables were as easy as a
+  dealer's. At x1.7 the four meetings are won about 84/93/85/81% of the time by the bot, close to the Pit Bosses.
+  The bot's run win rate with the Rival on is 7.1%, against 6.8% without, because the gold makes up for the harder
+  tables.
+- **All three prototypes together** win 9.5% of runs.
+- **The menu shows the three prototypes on one line,** each explained on hover. The panel overflowed with a full
+  description for each.
+- **The rival has a voice.** Every meeting opens with an entrance card in the bosses' frame. From the second meeting
+  on, it remembers the last one ("Floor 2. 412 against my 340."). The rival speaks after every hand, not 40% of the
+  time like dealers, and gets angry, not sad, when you win. Beating a rival table gets a parting line that names the
+  next floor; the last one is "Go on, then. Tell The House I said hello." The banner and badge say RIVAL, not DEALER.
+- **How to play has a "Prototype rules" page** covering all three. Long How to play pages now scroll inside the panel
+  and say "Scroll for more"; before, the boss list and the new page ran past the panel's bottom edge.

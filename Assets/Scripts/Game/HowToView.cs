@@ -9,9 +9,11 @@ namespace HouseEdge.Game
     // how to play, one short page at a time
     public sealed class HowToView
     {
-        private static readonly string[] Pages = { "The goal", "Blackjack", "Scoring", "Combos", "Count, raises & tricks", "Your deck", "Vices & the shop", "Heat", "The bosses", "Controls" };
+        private static readonly string[] Pages = { "The goal", "Blackjack", "Scoring", "Combos", "Count, raises & tricks", "Your deck", "Vices & the shop", "Heat", "The bosses", "Prototype rules", "Controls" };
 
         private readonly VisualElement _root, _tabs, _page;
+        private readonly ScrollView _scroll;
+        private readonly Label _more;
         private int _current;
 
         public bool IsOpen => _root.style.display == DisplayStyle.Flex;
@@ -41,17 +43,29 @@ namespace HouseEdge.Game
             var body = Ui.Row(panel, 22);
             body.style.flexGrow = 1;
             body.style.alignItems = Align.Stretch;
+            // long pages scroll inside the panel instead of pushing past its bottom edge
+            body.style.minHeight = 0;
+            body.style.flexShrink = 1;
+            body.style.overflow = Overflow.Hidden;
             _tabs = Ui.Column(body, 6);
             _tabs.style.width = 190;
-            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            var scroll = _scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.style.flexGrow = 1;
-            scroll.verticalScrollerVisibility = ScrollerVisibility.Hidden;
+            scroll.style.minHeight = 0;
+            scroll.verticalScrollerVisibility = ScrollerVisibility.Auto;
             Ui.Add(body, scroll);
             _page = Ui.Column(null, 12);
             scroll.Add(_page);
+            _page.RegisterCallback<GeometryChangedEvent>(_ => UpdateMore());
+            scroll.RegisterCallback<GeometryChangedEvent>(_ => UpdateMore());
 
             var nav = Ui.Row(panel, 10);
             nav.style.justifyContent = Justify.FlexEnd;
+            // the scroll bar isn't drawn (no theme), so say so when a page runs long
+            _more = Ui.Text(nav, "Scroll for more", 13, Ui.Dim, Weight.Bold);
+            _more.style.flexGrow = 1;
+            _more.style.unityTextAlign = TextAnchor.MiddleLeft;
+            _more.style.paddingLeft = 212;
             Ui.Button(nav, "Back", () => Show(Math.Max(0, _current - 1)), ButtonKind.Ghost).style.height = 36;
             Ui.Button(nav, "Next", () => Show(Math.Min(Pages.Length - 1, _current + 1)), ButtonKind.Gold).style.height = 36;
             Ui.Show(_root, false);
@@ -65,6 +79,16 @@ namespace HouseEdge.Game
         }
 
         public void Close() => Ui.Show(_root, false);
+
+        private void UpdateMore()
+        {
+            if (_more == null) return;
+            // the page box itself shrinks to the viewport, so measure where its last line ends
+            float viewport = _scroll.contentViewport.layout.height;
+            float content = _page.childCount > 0 ? _page.Children().Max(c => c.layout.yMax) : 0;
+            bool longer = !float.IsNaN(viewport) && !float.IsNaN(content) && content > viewport + 4;
+            _more.style.visibility = longer ? Visibility.Visible : Visibility.Hidden;
+        }
 
         private void Show(int index)
         {
@@ -89,11 +113,14 @@ namespace HouseEdge.Game
                 case 6: Vices(); break;
                 case 7: Heat(); break;
                 case 8: BossList(); break;
+                case 9: Prototypes(); break;
                 default: Controls(); break;
             }
             // no theme stylesheet: keep the page's rows from squashing each other
             foreach (var child in _page.Children()) child.style.flexShrink = 0;
             Ui.Enter(_page, 12, 0, 0.2f);
+            _scroll.scrollOffset = Vector2.zero;
+            UpdateMore();
         }
 
         private void Heading(string text) => Ui.Title(_page, text, 24, Ui.Cream, glow: false);
@@ -288,6 +315,39 @@ namespace HouseEdge.Game
             }
         }
 
+        // the three rules being tried out, switched on under Prototypes in the run setup
+        private void Prototypes()
+        {
+            Heading("Rules you can switch on");
+            Para("These are being tried out. Turn them on under PROTOTYPES in the run setup. They're off by default, and each one works with the others.");
+
+            Ui.Text(_page, "KEEP 2 OF 3", 16, Ui.Gold, Weight.Heavy);
+            Para($"Every deal gives you three cards and the dealer one face-up card. Give one of yours away: it becomes the dealer's hole card, face up, and you play the other two. Under each card you see what you'd keep and what he'd have. Click a card or press 1, 2 or 3.");
+            Para($"Hand him a 12 to 16 and he has to draw, and may bust. Hand him a 10 or an Ace and he's strong. Give a 10 to an Ace and it's blackjack. You get {Balance.KeepTwoOfThreeHandsLess} fewer Hands per table, because the choice makes every deal better.");
+
+            Ui.Text(_page, "HOUSE CARDS", 16, Ui.Gold, Weight.Heavy);
+            Para($"The casino shuffles its own cards into the shoe: {Balance.HouseCards(1, false)} on floor 1, one more every floor, and {Balance.HouseCardsAtBoss} extra at a boss. They're real cards with a black HOUSE band. Each one helps whoever holds it and hurts the other side, so pay attention to who gets it. With Keep 2 of 3 on, you decide.");
+            var cards = Ui.Row(_page, 10);
+            cards.style.flexWrap = Wrap.Wrap;
+            var ranks = new[] { Rank.King, Rank.Seven, Rank.Four, Rank.Nine, Rank.Queen, Rank.Six };
+            for (int i = 0; i < HouseCards.All.Count; i++)
+            {
+                var card = Card.OfHouse(ranks[i % ranks.Length], (Suit)(i % 4), HouseCards.All[i]);
+                cards.Add(CardView.Create(card, 0.7f));
+            }
+            foreach (var kind in HouseCards.All)
+            {
+                var row = Ui.Row(_page, 10);
+                row.style.alignItems = Align.FlexStart;
+                Ui.Text(row, HouseCards.Name(kind), 14, CardView.HouseColor(kind), Weight.Heavy).style.width = 100;
+                Ui.Body(row, HouseCards.Describe(kind), 13, Ui.Cream).style.flexShrink = 1;
+            }
+
+            Ui.Text(_page, "THE RIVAL", 16, Ui.Gold, Weight.Heavy);
+            Para($"One gambler with a grudge takes the dealer's seat at the High Table every other floor. Both hands are face up, and your rival keeps drawing until beating your hand, even past 17. A low Stand rarely holds up, but chasing you is how a rival busts.");
+            Para($"Every time you win, your rival comes back with a new trick: hitting on ties, then palming a card that would bust, and at the last meeting you get {Balance.RivalFinalHandsLess} fewer Hand. Rival tables need {Balance.RivalTargetFactor:0.#}x the points, and beating one pays +{Balance.RivalBeatenGold} gold. The map shows where your rival is waiting.");
+        }
+
         private void Controls()
         {
             Heading("Keys");
@@ -301,6 +361,7 @@ namespace HouseEdge.Game
                 ("W", "Swap with the dealer (Card Mechanic Vice)"),
                 ("X", "Raise the bet before a deal"),
                 ("1 / 2", "Play a trick card during your turn"),
+                ("1 / 2 / 3", "Keep 2 of 3: give that card to the dealer"),
                 ("Drag", "Drag your last card into your sleeve to palm it"),
                 ("Click", "Grab the lucky chip; pick a card for Steal or Nudge"),
                 ("1 / 2 / 3", "Pick the next stop on the map"),

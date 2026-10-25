@@ -205,19 +205,23 @@ What it found, in order:
    were scaled down to match. The bot plays plain blackjack and never chases a combo, so it's a floor, not an average.
 
 Research targets: Slay the Spire 2's reported overall win rate is about 25%, and 16% at its base difficulty. The bot
-now wins **about 10%** (10.6% on seeds 1-1000, 9.7% on 5001-6000) without ever building for combos, so a player who does
-should land well above it. Floors 1-2 are forgiving (96-97% of tables) and every Pit Boss is a spike (83-91%).
+wins **about 6%** (6.8% on seeds 1-1000, 5.7% on 5001-6000) without ever building for combos, so a player who does
+should land well above it.
+
+6. **The first floors were a formality.** At about 10%, the bot cleared floor 1-2 tables 96-97% of the time, usually
+   in about 2 deals, so early mistakes cost nothing. Floor 1-3 targets went up x1.5, x1.3 and x1.15. Now about 1 run
+   in 4 ends on floor 1, and floors 4-8 are unchanged. (x1.8 lost 40% of runs on floor 1, which was too punishing.)
 
 | Floor | Low win | High win | Boss win | Runs reaching | Deals to clear a table |
 | ----: | ------: | -------: | -------: | ------------: | ---------------------: |
-| 1 | 96% | 97% | 91% | 100% | 2.8-3.0 |
-| 2 | 97% | 96% | 87% | 84% | 2.4-3.2 |
-| 3 | 96% | 92% | 85% | 68% | 2.6-3.2 |
-| 4 | 94% | 94% | 83% | 51% | 2.7-3.0 |
-| 5 | 94% | 92% | 83% | 37% | 2.7-3.2 |
-| 6 | 95% | 94% | 83% | 27% | 2.7-3.5 |
-| 7 | 92% | 92% | 83% | 20% | 2.7-3.5 |
-| 8 | 94% | 89% | 84% (The House) | 14% | 2.7-4.5 |
+| 1 | 92% | 90% | 85% | 100% | 3.1-3.4 |
+| 2 | 97% | 93% | 87% | 69% | 2.7-3.4 |
+| 3 | 91% | 91% | 84% | 54% | 2.8-3.3 |
+| 4 | 96% | 92% | 83% | 37% | 2.7-3.3 |
+| 5 | 93% | 90% | 80% | 27% | 2.8-3.1 |
+| 6 | 94% | 90% | 82% | 18% | 2.7-3.3 |
+| 7 | 93% | 95% | 79% | 13% | 2.6-3.2 |
+| 8 | 100% | 95% | 84% (The House) | 9% | 2.5-3.9 |
 
 **Every playstyle viable.** Focusing the bot on one archetype used to range from 2% (Cheater) to 22% (Risky).
 A balance pass cut Cheater Heat costs, gave Lucky and Combo Vices more punch, toned All In down from x4 to x3,
