@@ -8,7 +8,7 @@ The twist: **the dealer draws from your deck too.** Stack it with 10s and you hi
 
 ![The balance bot playing floor 3: the shop, the floor map, dealer tables and a Pit Boss](docs/gameplay.gif)
 
-**Play in the browser:** _coming soon on itch.io_ <!-- TODO: replace with https://<user>.itch.io/house-edge -->
+**Play in the browser:** [b3nd0.itch.io/house-edge](https://b3nd0.itch.io/house-edge)
 
 | A floor-3 High Table | The shop |
 | -------------------- | -------- |
